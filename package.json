@@ -1,0 +1,10 @@
+{
+  "name": "writeteam-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix writeteam run dev",
+    "build": "npm --prefix writeteam run build",
+    "start": "npm --prefix writeteam run start",
+    "lint": "npm --prefix writeteam run lint"
+  }
+}
