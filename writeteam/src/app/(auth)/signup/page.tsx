@@ -39,9 +39,9 @@ export default function SignUpPage() {
         return
       }
 
-      setError("Unable to sign up right now. Please try again.")
+      setError("当前无法注册，请稍后重试。")
     } catch {
-      setError("Authentication request failed. Please try again.")
+      setError("认证请求失败，请稍后重试。")
     } finally {
       setLoading(false)
     }
@@ -55,9 +55,9 @@ export default function SignUpPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg ring-4 ring-primary/15">
             <PenLine className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-semibold tracking-tight">Create your account</CardTitle>
+          <CardTitle className="text-3xl font-semibold tracking-tight">创建账号</CardTitle>
           <CardDescription className="text-sm text-muted-foreground/90">
-            Start writing your story with AI assistance
+            使用 AI 辅助，开始你的写作之旅
           </CardDescription>
         </CardHeader>
         <form action={handleSubmit}>
@@ -68,36 +68,36 @@ export default function SignUpPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName">姓名</Label>
               <Input
                 id="fullName"
                 name="fullName"
                 type="text"
-                placeholder="Your name"
+                placeholder="请输入姓名"
                 required
                 autoComplete="name"
                 className="h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">邮箱</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="name@example.com"
                 required
                 autoComplete="email"
                 className="h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">密码</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                placeholder="At least 6 characters"
+                placeholder="至少 6 个字符"
                 required
                 minLength={6}
                 autoComplete="new-password"
@@ -108,15 +108,15 @@ export default function SignUpPage() {
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="h-11 w-full font-medium" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Account
+              创建账号
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              已有账号？{" "}
               <Link
                 href="/login"
                 className="font-semibold text-primary underline-offset-4 hover:underline"
               >
-                Sign in
+                去登录
               </Link>
             </p>
           </CardFooter>

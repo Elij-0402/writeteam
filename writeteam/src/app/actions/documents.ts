@@ -11,7 +11,7 @@ export async function getDocuments(projectId: string) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated", data: [] }
+    return { error: "未登录", data: [] }
   }
 
   const { data, error } = await supabase
@@ -35,7 +35,7 @@ export async function getDocument(documentId: string) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated", data: null }
+    return { error: "未登录", data: null }
   }
 
   const { data, error } = await supabase
@@ -59,7 +59,7 @@ export async function createDocument(projectId: string, formData: FormData) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated" }
+    return { error: "未登录" }
   }
 
   const title = formData.get("title") as string
@@ -110,7 +110,7 @@ export async function updateDocument(
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated" }
+    return { error: "未登录" }
   }
 
   const { error } = await supabase
@@ -136,7 +136,7 @@ export async function deleteDocument(documentId: string, projectId: string) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated" }
+    return { error: "未登录" }
   }
 
   const { error } = await supabase

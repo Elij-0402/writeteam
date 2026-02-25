@@ -19,12 +19,12 @@ export default function HomePage() {
             <PenLine className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">WriteTeam</span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link href="/login">
-              <Button variant="ghost">Sign In</Button>
+              <Button variant="ghost">登录</Button>
             </Link>
             <Link href="/signup">
-              <Button>Get Started</Button>
+              <Button>立即开始</Button>
             </Link>
           </div>
         </div>
@@ -35,29 +35,28 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border bg-muted px-4 py-1.5 text-sm text-muted-foreground">
             <Sparkles className="h-4 w-4" />
-            AI-Powered Creative Writing
+            AI 创意写作助手
           </div>
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-            Write your story
+            写下你的故事
             <br />
             <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              with AI by your side
+              让 AI 与你并肩创作
             </span>
           </h1>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            WriteTeam is your AI writing partner for fiction. Brainstorm ideas,
-            draft scenes, rewrite prose, and build rich story worlds — all in one
-            beautiful editor.
+            WriteTeam 是你的小说创作搭档。你可以头脑风暴、生成场景初稿、润色改写，
+            并在同一编辑器中构建完整世界观。
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link href="/signup">
               <Button size="lg" className="h-12 px-8 text-base">
-                Start Writing Free
+                免费开始创作
               </Button>
             </Link>
             <Link href="/login">
               <Button variant="outline" size="lg" className="h-12 px-8 text-base">
-                Sign In
+                登录
               </Button>
             </Link>
           </div>
@@ -68,38 +67,38 @@ export default function HomePage() {
       <section className="border-t bg-muted/30 px-4 py-24">
         <div className="container mx-auto max-w-6xl">
           <h2 className="mb-16 text-center text-3xl font-bold">
-            Everything you need to write your masterpiece
+            完整覆盖你的创作流程
           </h2>
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             <FeatureCard
               icon={<PenLine className="h-8 w-8" />}
-              title="Smart Writing"
-              description="AI continues your story with context-aware autocomplete. Choose Auto, Guided, or Tone Shift modes to match your creative flow."
+              title="智能续写"
+              description="AI 基于上下文继续创作。可切换自动、引导和语气模式，贴合你的写作节奏。"
             />
             <FeatureCard
               icon={<Wand2 className="h-8 w-8" />}
-              title="Rewrite & Polish"
-              description="Rephrase, shorten, expand, or change the tone of any passage. Show don't tell, make it more intense, or customize freely."
+              title="改写与润色"
+              description="对任意段落进行重写、精简、扩展或语气调整，支持展示而非告知等高级改写。"
             />
             <FeatureCard
               icon={<Brain className="h-8 w-8" />}
-              title="Brainstorm"
-              description="Generate character names, plot twists, world details, and more. Thumbs-up your favorites to guide the AI toward your vision."
+              title="灵感头脑风暴"
+              description="快速生成角色设定、剧情反转与世界细节，并通过反馈让 AI 更懂你的偏好。"
             />
             <FeatureCard
               icon={<BookOpen className="h-8 w-8" />}
-              title="Story Bible"
-              description="Keep your story's brain in one place — characters, world rules, synopsis, outline. The AI reads it all to stay consistent."
+              title="故事圣经"
+              description="集中管理角色、世界规则、梗概和大纲，帮助 AI 在全书范围内保持一致性。"
             />
             <FeatureCard
               icon={<Sparkles className="h-8 w-8" />}
-              title="First Draft"
-              description="Turn your outline beats into full prose scenes. Go from story structure to a complete first draft in hours, not months."
+              title="首稿生成"
+              description="把大纲节拍快速扩展为完整场景，从结构到成文，大幅缩短写作周期。"
             />
             <FeatureCard
               icon={<MessageSquare className="h-8 w-8" />}
-              title="AI Chat"
-              description="Chat with an AI that knows your story. Ask about your characters, get suggestions, or brainstorm plot points in conversation."
+              title="AI 对话"
+              description="与理解你故事上下文的 AI 实时交流，讨论角色、情节和下一步写作方向。"
             />
           </div>
         </div>
@@ -112,7 +111,7 @@ export default function HomePage() {
             <PenLine className="h-4 w-4" />
             <span>WriteTeam</span>
           </div>
-          <p>AI-powered creative writing assistant</p>
+          <p>AI 驱动的创意写作助手</p>
         </div>
       </footer>
     </div>

@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WriteTeam - AI Writing Assistant",
+  title: "WriteTeam - AI 写作助手",
   description:
-    "AI-powered creative writing assistant for fiction authors. Write, rewrite, brainstorm, and build your story with AI.",
+    "面向小说作者的 AI 创意写作助手，支持续写、改写、头脑风暴与故事世界构建。",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

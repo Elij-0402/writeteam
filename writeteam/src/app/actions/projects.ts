@@ -10,7 +10,7 @@ export async function createProject(formData: FormData) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated" }
+    return { error: "未登录" }
   }
 
   const title = formData.get("title") as string
@@ -42,7 +42,7 @@ export async function createProject(formData: FormData) {
   await supabase.from("documents").insert({
     project_id: project.id,
     user_id: user.id,
-    title: "Chapter 1",
+    title: "第 1 章",
     document_type: "chapter",
     sort_order: 0,
   })
@@ -58,7 +58,7 @@ export async function updateProject(projectId: string, formData: FormData) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated" }
+    return { error: "未登录" }
   }
 
   const title = formData.get("title") as string
@@ -92,7 +92,7 @@ export async function deleteProject(projectId: string) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated" }
+    return { error: "未登录" }
   }
 
   const { error } = await supabase
@@ -116,7 +116,7 @@ export async function getProjects() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: "Not authenticated", data: [] }
+    return { error: "未登录", data: [] }
   }
 
   const { data, error } = await supabase

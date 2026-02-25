@@ -8,13 +8,13 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
   const { projectId, feature, responseFingerprint, rating } = await request.json()
 
   if (!projectId || !feature || !responseFingerprint || ![1, -1].includes(rating)) {
-    return Response.json({ error: "Invalid feedback payload" }, { status: 400 })
+    return Response.json({ error: "反馈参数无效" }, { status: 400 })
   }
 
   const { data, error } = await supabase
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!data || data.length === 0) {
-    return Response.json({ error: "Matching AI response not found" }, { status: 404 })
+    return Response.json({ error: "未找到对应的 AI 响应" }, { status: 404 })
   }
 
   return Response.json({ success: true })

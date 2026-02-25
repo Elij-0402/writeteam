@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 export async function getStoryBible(projectId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated", data: null }
+  if (!user) return { error: "未登录", data: null }
 
   const { data, error } = await supabase
     .from("story_bibles")
@@ -25,7 +25,7 @@ export async function updateStoryBible(
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
+  if (!user) return { error: "未登录" }
 
   const { error } = await supabase
     .from("story_bibles")
@@ -41,7 +41,7 @@ export async function updateStoryBible(
 export async function getCharacters(projectId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated", data: [] }
+  if (!user) return { error: "未登录", data: [] }
 
   const { data, error } = await supabase
     .from("characters")
@@ -57,7 +57,7 @@ export async function getCharacters(projectId: string) {
 export async function createCharacter(projectId: string, formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
+  if (!user) return { error: "未登录" }
 
   const name = formData.get("name") as string
   const role = formData.get("role") as string
@@ -84,7 +84,7 @@ export async function updateCharacter(
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
+  if (!user) return { error: "未登录" }
 
   const { error } = await supabase
     .from("characters")
@@ -99,7 +99,7 @@ export async function updateCharacter(
 export async function deleteCharacter(characterId: string, projectId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
+  if (!user) return { error: "未登录" }
 
   const { error } = await supabase
     .from("characters")

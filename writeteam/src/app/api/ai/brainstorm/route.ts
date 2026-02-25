@@ -6,13 +6,13 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
   const { topic, context, projectId, documentId } = await request.json()
 
   if (!topic) {
-    return Response.json({ error: "No topic provided" }, { status: 400 })
+    return Response.json({ error: "未提供主题" }, { status: 400 })
   }
 
   const systemPrompt = `You are a creative brainstorming partner for fiction writers. Generate unique, interesting, and diverse ideas. Be creative and unexpected. Format each idea as a numbered list item with a brief explanation.`
@@ -25,7 +25,7 @@ ${context ? `Story context for reference:\n${context.slice(-1000)}\n\n` : ""}Gen
     const startedAt = Date.now()
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
-      return Response.json({ error: "OpenAI API key not configured" }, { status: 500 })
+      return Response.json({ error: "OpenAI API Key 未配置" }, { status: 500 })
     }
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -100,6 +100,6 @@ ${context ? `Story context for reference:\n${context.slice(-1000)}\n\n` : ""}Gen
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     })
   } catch {
-    return Response.json({ error: "Internal server error" }, { status: 500 })
+    return Response.json({ error: "服务器内部错误" }, { status: 500 })
   }
 }

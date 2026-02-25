@@ -59,45 +59,45 @@ export function CommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Type a command or search..." />
+      <CommandInput placeholder="输入命令或搜索..." />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>未找到结果。</CommandEmpty>
 
-        <CommandGroup heading="Navigation">
+        <CommandGroup heading="导航">
           <CommandItem
             onSelect={() => runCommand(() => router.push("/dashboard"))}
           >
             <LayoutDashboard className="mr-2 h-4 w-4" />
-            Go to Dashboard
+            前往项目面板
           </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
-        <CommandGroup heading="Actions">
+        <CommandGroup heading="操作">
           {onNewProject && (
             <CommandItem onSelect={() => runCommand(onNewProject)}>
               <Plus className="mr-2 h-4 w-4" />
-              New Project
+              新建项目
             </CommandItem>
           )}
           {onToggleStoryBible && (
             <CommandItem onSelect={() => runCommand(onToggleStoryBible)}>
               <BookOpen className="mr-2 h-4 w-4" />
-              Toggle Story Bible
+              切换故事圣经
             </CommandItem>
           )}
           {onToggleChat && (
             <CommandItem onSelect={() => runCommand(onToggleChat)}>
               <MessageSquare className="mr-2 h-4 w-4" />
-              Toggle AI Chat
+              切换 AI 对话
             </CommandItem>
           )}
         </CommandGroup>
 
         <CommandSeparator />
 
-        <CommandGroup heading="Settings">
+        <CommandGroup heading="设置">
           <CommandItem
             onSelect={() =>
               runCommand(() =>
@@ -110,13 +110,13 @@ export function CommandPalette({
             ) : (
               <Moon className="mr-2 h-4 w-4" />
             )}
-            Toggle Theme
+            切换主题
           </CommandItem>
           <CommandItem
             onSelect={() => runCommand(() => signOut())}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+            退出登录
           </CommandItem>
         </CommandGroup>
       </CommandList>

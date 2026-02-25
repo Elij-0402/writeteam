@@ -58,7 +58,7 @@ export function WritingEditor({
           heading: { levels: [1, 2, 3] },
         }),
         Placeholder.configure({
-          placeholder: "Start writing your story...",
+          placeholder: "开始创作你的故事...",
         }),
         CharacterCount,
         Highlight,
@@ -126,29 +126,29 @@ export function WritingEditor({
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Formatting Toolbar */}
-      <div className="flex items-center gap-0.5 border-b px-2 py-1">
+      <div className="flex items-center gap-1 border-b px-3 py-1.5">
         <ToolbarButton
           icon={<Bold className="h-4 w-4" />}
-          label="Bold"
+          label="加粗"
           active={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
         />
         <ToolbarButton
           icon={<Italic className="h-4 w-4" />}
-          label="Italic"
+          label="斜体"
           active={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         />
         <ToolbarButton
           icon={<Strikethrough className="h-4 w-4" />}
-          label="Strikethrough"
+          label="删除线"
           active={editor.isActive("strike")}
           onClick={() => editor.chain().focus().toggleStrike().run()}
         />
         <Separator orientation="vertical" className="mx-1 h-6" />
         <ToolbarButton
           icon={<Heading1 className="h-4 w-4" />}
-          label="Heading 1"
+          label="标题 1"
           active={editor.isActive("heading", { level: 1 })}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 1 }).run()
@@ -156,7 +156,7 @@ export function WritingEditor({
         />
         <ToolbarButton
           icon={<Heading2 className="h-4 w-4" />}
-          label="Heading 2"
+          label="标题 2"
           active={editor.isActive("heading", { level: 2 })}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 2 }).run()
@@ -164,7 +164,7 @@ export function WritingEditor({
         />
         <ToolbarButton
           icon={<Heading3 className="h-4 w-4" />}
-          label="Heading 3"
+          label="标题 3"
           active={editor.isActive("heading", { level: 3 })}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 3 }).run()
@@ -173,43 +173,43 @@ export function WritingEditor({
         <Separator orientation="vertical" className="mx-1 h-6" />
         <ToolbarButton
           icon={<List className="h-4 w-4" />}
-          label="Bullet List"
+          label="无序列表"
           active={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
         />
         <ToolbarButton
           icon={<ListOrdered className="h-4 w-4" />}
-          label="Ordered List"
+          label="有序列表"
           active={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
         />
         <ToolbarButton
           icon={<Quote className="h-4 w-4" />}
-          label="Blockquote"
+          label="引用"
           active={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         />
         <ToolbarButton
           icon={<Minus className="h-4 w-4" />}
-          label="Horizontal Rule"
+          label="分割线"
           active={false}
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
         />
         <Separator orientation="vertical" className="mx-1 h-6" />
         <ToolbarButton
           icon={<Undo className="h-4 w-4" />}
-          label="Undo"
+          label="撤销"
           active={false}
           onClick={() => editor.chain().focus().undo().run()}
         />
         <ToolbarButton
           icon={<Redo className="h-4 w-4" />}
-          label="Redo"
+          label="重做"
           active={false}
           onClick={() => editor.chain().focus().redo().run()}
         />
         <div className="ml-auto text-xs text-muted-foreground">
-          {wordCount.toLocaleString()} words
+          字数 {wordCount.toLocaleString()}
         </div>
       </div>
 

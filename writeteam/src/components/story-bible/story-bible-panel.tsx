@@ -97,7 +97,7 @@ export function StoryBiblePanel({
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success("Story Bible saved")
+      toast.success("故事圣经已保存")
     }
     setSaving(false)
   }
@@ -110,7 +110,7 @@ export function StoryBiblePanel({
     } else if (result.data) {
       setCharacters((prev) => [...prev, result.data!])
       setNewCharOpen(false)
-      toast.success("Character created")
+      toast.success("角色已创建")
     }
     setCreatingChar(false)
   }
@@ -121,7 +121,7 @@ export function StoryBiblePanel({
       toast.error(result.error)
     } else {
       setCharacters((prev) => prev.filter((c) => c.id !== charId))
-      toast.success("Character deleted")
+      toast.success("角色已删除")
     }
   }
 
@@ -138,10 +138,10 @@ export function StoryBiblePanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-2">
+      <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Story Bible</h3>
+          <h3 className="text-sm font-semibold">故事圣经</h3>
         </div>
         <Button
           variant="ghost"
@@ -155,20 +155,20 @@ export function StoryBiblePanel({
           ) : (
             <Save className="h-3 w-3" />
           )}
-          Save
+          保存
         </Button>
       </div>
 
       <Tabs defaultValue="overview" className="flex flex-1 flex-col">
         <TabsList className="mx-4 mt-2 grid w-auto grid-cols-3">
           <TabsTrigger value="overview" className="text-xs">
-            Overview
+            概览
           </TabsTrigger>
           <TabsTrigger value="characters" className="text-xs">
-            Characters
+            角色
           </TabsTrigger>
           <TabsTrigger value="world" className="text-xs">
-            World
+            世界观
           </TabsTrigger>
         </TabsList>
 
@@ -177,10 +177,10 @@ export function StoryBiblePanel({
           <TabsContent value="overview" className="mt-0 space-y-4">
             <div className="space-y-2">
               <Label className="text-xs font-medium flex items-center gap-1.5">
-                <Lightbulb className="h-3 w-3" /> Braindump
+                <Lightbulb className="h-3 w-3" /> 灵感池
               </Label>
               <Textarea
-                placeholder="Dump all your raw ideas here — the AI will reference this..."
+                placeholder="把你的原始灵感都记录在这里，AI 会参考这些内容..."
                 value={braindump}
                 onChange={(e) => setBraindump(e.target.value)}
                 rows={4}
@@ -189,51 +189,51 @@ export function StoryBiblePanel({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-xs">Genre</Label>
+                <Label className="text-xs">题材</Label>
                 <Input
-                  placeholder="Fantasy, Sci-Fi..."
+                  placeholder="奇幻、科幻..."
                   value={genre}
                   onChange={(e) => setGenre(e.target.value)}
                   className="h-8 text-xs"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Style</Label>
+                <Label className="text-xs">风格</Label>
                 <Input
-                  placeholder="Dark, lyrical..."
+                  placeholder="黑暗、抒情..."
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
                   className="h-8 text-xs"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Prose Mode</Label>
+                <Label className="text-xs">文风模式</Label>
                 <Select value={proseMode} onValueChange={setProseMode}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="balanced" className="text-xs">Balanced</SelectItem>
-                    <SelectItem value="cinematic" className="text-xs">Cinematic</SelectItem>
-                    <SelectItem value="lyrical" className="text-xs">Lyrical</SelectItem>
-                    <SelectItem value="minimal" className="text-xs">Minimal</SelectItem>
-                    <SelectItem value="match-style" className="text-xs">Match Style Sample</SelectItem>
+                    <SelectItem value="balanced" className="text-xs">均衡</SelectItem>
+                    <SelectItem value="cinematic" className="text-xs">电影感</SelectItem>
+                    <SelectItem value="lyrical" className="text-xs">抒情</SelectItem>
+                    <SelectItem value="minimal" className="text-xs">简洁</SelectItem>
+                    <SelectItem value="match-style" className="text-xs">匹配风格样本</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">POV</Label>
                 <Input
-                  placeholder="Third person limited"
+                  placeholder="第三人称限知"
                   value={pov}
                   onChange={(e) => setPov(e.target.value)}
                   className="h-8 text-xs"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Tense</Label>
+                <Label className="text-xs">时态</Label>
                 <Input
-                  placeholder="Past tense"
+                  placeholder="过去时"
                   value={tense}
                   onChange={(e) => setTense(e.target.value)}
                   className="h-8 text-xs"
@@ -242,10 +242,10 @@ export function StoryBiblePanel({
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium flex items-center gap-1.5">
-                <FileText className="h-3 w-3" /> Synopsis
+                <FileText className="h-3 w-3" /> 故事梗概
               </Label>
               <Textarea
-                placeholder="A high-level summary of your story..."
+                placeholder="故事的高层概要..."
                 value={synopsis}
                 onChange={(e) => setSynopsis(e.target.value)}
                 rows={4}
@@ -253,9 +253,9 @@ export function StoryBiblePanel({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Outline (JSON or line list)</Label>
+              <Label className="text-xs">大纲（JSON 或逐行）</Label>
               <Textarea
-                placeholder='[{"chapter":"Chapter 1","beats":["Beat 1","Beat 2"]}] or one line per beat'
+                placeholder='[{"chapter":"第1章","beats":["节拍1","节拍2"]}] 或每行一个节拍'
                 value={outlineText}
                 onChange={(e) => setOutlineText(e.target.value)}
                 rows={4}
@@ -263,9 +263,9 @@ export function StoryBiblePanel({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Themes</Label>
+              <Label className="text-xs">主题</Label>
               <Textarea
-                placeholder="The major themes explored in your story..."
+                placeholder="故事要探讨的核心主题..."
                 value={themes}
                 onChange={(e) => setThemes(e.target.value)}
                 rows={3}
@@ -273,9 +273,9 @@ export function StoryBiblePanel({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Style Sample (for Match Style)</Label>
+              <Label className="text-xs">风格样本（用于匹配风格）</Label>
               <Textarea
-                placeholder="Paste 1-3 paragraphs in your target narrative voice"
+                placeholder="粘贴 1-3 段目标叙事风格文本"
                 value={styleSample}
                 onChange={(e) => setStyleSample(e.target.value)}
                 rows={4}
@@ -283,9 +283,9 @@ export function StoryBiblePanel({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Notes</Label>
+              <Label className="text-xs">备注</Label>
               <Textarea
-                placeholder="Any additional notes..."
+                placeholder="其他补充说明..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
@@ -298,37 +298,37 @@ export function StoryBiblePanel({
           <TabsContent value="characters" className="mt-0 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
-                {characters.length} character{characters.length !== 1 ? "s" : ""}
+                {characters.length} 个角色
               </span>
               <Dialog open={newCharOpen} onOpenChange={setNewCharOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
                     <Plus className="h-3 w-3" />
-                    Add
+                    添加
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <form action={handleCreateCharacter}>
                     <DialogHeader>
-                      <DialogTitle>New Character</DialogTitle>
+                      <DialogTitle>新建角色</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
-                        <Label>Name</Label>
-                        <Input name="name" placeholder="Character name" required />
+                        <Label>姓名</Label>
+                        <Input name="name" placeholder="角色姓名" required />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Role</Label>
+                        <Label>定位</Label>
                         <Input
                           name="role"
-                          placeholder="Protagonist, Antagonist, Side character..."
+                          placeholder="主角、反派、配角..."
                         />
                       </div>
                     </div>
                     <DialogFooter>
                       <Button type="submit" disabled={creatingChar}>
                         {creatingChar && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Create
+                        创建
                       </Button>
                     </DialogFooter>
                   </form>
@@ -339,7 +339,7 @@ export function StoryBiblePanel({
             {characters.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <User className="mb-2 h-8 w-8 text-muted-foreground/50" />
-                <p className="text-xs text-muted-foreground">No characters yet</p>
+                <p className="text-xs text-muted-foreground">还没有角色</p>
               </div>
             ) : (
               <Accordion type="single" collapsible className="space-y-1">
@@ -358,39 +358,39 @@ export function StoryBiblePanel({
                     </AccordionTrigger>
                     <AccordionContent className="space-y-3 pb-3">
                       <CharacterField
-                        label="Description"
+                        label="角色描述"
                         value={char.description || ""}
-                        placeholder="Brief character description..."
+                        placeholder="简要角色描述..."
                         onSave={(val) => handleUpdateCharacter(char.id, "description", val)}
                       />
                       <CharacterField
-                        label="Personality"
+                        label="性格"
                         value={char.personality || ""}
-                        placeholder="Character traits, quirks..."
+                        placeholder="角色特征、习惯..."
                         onSave={(val) => handleUpdateCharacter(char.id, "personality", val)}
                       />
                       <CharacterField
-                        label="Appearance"
+                        label="外貌"
                         value={char.appearance || ""}
-                        placeholder="Physical description..."
+                        placeholder="外形描写..."
                         onSave={(val) => handleUpdateCharacter(char.id, "appearance", val)}
                       />
                       <CharacterField
-                        label="Backstory"
+                        label="背景经历"
                         value={char.backstory || ""}
-                        placeholder="Character history..."
+                        placeholder="角色过往经历..."
                         onSave={(val) => handleUpdateCharacter(char.id, "backstory", val)}
                       />
                       <CharacterField
-                        label="Goals"
+                        label="目标"
                         value={char.goals || ""}
-                        placeholder="What does this character want?"
+                        placeholder="这个角色想要什么？"
                         onSave={(val) => handleUpdateCharacter(char.id, "goals", val)}
                       />
                       <CharacterField
-                        label="Relationships"
+                        label="关系"
                         value={char.relationships || ""}
-                        placeholder="Connections to other characters..."
+                        placeholder="与其他角色的关系..."
                         onSave={(val) => handleUpdateCharacter(char.id, "relationships", val)}
                       />
                       <Separator />
@@ -401,7 +401,7 @@ export function StoryBiblePanel({
                         onClick={() => handleDeleteCharacter(char.id)}
                       >
                         <Trash2 className="h-3 w-3" />
-                        Delete Character
+                        删除角色
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
@@ -414,10 +414,10 @@ export function StoryBiblePanel({
           <TabsContent value="world" className="mt-0 space-y-4">
             <div className="space-y-2">
               <Label className="text-xs font-medium flex items-center gap-1.5">
-                <Globe className="h-3 w-3" /> Setting
+                <Globe className="h-3 w-3" /> 场景设定
               </Label>
               <Textarea
-                placeholder="Where and when does your story take place?"
+                placeholder="故事发生在何时何地？"
                 value={setting}
                 onChange={(e) => setSetting(e.target.value)}
                 rows={4}
@@ -426,10 +426,10 @@ export function StoryBiblePanel({
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium flex items-center gap-1.5">
-                <Globe className="h-3 w-3" /> Worldbuilding
+                <Globe className="h-3 w-3" /> 世界构建
               </Label>
               <Textarea
-                placeholder="Rules, magic systems, technology, society, culture..."
+                placeholder="规则、魔法系统、科技、社会、文化..."
                 value={worldbuilding}
                 onChange={(e) => setWorldbuilding(e.target.value)}
                 rows={8}
@@ -488,7 +488,7 @@ function CharacterField({
               setDirty(false)
             }}
           >
-            Save
+            保存
           </Button>
         )}
       </div>

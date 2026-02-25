@@ -51,7 +51,7 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
       })
 
       if (!response.ok) {
-        throw new Error("Chat request failed")
+        throw new Error("对话请求失败")
       }
 
       const reader = response.body?.getReader()
@@ -81,7 +81,7 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, I encountered an error. Please check your API key configuration and try again.",
+          content: "抱歉，发生了错误。请检查 API Key 配置后重试。",
         },
       ])
     } finally {
@@ -99,9 +99,9 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b px-4 py-2">
+      <div className="flex items-center gap-2 border-b px-4 py-3">
         <MessageSquare className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">AI Chat</h3>
+        <h3 className="text-sm font-semibold">AI 对话</h3>
       </div>
 
       {/* Messages */}
@@ -109,10 +109,10 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Sparkles className="mb-3 h-8 w-8 text-muted-foreground/50" />
-            <p className="text-sm font-medium">Chat with your AI writing partner</p>
+            <p className="text-sm font-medium">与 AI 写作助手对话</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Ask about your characters, plot, or get writing suggestions.
-              The AI has context from your current document.
+              可询问角色、情节，或获取写作建议。
+              AI 会结合当前文档上下文回答。
             </p>
           </div>
         ) : (
@@ -161,11 +161,11 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t p-3">
+      <div className="border-t p-4">
         <div className="flex gap-2">
           <Textarea
             ref={textareaRef}
-            placeholder="Ask about your story..."
+            placeholder="问问你的故事..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

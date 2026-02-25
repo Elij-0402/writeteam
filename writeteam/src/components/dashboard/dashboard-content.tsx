@@ -59,6 +59,7 @@ import {
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
 import { toast } from "sonner"
 import {
   Select,
@@ -70,18 +71,18 @@ import {
 import { CommandPalette } from "@/components/layout/command-palette"
 
 const GENRES = [
-  "Fantasy",
-  "Science Fiction",
-  "Romance",
-  "Mystery",
-  "Thriller",
-  "Horror",
-  "Literary Fiction",
-  "Historical Fiction",
-  "Young Adult",
-  "Children's",
-  "Non-Fiction",
-  "Other",
+  "奇幻",
+  "科幻",
+  "言情",
+  "悬疑",
+  "惊悚",
+  "恐怖",
+  "文学",
+  "历史",
+  "青少年",
+  "儿童",
+  "非虚构",
+  "其他",
 ]
 
 interface DashboardContentProps {
@@ -111,7 +112,7 @@ export function DashboardContent({
     } else if (result.data) {
       setProjects([result.data, ...projects])
       setNewProjectOpen(false)
-      toast.success("Project created!")
+      toast.success("项目创建成功！")
       router.push(`/editor/${result.data.id}`)
     }
     setLoading(false)
@@ -125,7 +126,7 @@ export function DashboardContent({
       toast.error(result.error)
     } else {
       setProjects(projects.filter((p) => p.id !== projectToDelete.id))
-      toast.success("Project deleted")
+      toast.success("项目已删除")
     }
     setProjectToDelete(null)
     setDeleteDialogOpen(false)
@@ -138,14 +139,14 @@ export function DashboardContent({
         .map((n) => n[0])
         .join("")
         .toUpperCase()
-    : user.email?.[0]?.toUpperCase() || "U"
+    : user.email?.[0]?.toUpperCase() || "写"
 
   return (
     <div className="min-h-screen bg-background">
       <CommandPalette onNewProject={() => setNewProjectOpen(true)} />
       {/* Top Nav */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <div className="container mx-auto flex h-16 items-center justify-between px-5">
           <Link href="/dashboard" className="flex items-center gap-2">
             <PenLine className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">WriteTeam</span>
@@ -158,7 +159,7 @@ export function DashboardContent({
             >
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span className="sr-only">Toggle theme</span>
+              <span className="sr-only">切换主题</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -177,7 +178,7 @@ export function DashboardContent({
                 <div className="flex items-center gap-2 p-2">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">
-                      {profile?.full_name || "Writer"}
+                      {profile?.full_name || "作者"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {user.email}
@@ -190,7 +191,7 @@ export function DashboardContent({
                   className="text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
+                  退出登录
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -199,54 +200,53 @@ export function DashboardContent({
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
+      <main className="container mx-auto px-5 py-10">
+        <div className="mb-10 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Your Projects</h1>
+            <h1 className="text-3xl font-bold">我的项目</h1>
             <p className="mt-1 text-muted-foreground">
-              {projects.length} project{projects.length !== 1 ? "s" : ""}
+              {projects.length} 个项目
             </p>
           </div>
           <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                New Project
+                新建项目
               </Button>
             </DialogTrigger>
             <DialogContent>
               <form action={handleCreateProject}>
                 <DialogHeader>
-                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogTitle>创建新项目</DialogTitle>
                   <DialogDescription>
-                    Start a new writing project. You can always change these
-                    details later.
+                    创建新的写作项目，后续可随时修改这些信息。
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title">标题</Label>
                     <Input
                       id="title"
                       name="title"
-                      placeholder="My Amazing Novel"
+                      placeholder="我的精彩小说"
                       required
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description">简介</Label>
                     <Textarea
                       id="description"
                       name="description"
-                      placeholder="A brief description of your project..."
+                      placeholder="简要描述你的项目..."
                       rows={3}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="genre">Genre</Label>
+                    <Label htmlFor="genre">题材</Label>
                     <Select name="genre">
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a genre" />
+                        <SelectValue placeholder="选择题材" />
                       </SelectTrigger>
                       <SelectContent>
                         {GENRES.map((genre) => (
@@ -263,7 +263,7 @@ export function DashboardContent({
                     {loading && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Create Project
+                    创建项目
                   </Button>
                 </DialogFooter>
               </form>
@@ -275,13 +275,13 @@ export function DashboardContent({
         {projects.length === 0 ? (
           <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed">
             <BookOpen className="mb-4 h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mb-2 text-lg font-semibold">No projects yet</h3>
+            <h3 className="mb-2 text-lg font-semibold">还没有项目</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              Create your first project to start writing
+              创建你的第一个项目，开始写作
             </p>
             <Button onClick={() => setNewProjectOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New Project
+              新建项目
             </Button>
           </div>
         ) : (
@@ -317,7 +317,7 @@ export function DashboardContent({
                           }}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
+                          删除
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -330,13 +330,14 @@ export function DashboardContent({
                 </CardHeader>
                 <CardContent>
                   <p className="line-clamp-2 text-sm text-muted-foreground">
-                    {project.description || "No description"}
+                    {project.description || "暂无简介"}
                   </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground">
-                  Updated{" "}
+                  更新于{" "}
                   {formatDistanceToNow(new Date(project.updated_at), {
                     addSuffix: true,
+                    locale: zhCN,
                   })}
                 </CardFooter>
               </Card>
@@ -349,20 +350,19 @@ export function DashboardContent({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogTitle>确认删除项目？</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete &ldquo;{projectToDelete?.title}&rdquo;
-              and all its contents. This action cannot be undone.
+              这将永久删除“{projectToDelete?.title}”及其全部内容，且无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
+              删除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

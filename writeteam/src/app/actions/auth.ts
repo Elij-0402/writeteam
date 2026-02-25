@@ -19,11 +19,11 @@ function mapAuthError(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : String(error)
 
   if (message.includes("AUTH_TIMEOUT")) {
-    return "Authentication request timed out. Please try again."
+    return "认证请求超时，请稍后重试。"
   }
 
   if (message.toLowerCase().includes("rate limit")) {
-    return "Too many attempts right now. Please wait a minute and try again."
+    return "当前尝试次数过多，请稍后再试。"
   }
 
   return fallback
@@ -47,7 +47,7 @@ export async function signIn(formData: FormData) {
       return { error: mapAuthError(error, error.message) }
     }
   } catch (error) {
-    return { error: mapAuthError(error, "Unable to sign in right now. Please try again.") }
+    return { error: mapAuthError(error, "当前无法登录，请稍后重试。") }
   }
 
   revalidatePath("/", "layout")
@@ -78,7 +78,7 @@ export async function signUp(formData: FormData) {
       return { error: mapAuthError(error, error.message) }
     }
   } catch (error) {
-    return { error: mapAuthError(error, "Unable to sign up right now. Please try again.") }
+    return { error: mapAuthError(error, "当前无法注册，请稍后重试。") }
   }
 
   revalidatePath("/", "layout")

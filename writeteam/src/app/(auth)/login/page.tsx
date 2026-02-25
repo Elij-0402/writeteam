@@ -39,9 +39,9 @@ export default function LoginPage() {
         return
       }
 
-      setError("Unable to sign in right now. Please try again.")
+      setError("当前无法登录，请稍后重试。")
     } catch {
-      setError("Authentication request failed. Please try again.")
+      setError("认证请求失败，请稍后重试。")
     } finally {
       setLoading(false)
     }
@@ -55,9 +55,9 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg ring-4 ring-primary/15">
             <PenLine className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-semibold tracking-tight">Welcome back</CardTitle>
+          <CardTitle className="text-3xl font-semibold tracking-tight">欢迎回来</CardTitle>
           <CardDescription className="text-sm text-muted-foreground/90">
-            Sign in to your WriteTeam account
+            登录你的 WriteTeam 账号
           </CardDescription>
         </CardHeader>
         <form action={handleSubmit}>
@@ -68,24 +68,24 @@ export default function LoginPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">邮箱</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="name@example.com"
                 required
                 autoComplete="email"
                 className="h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">密码</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                placeholder="Your password"
+                placeholder="请输入密码"
                 required
                 autoComplete="current-password"
                 className="h-11"
@@ -95,15 +95,15 @@ export default function LoginPage() {
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="h-11 w-full font-medium" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
+              登录
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
+              还没有账号？{" "}
               <Link
                 href="/signup"
                 className="font-semibold text-primary underline-offset-4 hover:underline"
               >
-                Sign up
+                去注册
               </Link>
             </p>
           </CardFooter>

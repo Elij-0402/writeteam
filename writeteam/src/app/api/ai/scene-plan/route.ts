@@ -10,13 +10,13 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
   const { goal, context, projectId, documentId, proseMode } = await request.json()
 
   if (!goal) {
-    return Response.json({ error: "No scene planning goal provided" }, { status: 400 })
+    return Response.json({ error: "未提供场景规划目标" }, { status: 400 })
   }
 
   const { data: bible } = await supabase
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     const startedAt = Date.now()
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
-      return Response.json({ error: "OpenAI API key not configured" }, { status: 500 })
+      return Response.json({ error: "OpenAI API Key 未配置" }, { status: 500 })
     }
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -147,6 +147,6 @@ export async function POST(request: NextRequest) {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     })
   } catch {
-    return Response.json({ error: "Internal server error" }, { status: 500 })
+    return Response.json({ error: "服务器内部错误" }, { status: 500 })
   }
 }

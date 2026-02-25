@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
   const { text, projectId, documentId } = await request.json()
@@ -30,7 +30,7 @@ Make each description vivid and suitable for use in fiction. Provide 2-3 options
     const startedAt = Date.now()
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
-      return Response.json({ error: "OpenAI API key not configured" }, { status: 500 })
+      return Response.json({ error: "OpenAI API Key 未配置" }, { status: 500 })
     }
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -105,6 +105,6 @@ Make each description vivid and suitable for use in fiction. Provide 2-3 options
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     })
   } catch {
-    return Response.json({ error: "Internal server error" }, { status: 500 })
+    return Response.json({ error: "服务器内部错误" }, { status: 500 })
   }
 }

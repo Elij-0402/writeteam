@@ -73,7 +73,7 @@ export function EditorShell({
   const handleCreateDocument = useCallback(async () => {
     setCreatingDoc(true)
     const formData = new FormData()
-    formData.set("title", `Chapter ${documents.length + 1}`)
+    formData.set("title", `第 ${documents.length + 1} 章`)
     formData.set("documentType", "chapter")
     const result = await createDocument(project.id, formData)
     if (result.error) {
@@ -81,7 +81,7 @@ export function EditorShell({
     } else if (result.data) {
       setDocuments((prev) => [...prev, result.data!])
       setActiveDocId(result.data.id)
-      toast.success("Document created")
+      toast.success("文档已创建")
     }
     setCreatingDoc(false)
   }, [documents.length, project.id])
@@ -97,7 +97,7 @@ export function EditorShell({
           const remaining = documents.filter((d) => d.id !== docId)
           setActiveDocId(remaining[0]?.id || null)
         }
-        toast.success("Document deleted")
+        toast.success("文档已删除")
       }
     },
     [activeDocId, documents, project.id]
@@ -130,7 +130,7 @@ export function EditorShell({
         onToggleChat={() => setRightPanel(rightPanel === "chat" ? "none" : "chat")}
       />
       {/* Top Bar */}
-      <header className="flex h-12 items-center justify-between border-b px-3">
+      <header className="flex h-12 items-center justify-between border-b px-4">
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -140,7 +140,7 @@ export function EditorShell({
                 </Button>
               </Link>
             </TooltipTrigger>
-            <TooltipContent>Back to Dashboard</TooltipContent>
+            <TooltipContent>返回项目面板</TooltipContent>
           </Tooltip>
           <Separator orientation="vertical" className="h-6" />
           <div className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export function EditorShell({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {totalWordCount.toLocaleString()} words
+            {totalWordCount.toLocaleString()} 字
           </span>
           <Separator orientation="vertical" className="h-6" />
           <Tooltip>
@@ -166,7 +166,7 @@ export function EditorShell({
                 <BookOpen className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Story Bible</TooltipContent>
+            <TooltipContent>故事圣经</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -181,7 +181,7 @@ export function EditorShell({
                 <MessageSquare className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>AI Chat</TooltipContent>
+            <TooltipContent>AI 对话</TooltipContent>
           </Tooltip>
         </div>
       </header>
@@ -198,7 +198,7 @@ export function EditorShell({
           <div className="flex h-10 items-center justify-between px-2">
             {!sidebarCollapsed && (
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Documents
+                文档
               </span>
             )}
             <Button
@@ -222,7 +222,7 @@ export function EditorShell({
                     <div
                       key={doc.id}
                       className={cn(
-                        "group flex items-center justify-between rounded-md px-2 py-1.5 text-sm cursor-pointer transition-colors",
+                        "group flex cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
                         activeDocId === doc.id
                           ? "bg-accent text-accent-foreground"
                           : "hover:bg-accent/50"
@@ -253,7 +253,7 @@ export function EditorShell({
                             }}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
+                            删除
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -274,7 +274,7 @@ export function EditorShell({
                   ) : (
                     <Plus className="mr-2 h-4 w-4" />
                   )}
-                  New Document
+                  新建文档
                 </Button>
               </div>
             </>
@@ -307,7 +307,7 @@ export function EditorShell({
                   <div className="flex flex-1 items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <FileText className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                      <p>Select or create a document to start writing</p>
+                      <p>请选择或创建文档后开始写作</p>
                     </div>
                   </div>
                 )}
@@ -353,7 +353,7 @@ export function EditorShell({
               <div className="flex flex-1 items-center justify-center text-muted-foreground">
                 <div className="text-center">
                   <FileText className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>Select or create a document to start writing</p>
+                  <p>请选择或创建文档后开始写作</p>
                 </div>
               </div>
             )}

@@ -58,31 +58,31 @@ type AIFeature =
   | "continuity-check"
 
 const WRITE_MODES = [
-  { value: "auto", label: "Auto - AI decides" },
-  { value: "guided", label: "Guided - You direct" },
-  { value: "tone-ominous", label: "Tone: Ominous" },
-  { value: "tone-romantic", label: "Tone: Romantic" },
-  { value: "tone-fast", label: "Tone: Fast-Paced" },
-  { value: "tone-humorous", label: "Tone: Humorous" },
+  { value: "auto", label: "自动 - AI 决定" },
+  { value: "guided", label: "引导 - 由你指定" },
+  { value: "tone-ominous", label: "语气：阴郁" },
+  { value: "tone-romantic", label: "语气：浪漫" },
+  { value: "tone-fast", label: "语气：快节奏" },
+  { value: "tone-humorous", label: "语气：幽默" },
 ]
 
 const REWRITE_MODES = [
-  { value: "rephrase", label: "Rephrase" },
-  { value: "shorter", label: "Make Shorter" },
-  { value: "longer", label: "Make Longer" },
-  { value: "show-not-tell", label: "Show, Don't Tell" },
-  { value: "more-intense", label: "More Intense" },
-  { value: "more-lyrical", label: "More Lyrical" },
-  { value: "custom", label: "Custom Instructions" },
+  { value: "rephrase", label: "改写" },
+  { value: "shorter", label: "精简" },
+  { value: "longer", label: "扩写" },
+  { value: "show-not-tell", label: "展示而非告知" },
+  { value: "more-intense", label: "更强烈" },
+  { value: "more-lyrical", label: "更抒情" },
+  { value: "custom", label: "自定义指令" },
 ]
 
 const PROSE_MODES = [
-  { value: "default", label: "Use Story Bible mode" },
-  { value: "balanced", label: "Balanced" },
-  { value: "cinematic", label: "Cinematic" },
-  { value: "lyrical", label: "Lyrical" },
-  { value: "minimal", label: "Minimal" },
-  { value: "match-style", label: "Match Style" },
+  { value: "default", label: "跟随故事圣经模式" },
+  { value: "balanced", label: "均衡" },
+  { value: "cinematic", label: "电影感" },
+  { value: "lyrical", label: "抒情" },
+  { value: "minimal", label: "简洁" },
+  { value: "match-style", label: "匹配风格" },
 ]
 
 export function AIToolbar({
@@ -146,7 +146,7 @@ export function AIToolbar({
           body.customInstructions = customPrompt
           break
         case "describe":
-          body.text = selectedText || "the scene"
+          body.text = selectedText || "该场景"
           break
         case "brainstorm":
           body.topic = brainstormTopic
@@ -173,7 +173,7 @@ export function AIToolbar({
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "AI request failed")
+        throw new Error(errorData.error || "AI 请求失败")
       }
 
       const reader = response.body?.getReader()
@@ -195,7 +195,7 @@ export function AIToolbar({
         setResponseFingerprint(fingerprint)
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "AI request failed")
+      toast.error(error instanceof Error ? error.message : "AI 请求失败")
     } finally {
       setLoading(false)
     }
@@ -206,7 +206,7 @@ export function AIToolbar({
       onInsertText(result)
       setResult("")
       setActiveFeature(null)
-      toast.success("Text inserted into editor")
+      toast.success("文本已插入编辑器")
     }
   }
 
@@ -218,13 +218,13 @@ export function AIToolbar({
     setFirstDraftOutline(result)
     setResult("")
     setActiveFeature("first-draft")
-    toast.success("Scene plan moved to First Draft input")
+    toast.success("场景规划已填入首稿输入")
   }
 
   function handleCopy() {
     navigator.clipboard.writeText(result)
     setCopied(true)
-    toast.success("Copied to clipboard")
+    toast.success("已复制到剪贴板")
     setTimeout(() => setCopied(false), 2000)
   }
 
@@ -248,20 +248,20 @@ export function AIToolbar({
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || "Failed to submit feedback")
+        throw new Error(data.error || "提交反馈失败")
       }
 
       setFeedbackGiven(rating)
-      toast.success(rating === 1 ? "Marked as helpful" : "Marked as not helpful")
+      toast.success(rating === 1 ? "已标记为有帮助" : "已标记为无帮助")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to submit feedback")
+      toast.error(error instanceof Error ? error.message : "提交反馈失败")
     } finally {
       setFeedbackLoading(false)
     }
   }
 
   return (
-    <div className="flex items-center gap-1 border-b bg-muted/30 px-2 py-1">
+    <div className="flex items-center gap-1.5 border-b bg-muted/30 px-3 py-1.5">
       {/* Write */}
       <Popover>
         <Tooltip>
@@ -269,17 +269,17 @@ export function AIToolbar({
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
                 <PenLine className="h-3.5 w-3.5" />
-                Write
+                续写
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent>Continue writing with AI</TooltipContent>
+          <TooltipContent>使用 AI 继续写作</TooltipContent>
         </Tooltip>
         <PopoverContent className="w-80" align="start">
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">AI Write</h4>
+            <h4 className="font-medium text-sm">AI 续写</h4>
             <p className="text-xs text-muted-foreground">
-              AI will continue your story from where you left off.
+              AI 会从当前进度继续你的故事。
             </p>
             <Select value={writeMode} onValueChange={setWriteMode}>
               <SelectTrigger className="h-8 text-xs">
@@ -295,7 +295,7 @@ export function AIToolbar({
             </Select>
             {writeMode === "guided" && (
               <Textarea
-                placeholder="What should happen next? e.g., 'They discover a hidden door behind the bookshelf'"
+                placeholder="接下来会发生什么？例如：他们在书架后发现一扇暗门"
                 value={guidedPrompt}
                 onChange={(e) => setGuidedPrompt(e.target.value)}
                 rows={3}
@@ -304,7 +304,7 @@ export function AIToolbar({
             )}
             <Select value={proseModeOverride} onValueChange={setProseModeOverride}>
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Prose mode override" />
+                <SelectValue placeholder="覆盖文风模式" />
               </SelectTrigger>
               <SelectContent>
                 {PROSE_MODES.map((mode) => (
@@ -325,7 +325,7 @@ export function AIToolbar({
               ) : (
                 <Sparkles className="mr-2 h-3.5 w-3.5" />
               )}
-              Generate
+              生成
             </Button>
           </div>
         </PopoverContent>
@@ -337,17 +337,17 @@ export function AIToolbar({
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
                 <ListTree className="h-3.5 w-3.5" />
-                Scene Plan
+                场景规划
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent>Plan chapter scenes and beats</TooltipContent>
+          <TooltipContent>规划章节场景与节拍</TooltipContent>
         </Tooltip>
         <PopoverContent className="w-96" align="start">
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">Scene Plan</h4>
+            <h4 className="font-medium text-sm">场景规划</h4>
             <Textarea
-              placeholder="Chapter goal and target outcome..."
+              placeholder="章节目标与预期结果..."
               value={scenePlanGoal}
               onChange={(e) => setScenePlanGoal(e.target.value)}
               rows={4}
@@ -355,7 +355,7 @@ export function AIToolbar({
             />
             <Select value={proseModeOverride} onValueChange={setProseModeOverride}>
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Prose mode override" />
+                <SelectValue placeholder="覆盖文风模式" />
               </SelectTrigger>
               <SelectContent>
                 {PROSE_MODES.map((mode) => (
@@ -376,7 +376,7 @@ export function AIToolbar({
               ) : (
                 <ListTree className="mr-2 h-3.5 w-3.5" />
               )}
-              Generate Scene Plan
+              生成场景规划
             </Button>
           </div>
         </PopoverContent>
@@ -388,17 +388,17 @@ export function AIToolbar({
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
                 <ShieldAlert className="h-3.5 w-3.5" />
-                Continuity
+                连贯性
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent>Check logic and continuity</TooltipContent>
+          <TooltipContent>检查逻辑与连贯性</TooltipContent>
         </Tooltip>
         <PopoverContent className="w-96" align="start">
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">Continuity Check</h4>
+            <h4 className="font-medium text-sm">连贯性检查</h4>
             <Textarea
-              placeholder="Paste passage to audit. Leave empty to use selection/recent context."
+              placeholder="粘贴要检查的段落。留空则使用选中文本或最近上下文。"
               value={continuityPassage}
               onChange={(e) => setContinuityPassage(e.target.value)}
               rows={4}
@@ -415,7 +415,7 @@ export function AIToolbar({
               ) : (
                 <ShieldAlert className="mr-2 h-3.5 w-3.5" />
               )}
-              Run Continuity Check
+              运行连贯性检查
             </Button>
           </div>
         </PopoverContent>
@@ -433,19 +433,19 @@ export function AIToolbar({
                 disabled={!selectedText}
               >
                 <Wand2 className="h-3.5 w-3.5" />
-                Rewrite
+                改写
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
           <TooltipContent>
-            {selectedText ? "Rewrite selected text" : "Select text first"}
+            {selectedText ? "改写选中文本" : "请先选择文本"}
           </TooltipContent>
         </Tooltip>
         <PopoverContent className="w-80" align="start">
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">Rewrite</h4>
+            <h4 className="font-medium text-sm">改写</h4>
             <p className="text-xs text-muted-foreground">
-              Selected: {selectedText.slice(0, 100)}
+              已选：{selectedText.slice(0, 100)}
               {selectedText.length > 100 ? "..." : ""}
             </p>
             <Select value={rewriteMode} onValueChange={setRewriteMode}>
@@ -462,7 +462,7 @@ export function AIToolbar({
             </Select>
             {rewriteMode === "custom" && (
               <Textarea
-                placeholder="Custom rewrite instructions..."
+                placeholder="自定义改写指令..."
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 rows={2}
@@ -480,7 +480,7 @@ export function AIToolbar({
               ) : (
                 <Wand2 className="mr-2 h-3.5 w-3.5" />
               )}
-              Rewrite
+              开始改写
             </Button>
           </div>
         </PopoverContent>
@@ -501,10 +501,10 @@ export function AIToolbar({
             ) : (
               <Eye className="h-3.5 w-3.5" />
             )}
-            Describe
+            描写
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Generate sensory descriptions</TooltipContent>
+        <TooltipContent>生成感官描写</TooltipContent>
       </Tooltip>
 
       {/* Brainstorm */}
@@ -514,17 +514,17 @@ export function AIToolbar({
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
                 <Brain className="h-3.5 w-3.5" />
-                Brainstorm
+                头脑风暴
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent>Generate ideas</TooltipContent>
+          <TooltipContent>生成灵感点子</TooltipContent>
         </Tooltip>
         <PopoverContent className="w-80" align="start">
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">Brainstorm</h4>
+            <h4 className="font-medium text-sm">头脑风暴</h4>
             <Textarea
-              placeholder="What do you want ideas for? e.g., 'Fantasy city names', 'Plot twists for a murder mystery'"
+              placeholder="你想获取哪方面点子？例如：奇幻城市名、悬疑反转"
               value={brainstormTopic}
               onChange={(e) => setBrainstormTopic(e.target.value)}
               rows={3}
@@ -541,7 +541,7 @@ export function AIToolbar({
               ) : (
                 <Brain className="mr-2 h-3.5 w-3.5" />
               )}
-              Generate Ideas
+              生成点子
             </Button>
           </div>
         </PopoverContent>
@@ -562,10 +562,10 @@ export function AIToolbar({
             ) : (
               <Expand className="h-3.5 w-3.5" />
             )}
-            Expand
+            扩写
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Expand and add detail to text</TooltipContent>
+        <TooltipContent>扩展文本并增加细节</TooltipContent>
       </Tooltip>
 
       {/* First Draft */}
@@ -575,21 +575,21 @@ export function AIToolbar({
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
                 <FileText className="h-3.5 w-3.5" />
-                First Draft
+                首稿
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent>Generate a full scene from outline</TooltipContent>
+          <TooltipContent>根据大纲生成完整场景</TooltipContent>
         </Tooltip>
         <PopoverContent className="w-96" align="start">
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">First Draft</h4>
+            <h4 className="font-medium text-sm">首稿</h4>
             <p className="text-xs text-muted-foreground">
-              Provide an outline or beats and the AI will write a full scene.
+              提供大纲或节拍，AI 将生成完整场景。
             </p>
             <Select value={proseModeOverride} onValueChange={setProseModeOverride}>
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Prose mode override" />
+                <SelectValue placeholder="覆盖文风模式" />
               </SelectTrigger>
               <SelectContent>
                 {PROSE_MODES.map((mode) => (
@@ -600,7 +600,7 @@ export function AIToolbar({
               </SelectContent>
             </Select>
             <Textarea
-              placeholder="Scene beats:&#10;- Character arrives at the abandoned mansion&#10;- Explores the foyer, notices strange paintings&#10;- Hears a noise from upstairs..."
+              placeholder="场景节拍：&#10;- 角色到达废弃宅邸&#10;- 探索门厅并发现诡异画像&#10;- 楼上传来异响..."
               value={firstDraftOutline}
               onChange={(e) => setFirstDraftOutline(e.target.value)}
               rows={6}
@@ -617,7 +617,7 @@ export function AIToolbar({
               ) : (
                 <FileText className="mr-2 h-3.5 w-3.5" />
               )}
-              Generate Draft
+              生成首稿
             </Button>
           </div>
         </PopoverContent>
@@ -629,12 +629,12 @@ export function AIToolbar({
           <PopoverTrigger asChild>
             <Button variant="secondary" size="sm" className="ml-auto h-8 gap-1.5 text-xs">
               <Sparkles className="h-3.5 w-3.5" />
-              View Result
+              查看结果
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[500px]" align="end" side="bottom">
             <div className="space-y-3">
-              <h4 className="font-medium text-sm">AI Result</h4>
+              <h4 className="font-medium text-sm">AI 结果</h4>
               <ScrollArea className="max-h-[300px]">
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                   {result}
@@ -642,11 +642,11 @@ export function AIToolbar({
               </ScrollArea>
               <div className="flex gap-2">
                 <Button size="sm" className="flex-1" onClick={handleInsert}>
-                  Insert into Editor
+                  插入编辑器
                 </Button>
                 {activeFeature === "scene-plan" && (
                   <Button size="sm" variant="outline" onClick={handleUseScenePlanAsDraft}>
-                    Use as Draft Input
+                    用作首稿输入
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={handleCopy}>
