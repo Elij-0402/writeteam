@@ -9,6 +9,7 @@ import CharacterCount from "@tiptap/extension-character-count"
 import Highlight from "@tiptap/extension-highlight"
 import Typography from "@tiptap/extension-typography"
 import type { Document } from "@/types/database"
+import { SelectionAIMenu } from "@/components/editor/selection-ai-menu"
 import { Button } from "@/components/ui/button"
 import {
   Bold,
@@ -34,6 +35,7 @@ import { cn } from "@/lib/utils"
 
 interface WritingEditorProps {
   document: Document
+  projectId: string
   onUpdate: (
     docId: string,
     updates: { content?: Json | null; content_text?: string; word_count?: number }
@@ -44,6 +46,7 @@ interface WritingEditorProps {
 
 export function WritingEditor({
   document,
+  projectId,
   onUpdate,
   onSelectionChange,
   insertContent,
@@ -216,6 +219,11 @@ export function WritingEditor({
       {/* Editor Content */}
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />
+        <SelectionAIMenu
+          editor={editor}
+          projectId={projectId}
+          documentId={document.id}
+        />
       </div>
     </div>
   )

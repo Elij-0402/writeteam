@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import type { Json } from "@/types/database"
 import Link from "next/link"
 import type { Project, Document, StoryBible, Character } from "@/types/database"
@@ -41,9 +41,13 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Download,
+  Upload,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { exportAsText, exportAsDocx, exportProjectAsDocx } from "@/lib/export"
+import { parseImportedFile } from "@/lib/import"
 
 interface EditorShellProps {
   project: Project
@@ -69,6 +73,62 @@ export function EditorShell({
   const [editorContent, setEditorContent] = useState("")
 
   const activeDocument = documents.find((d) => d.id === activeDocId) || null
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleExportTxt = useCallback(() => {
+    if (!activeDocument) return
+    exportAsText(activeDocument.title, activeDocument.content_text || "")
+    toast.success("已导出为 .txt")
+  }, [activeDocument])
+
+  const handleExportDocx = useCallback(async () => {
+    if (!activeDocument) return
+    await exportAsDocx(activeDocument.title, activeDocument.content_text || "")
+    toast.success("已导出为 .docx")
+  }, [activeDocument])
+
+  const handleExportProject = useCallback(async () => {
+    if (documents.length === 0) return
+    const chapters = documents.map((doc) => ({
+      title: doc.title,
+      content: doc.content_text || "",
+    }))
+    await exportProjectAsDocx(project.title, chapters)
+    toast.success("已导出整个项目")
+  }, [documents, project.title])
+
+  const handleImportFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      try {
+        const { title, content } = await parseImportedFile(file)
+        const formData = new FormData()
+        formData.set("title", title)
+        formData.set("documentType", "chapter")
+        const result = await createDocument(project.id, formData)
+        if (result.error) {
+          toast.error(result.error)
+        } else if (result.data) {
+          await updateDocument(result.data.id, {
+            content_text: content,
+            word_count: content.length,
+          })
+          const newDoc = { ...result.data, content_text: content, word_count: content.length }
+          setDocuments((prev) => [...prev, newDoc])
+          setActiveDocId(result.data.id)
+          toast.success("文件已导入")
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "导入失败")
+      }
+      // Reset file input so the same file can be re-imported
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    },
+    [project.id]
+  )
 
   const handleCreateDocument = useCallback(async () => {
     setCreatingDoc(true)
@@ -276,6 +336,55 @@ export function EditorShell({
                   )}
                   新建文档
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      disabled={!activeDocument && documents.length === 0}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      导出文档
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem
+                      onClick={handleExportTxt}
+                      disabled={!activeDocument}
+                    >
+                      导出为 .txt
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleExportDocx}
+                      disabled={!activeDocument}
+                    >
+                      导出为 .docx
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleExportProject}
+                      disabled={documents.length === 0}
+                    >
+                      导出整个项目
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  导入文件
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.docx"
+                  className="hidden"
+                  onChange={handleImportFile}
+                />
               </div>
             </>
           )}
@@ -297,6 +406,7 @@ export function EditorShell({
                     />
                     <WritingEditor
                       document={activeDocument}
+                      projectId={project.id}
                       onUpdate={handleDocumentUpdate}
                       onSelectionChange={setSelectedText}
                       insertContent={editorContent}
@@ -343,6 +453,7 @@ export function EditorShell({
                 />
                 <WritingEditor
                   document={activeDocument}
+                  projectId={project.id}
                   onUpdate={handleDocumentUpdate}
                   onSelectionChange={setSelectedText}
                   insertContent={editorContent}

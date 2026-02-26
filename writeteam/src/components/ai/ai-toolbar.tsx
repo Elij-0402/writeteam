@@ -35,6 +35,9 @@ import {
   Sparkles,
   ThumbsUp,
   ThumbsDown,
+  Minimize2,
+  Shuffle,
+  Palette,
 } from "lucide-react"
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -56,6 +59,9 @@ type AIFeature =
   | "first-draft"
   | "scene-plan"
   | "continuity-check"
+  | "shrink"
+  | "twist"
+  | "tone-shift"
 
 const WRITE_MODES = [
   { value: "auto", label: "自动 - AI 决定" },
@@ -85,6 +91,15 @@ const PROSE_MODES = [
   { value: "match-style", label: "匹配风格" },
 ]
 
+const TONE_SHIFT_OPTIONS = [
+  { value: "tense", label: "紧张" },
+  { value: "tender", label: "温柔" },
+  { value: "humorous", label: "幽默" },
+  { value: "melancholic", label: "悲伤" },
+  { value: "angry", label: "愤怒" },
+  { value: "mysterious", label: "神秘" },
+]
+
 export function AIToolbar({
   selectedText,
   documentContent,
@@ -104,6 +119,7 @@ export function AIToolbar({
   const [scenePlanGoal, setScenePlanGoal] = useState("")
   const [continuityPassage, setContinuityPassage] = useState("")
   const [proseModeOverride, setProseModeOverride] = useState("default")
+  const [selectedTone, setSelectedTone] = useState("tense")
   const [copied, setCopied] = useState(false)
   const [responseFingerprint, setResponseFingerprint] = useState("")
   const [feedbackLoading, setFeedbackLoading] = useState(false)
@@ -162,6 +178,15 @@ export function AIToolbar({
           break
         case "continuity-check":
           body.passage = continuityPassage || selectedText || documentContent.slice(-2000)
+          break
+        case "shrink":
+          body.text = selectedText
+          break
+        case "twist":
+          break
+        case "tone-shift":
+          body.text = selectedText
+          body.tone = selectedTone
           break
       }
 
@@ -547,6 +572,27 @@ export function AIToolbar({
         </PopoverContent>
       </Popover>
 
+      {/* Twist */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => callAI("twist")}
+            disabled={loading}
+          >
+            {loading && activeFeature === "twist" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Shuffle className="h-3.5 w-3.5" />
+            )}
+            情节反转
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>生成情节反转建议</TooltipContent>
+      </Tooltip>
+
       {/* Expand */}
       <Tooltip>
         <TooltipTrigger asChild>
@@ -567,6 +613,85 @@ export function AIToolbar({
         </TooltipTrigger>
         <TooltipContent>扩展文本并增加细节</TooltipContent>
       </Tooltip>
+
+      {/* Shrink */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => callAI("shrink")}
+            disabled={loading || !selectedText}
+          >
+            {loading && activeFeature === "shrink" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Minimize2 className="h-3.5 w-3.5" />
+            )}
+            压缩
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          {selectedText ? "精简压缩选中文本" : "请先选择文本"}
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Tone Shift */}
+      <Popover>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                disabled={!selectedText}
+              >
+                <Palette className="h-3.5 w-3.5" />
+                语调转换
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            {selectedText ? "转换选中文本语调" : "请先选择文本"}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent className="w-72" align="start">
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">语调转换</h4>
+            <p className="text-xs text-muted-foreground">
+              已选：{selectedText.slice(0, 100)}
+              {selectedText.length > 100 ? "..." : ""}
+            </p>
+            <Select value={selectedTone} onValueChange={setSelectedTone}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TONE_SHIFT_OPTIONS.map((tone) => (
+                  <SelectItem key={tone.value} value={tone.value} className="text-xs">
+                    {tone.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => callAI("tone-shift")}
+              disabled={loading}
+            >
+              {loading && activeFeature === "tone-shift" ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Palette className="mr-2 h-3.5 w-3.5" />
+              )}
+              转换语调
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* First Draft */}
       <Popover>

@@ -15,6 +15,9 @@ export type AIFeature =
   | "scene-plan"
   | "continuity-check"
   | "chat"
+  | "shrink"
+  | "twist"
+  | "tone-shift"
 
 export interface StoryBibleData {
   genre: string | null
@@ -70,8 +73,10 @@ const WRITING_FEATURES: AIFeature[] = [
   "expand",
   "first-draft",
   "describe",
+  "shrink",
+  "tone-shift",
 ]
-const PLANNING_FEATURES: AIFeature[] = ["scene-plan", "brainstorm"]
+const PLANNING_FEATURES: AIFeature[] = ["scene-plan", "brainstorm", "twist"]
 const CHECK_FEATURES: AIFeature[] = ["continuity-check"]
 
 function isWritingFeature(f: AIFeature): boolean {
