@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { getImages, deleteImage } from "@/app/actions/images"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import type { Image as ImageType } from "@/types/database"
 
 const STYLE_OPTIONS = [
@@ -38,6 +39,7 @@ interface VisualizePanelProps {
 }
 
 export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePanelProps) {
+  const { getHeaders } = useAIConfigContext()
   const [text, setText] = useState(selectedText || "")
   const [style, setStyle] = useState("realistic")
   const [generating, setGenerating] = useState(false)
@@ -78,7 +80,7 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
     try {
       const response = await fetch("/api/ai/visualize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getHeaders() },
         body: JSON.stringify({ projectId, text, style }),
       })
 

@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { resolveAIConfig } from "@/lib/ai/resolve-config"
+import { callOpenAIJson } from "@/lib/ai/openai-json"
 import { fetchStoryContext } from "@/lib/ai/story-context"
 import { computeSaliency } from "@/lib/ai/saliency"
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
@@ -30,9 +32,9 @@ export async function POST(request: NextRequest) {
   )
 
   // Attempt AI-enhanced saliency analysis for richer results
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    // Fall back to heuristic result when no API key is configured
+  const aiConfig = resolveAIConfig(request)
+  if (!aiConfig) {
+    // Fall back to heuristic result when no AI config
     return Response.json(heuristicResult)
   }
 
@@ -66,30 +68,22 @@ ${text.slice(-2000)}`
   const startedAt = Date.now()
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.3,
-      }),
+    const result = await callOpenAIJson({
+      ...aiConfig,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      maxTokens: 500,
+      temperature: 0.3,
     })
 
-    if (!response.ok) {
+    if (result.error) {
       // Fall back to heuristic on API error
       return Response.json(heuristicResult)
     }
 
-    const data = await response.json()
-    const content = data.choices?.[0]?.message?.content || ""
+    const content = result.content
 
     // Log telemetry
     await supabase.from("ai_history").insert({
@@ -99,7 +93,7 @@ ${text.slice(-2000)}`
       feature: "saliency",
       prompt: userPrompt.slice(0, 500),
       result: content,
-      model: "gpt-4o-mini",
+      model: aiConfig.modelId,
       tokens_used: estimateTokenCount(content),
       latency_ms: Date.now() - startedAt,
       output_chars: content.length,

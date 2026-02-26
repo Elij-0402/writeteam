@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { MessageSquare, Send, Loader2, User, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 
 interface Message {
   role: "user" | "assistant"
@@ -19,6 +20,7 @@ interface AIChatPanelProps {
 }
 
 export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
+  const { getHeaders } = useAIConfigContext()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
@@ -42,7 +44,7 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getHeaders() },
         body: JSON.stringify({
           messages: [...messages, userMessage],
           projectId,

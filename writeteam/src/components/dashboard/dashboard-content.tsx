@@ -57,6 +57,7 @@ import {
   Sun,
   Loader2,
   Library,
+  Settings,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { formatDistanceToNow } from "date-fns"
@@ -192,6 +193,12 @@ export function DashboardContent({
                     </p>
                   </div>
                 </div>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    设置
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => signOut()}

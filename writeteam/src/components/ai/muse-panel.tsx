@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 
 interface MuseGeneration {
   id: string
@@ -54,6 +55,7 @@ export function MusePanel({
   documentContent,
   onUseAsDirection,
 }: MusePanelProps) {
+  const { getHeaders } = useAIConfigContext()
   const [loading, setLoading] = useState(false)
   const [activeMode, setActiveMode] = useState<MuseMode | null>(null)
   const [whatIfInput, setWhatIfInput] = useState("")
@@ -79,7 +81,7 @@ export function MusePanel({
 
         const response = await fetch("/api/ai/muse", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...getHeaders() },
           body: JSON.stringify(body),
         })
 
@@ -122,7 +124,7 @@ export function MusePanel({
         setActiveMode(null)
       }
     },
-    [projectId, documentContent, whatIfInput]
+    [projectId, documentContent, whatIfInput, getHeaders]
   )
 
   function handleUseAsDirection(text: string) {

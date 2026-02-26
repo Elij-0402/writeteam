@@ -18,6 +18,7 @@ import {
 import "@xyflow/react/dist/style.css"
 import { toast } from "sonner"
 import type { CanvasNode as CanvasNodeType, CanvasEdge as CanvasEdgeType } from "@/types/database"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import {
   createCanvasNode,
   updateCanvasNode,
@@ -65,6 +66,7 @@ function toFlowEdge(e: CanvasEdgeType): Edge {
 }
 
 export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEditorProps) {
+  const { getHeaders } = useAIConfigContext()
   const nodeTypes: NodeTypes = useMemo(() => ({ canvasNode: CanvasNode }), [])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes.map(toFlowNode))
@@ -193,7 +195,7 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
       try {
         const response = await fetch("/api/ai/canvas-generate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...getHeaders() },
           body: JSON.stringify({ projectId, outline }),
         })
 
@@ -255,7 +257,7 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
         setGenerating(false)
       }
     },
-    [projectId, setNodes, setEdges]
+    [projectId, setNodes, setEdges, getHeaders]
   )
 
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {

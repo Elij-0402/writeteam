@@ -247,7 +247,6 @@ export function EditorShell({
             documentId={activeDocument.id}
             onInsertText={handleInsertText}
             plugins={plugins}
-            preferredModel={project.preferred_model}
             onToggleMuse={() => toggleRightPanel("muse")}
             onToggleVisualizePanel={() => toggleRightPanel("visualize")}
             onOpenPluginManager={() => setPluginManagerOpen(true)}

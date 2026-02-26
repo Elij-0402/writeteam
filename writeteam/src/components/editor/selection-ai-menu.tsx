@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 
 interface SelectionAIMenuProps {
   editor: Editor
@@ -56,6 +57,7 @@ export function SelectionAIMenu({
   saliencyData,
   onVisualize,
 }: SelectionAIMenuProps) {
+  const { getHeaders } = useAIConfigContext()
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState("")
   const [activeAction, setActiveAction] = useState<AIAction | null>(null)
@@ -162,7 +164,7 @@ export function SelectionAIMenu({
 
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getHeaders() },
         body: JSON.stringify(body),
       })
 

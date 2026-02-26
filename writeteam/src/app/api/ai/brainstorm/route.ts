@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
 export async function POST(request: NextRequest) {
@@ -10,7 +11,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { topic, context, projectId, documentId, modelId } = await request.json()
+  const aiConfig = resolveAIConfig(request)
+  if (!aiConfig) {
+    return Response.json({ error: "AI 服务未配置" }, { status: 400 })
+  }
+
+  const { topic, context, projectId, documentId } = await request.json()
 
   if (!topic) {
     return Response.json({ error: "未提供主题" }, { status: 400 })
@@ -37,7 +43,7 @@ ${context ? `Story context for reference:\n${context.slice(-1000)}\n\n` : ""}Gen
         ],
         maxTokens: 1000,
         temperature: 1.0,
-        modelId,
+        ...aiConfig,
       },
       {
         supabase,

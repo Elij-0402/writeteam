@@ -1,3 +1,9 @@
+/**
+ * @deprecated 已被 BYOK 系统取代。用户现在通过 /settings 页面自行配置 AI 服务商。
+ * 请使用 src/lib/ai/ai-config.ts 中的类型和 src/lib/ai/resolve-config.ts 中的配置解析。
+ * 保留此文件仅为向后兼容，将在后续版本中移除。
+ */
+
 export interface AIModel {
   id: string
   name: string

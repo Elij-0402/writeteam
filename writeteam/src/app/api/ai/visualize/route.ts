@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { resolveAIConfig } from "@/lib/ai/resolve-config"
+import { callOpenAIJson } from "@/lib/ai/openai-json"
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
 
 const STYLE_PROMPTS: Record<string, string> = {
@@ -23,53 +25,52 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未提供描述文本" }, { status: 400 })
   }
 
-  const apiKey = process.env.OPENAI_API_KEY
+  const aiConfig = resolveAIConfig(request)
+  if (!aiConfig) {
+    return Response.json({ error: "AI 服务未配置" }, { status: 400 })
+  }
+
+  // DALL-E image generation requires OpenAI API — check if it's an OpenAI-compatible endpoint
+  const apiKey = aiConfig.apiKey
   if (!apiKey) {
-    return Response.json({ error: "OpenAI API Key 未配置" }, { status: 500 })
+    return Response.json({ error: "图片生成需要 API Key" }, { status: 400 })
   }
 
   const startedAt = Date.now()
 
   try {
-    // Step 1: Use GPT to optimize the text into a DALL-E prompt
+    // Step 1: Use user's configured model to optimize the text into a DALL-E prompt
     const styleHint = STYLE_PROMPTS[style] || STYLE_PROMPTS.realistic
-    const optimizeResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert at crafting DALL-E image generation prompts. Convert the given text into an optimized DALL-E 3 prompt that creates a vivid, atmospheric scene. Focus on visual details: composition, lighting, colors, mood.
+    const optimizeResult = await callOpenAIJson({
+      ...aiConfig,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert at crafting DALL-E image generation prompts. Convert the given text into an optimized DALL-E 3 prompt that creates a vivid, atmospheric scene. Focus on visual details: composition, lighting, colors, mood.
 
 The desired art style is: ${styleHint}
 
 Return ONLY the optimized prompt text. No explanations, no prefixes, no quotes.`,
-          },
-          {
-            role: "user",
-            content: `Create a DALL-E prompt based on this text:\n\n${text.slice(0, 2000)}`,
-          },
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
+        },
+        {
+          role: "user",
+          content: `Create a DALL-E prompt based on this text:\n\n${text.slice(0, 2000)}`,
+        },
+      ],
+      maxTokens: 500,
+      temperature: 0.7,
     })
 
-    if (!optimizeResponse.ok) {
-      const error = await optimizeResponse.text()
-      return Response.json({ error: `Prompt 优化失败: ${error}` }, { status: 500 })
+    if (optimizeResult.error) {
+      return Response.json({ error: `Prompt 优化失败: ${optimizeResult.error}` }, { status: 500 })
     }
 
-    const optimizeData = await optimizeResponse.json()
-    const optimizedPrompt = optimizeData.choices?.[0]?.message?.content?.trim() || text.slice(0, 1000)
+    const optimizedPrompt = optimizeResult.content.trim() || text.slice(0, 1000)
 
     // Step 2: Call DALL-E 3 API to generate image
-    const dalleResponse = await fetch("https://api.openai.com/v1/images/generations", {
+    // DALL-E is OpenAI-specific, use the configured base URL
+    const dalleBaseUrl = aiConfig.baseUrl.replace(/\/+$/, "")
+    const dalleResponse = await fetch(`${dalleBaseUrl}/images/generations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

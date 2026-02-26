@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
 type MuseMode = "what-if" | "random-prompt" | "suggest"
@@ -24,6 +25,11 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
+  }
+
+  const aiConfig = resolveAIConfig(request)
+  if (!aiConfig) {
+    return Response.json({ error: "AI 服务未配置" }, { status: 400 })
   }
 
   const { mode, projectId, documentId, context, input } = await request.json()
@@ -70,6 +76,7 @@ export async function POST(request: NextRequest) {
         ],
         maxTokens: 1200,
         temperature: MUSE_TEMPERATURES[museMode],
+        ...aiConfig,
       },
       {
         supabase,

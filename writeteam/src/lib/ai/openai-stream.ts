@@ -1,12 +1,13 @@
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
-import { getModel } from "@/lib/ai/model-registry"
 import { SupabaseClient } from "@supabase/supabase-js"
 
 interface OpenAIStreamOptions {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>
   maxTokens: number
   temperature: number
-  modelId?: string // optional model override
+  baseUrl: string
+  apiKey: string
+  modelId: string
 }
 
 interface TelemetryOptions {
@@ -23,21 +24,21 @@ export async function createOpenAIStreamResponse(
   telemetry: TelemetryOptions
 ): Promise<Response> {
   const startedAt = Date.now()
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    return Response.json({ error: "OpenAI API Key 未配置" }, { status: 500 })
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  }
+  if (options.apiKey) {
+    headers["Authorization"] = `Bearer ${options.apiKey}`
   }
 
-  const model = getModel(options.modelId || "gpt-4o-mini")
+  const url = `${options.baseUrl.replace(/\/+$/, "")}/chat/completions`
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
-      model: model.apiModel,
+      model: options.modelId,
       messages: options.messages,
       stream: true,
       max_tokens: options.maxTokens,
@@ -47,7 +48,7 @@ export async function createOpenAIStreamResponse(
 
   if (!response.ok) {
     const error = await response.text()
-    return Response.json({ error: `OpenAI error: ${error}` }, { status: 500 })
+    return Response.json({ error: `AI API 错误: ${error}` }, { status: 500 })
   }
 
   const encoder = new TextEncoder()
@@ -87,7 +88,7 @@ export async function createOpenAIStreamResponse(
           feature: telemetry.feature,
           prompt: telemetry.promptLog,
           result: fullText,
-          model: model.apiModel,
+          model: options.modelId,
           tokens_used: estimateTokenCount(fullText),
           latency_ms: Date.now() - startedAt,
           output_chars: fullText.length,

@@ -43,10 +43,11 @@ import {
   Lightbulb,
   Puzzle,
   Image as ImageIcon,
-  Cpu,
+  Settings,
 } from "lucide-react"
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import type { Plugin } from "@/types/database"
 
 interface AIToolbarProps {
@@ -56,7 +57,6 @@ interface AIToolbarProps {
   documentId: string
   onInsertText: (text: string) => void
   plugins?: Plugin[]
-  preferredModel?: string | null
   onToggleMuse?: () => void
   onToggleVisualizePanel?: () => void
   onOpenPluginManager?: () => void
@@ -115,11 +115,6 @@ const TONE_SHIFT_OPTIONS = [
   { value: "mysterious", label: "神秘" },
 ]
 
-const MODEL_OPTIONS = [
-  { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-  { value: "gpt-4o", label: "GPT-4o" },
-]
-
 export function AIToolbar({
   selectedText,
   documentContent,
@@ -127,12 +122,12 @@ export function AIToolbar({
   documentId,
   onInsertText,
   plugins = [],
-  preferredModel,
   onToggleMuse,
   onToggleVisualizePanel,
   onOpenPluginManager,
   saliencyData,
 }: AIToolbarProps) {
+  const { isConfigured, getHeaders, config } = useAIConfigContext()
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState("")
   const [activeFeature, setActiveFeature] = useState<AIFeature | null>(null)
@@ -151,7 +146,6 @@ export function AIToolbar({
   const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [feedbackGiven, setFeedbackGiven] = useState<0 | 1 | -1>(0)
   const [quickEditInstruction, setQuickEditInstruction] = useState("")
-  const [selectedModel, setSelectedModel] = useState(preferredModel || "gpt-4o-mini")
   const [pluginInput, setPluginInput] = useState("")
 
   async function hashText(text: string): Promise<string> {
@@ -174,7 +168,6 @@ export function AIToolbar({
         projectId,
         documentId,
         context: documentContent.slice(-5000),
-        modelId: selectedModel,
       }
 
       if (proseModeOverride !== "default") {
@@ -235,7 +228,7 @@ export function AIToolbar({
       const endpoint = feature === "plugin" ? "/api/ai/plugin" : `/api/ai/${feature}`
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getHeaders() },
         body: JSON.stringify(body),
       })
 
@@ -337,7 +330,15 @@ export function AIToolbar({
   }
 
   return (
-    <div className="flex items-center gap-1 border-b bg-muted/30 px-3 py-1.5 overflow-x-auto">
+    <div className="flex flex-col">
+      {!isConfigured && (
+        <div className="flex items-center gap-2 border-b bg-yellow-50 px-3 py-1.5 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
+          <Settings className="h-3.5 w-3.5 shrink-0" />
+          <span>AI 服务未配置</span>
+          <a href="/settings" className="underline font-medium hover:no-underline">前往设置</a>
+        </div>
+      )}
+      <div className="flex items-center gap-1 border-b bg-muted/30 px-3 py-1.5 overflow-x-auto">
       {/* Write */}
       <Popover>
         <Tooltip>
@@ -394,7 +395,7 @@ export function AIToolbar({
               size="sm"
               className="w-full"
               onClick={() => callAI("write")}
-              disabled={loading}
+              disabled={loading || !isConfigured}
             >
               {loading && activeFeature === "write" ? (
                 <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -951,36 +952,21 @@ export function AIToolbar({
           </Tooltip>
         )}
 
-        {/* Model Selection */}
-        <Popover>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <Cpu className="h-3.5 w-3.5" />
-                  {MODEL_OPTIONS.find((m) => m.value === selectedModel)?.label || "模型"}
-                </Button>
-              </PopoverTrigger>
-            </TooltipTrigger>
-            <TooltipContent>选择 AI 模型</TooltipContent>
-          </Tooltip>
-          <PopoverContent className="w-56" align="end">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">选择模型</h4>
-              {MODEL_OPTIONS.map((model) => (
-                <Button
-                  key={model.value}
-                  variant={selectedModel === model.value ? "default" : "ghost"}
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => setSelectedModel(model.value)}
-                >
-                  {model.label}
-                </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+        {/* Settings Link */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => window.open("/settings", "_blank")}
+            >
+              <Settings className="h-3.5 w-3.5" />
+              {isConfigured ? (config?.modelName || config?.modelId || "已配置") : "未配置"}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{isConfigured ? "AI 设置" : "点击前往配置 AI 服务"}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Result Panel */}
@@ -1037,6 +1023,7 @@ export function AIToolbar({
           </PopoverContent>
         </Popover>
       )}
+    </div>
     </div>
   )
 }
