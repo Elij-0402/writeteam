@@ -179,6 +179,8 @@ export interface Database {
           worldbuilding: string | null
           outline: Json | null
           notes: string | null
+          tone: string | null
+          ai_rules: string | null
           created_at: string
           updated_at: string
         }
@@ -199,6 +201,8 @@ export interface Database {
           worldbuilding?: string | null
           outline?: Json | null
           notes?: string | null
+          tone?: string | null
+          ai_rules?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -219,6 +223,8 @@ export interface Database {
           worldbuilding?: string | null
           outline?: Json | null
           notes?: string | null
+          tone?: string | null
+          ai_rules?: string | null
           updated_at?: string
         }
         Relationships: []

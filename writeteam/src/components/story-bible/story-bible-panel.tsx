@@ -76,6 +76,8 @@ export function StoryBiblePanel({
     initialBible?.outline ? JSON.stringify(initialBible.outline, null, 2) : ""
   )
   const [notes, setNotes] = useState(initialBible?.notes || "")
+  const [tone, setTone] = useState(initialBible?.tone || "")
+  const [aiRules, setAiRules] = useState(initialBible?.ai_rules || "")
 
   async function handleSaveBible() {
     setSaving(true)
@@ -93,6 +95,8 @@ export function StoryBiblePanel({
       worldbuilding,
       outline: parseOutlineInput(outlineText),
       notes,
+      tone,
+      ai_rules: aiRules,
     })
     if (result.error) {
       toast.error(result.error)
@@ -222,6 +226,15 @@ export function StoryBiblePanel({
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label className="text-xs">语调</Label>
+                <Input
+                  placeholder="温暖、紧张、忧郁..."
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label className="text-xs">POV</Label>
                 <Input
                   placeholder="第三人称限知"
@@ -289,6 +302,22 @@ export function StoryBiblePanel({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
+                className="text-xs"
+              />
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <FileText className="h-3 w-3" /> AI 规则
+              </Label>
+              <p className="text-[10px] text-muted-foreground">
+                AI 必须严格遵守的硬规则，优先级最高
+              </p>
+              <Textarea
+                placeholder="例：绝对不要写性描写；角色「小明」永远说方言；战斗场景不超过500字..."
+                value={aiRules}
+                onChange={(e) => setAiRules(e.target.value)}
+                rows={4}
                 className="text-xs"
               />
             </div>
