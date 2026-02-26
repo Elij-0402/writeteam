@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { text, mode, customInstructions, projectId, documentId, proseMode } = await request.json()
+  const { text, mode, customInstructions, projectId, documentId, proseMode, modelId } = await request.json()
 
   if (!text) {
     return Response.json({ error: "未选择文本" }, { status: 400 })
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
         ],
         maxTokens: 1500,
         temperature: 0.7,
+        modelId,
       },
       {
         supabase,

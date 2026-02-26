@@ -56,6 +56,7 @@ import {
   Moon,
   Sun,
   Loader2,
+  Library,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { formatDistanceToNow } from "date-fns"
@@ -161,6 +162,12 @@ export function DashboardContent({
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               <span className="sr-only">切换主题</span>
             </Button>
+            <Link href="/series">
+              <Button variant="ghost" size="icon">
+                <Library className="h-5 w-5" />
+                <span className="sr-only">系列管理</span>
+              </Button>
+            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

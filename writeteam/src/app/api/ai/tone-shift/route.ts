@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { text, tone, projectId, documentId, proseMode } = await request.json()
+  const { text, tone, projectId, documentId, proseMode, modelId } = await request.json()
 
   const toneLabel = TONE_LABELS[tone] || tone
 
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         ],
         maxTokens: 1000,
         temperature: 0.7,
+        modelId,
       },
       {
         supabase,

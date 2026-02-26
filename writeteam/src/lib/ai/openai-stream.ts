@@ -1,10 +1,12 @@
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
+import { getModel } from "@/lib/ai/model-registry"
 import { SupabaseClient } from "@supabase/supabase-js"
 
 interface OpenAIStreamOptions {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>
   maxTokens: number
   temperature: number
+  modelId?: string // optional model override
 }
 
 interface TelemetryOptions {
@@ -26,6 +28,8 @@ export async function createOpenAIStreamResponse(
     return Response.json({ error: "OpenAI API Key 未配置" }, { status: 500 })
   }
 
+  const model = getModel(options.modelId || "gpt-4o-mini")
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -33,7 +37,7 @@ export async function createOpenAIStreamResponse(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: model.apiModel,
       messages: options.messages,
       stream: true,
       max_tokens: options.maxTokens,
@@ -83,7 +87,7 @@ export async function createOpenAIStreamResponse(
           feature: telemetry.feature,
           prompt: telemetry.promptLog,
           result: fullText,
-          model: "gpt-4o-mini",
+          model: model.apiModel,
           tokens_used: estimateTokenCount(fullText),
           latency_ms: Date.now() - startedAt,
           output_chars: fullText.length,

@@ -50,12 +50,20 @@ export default async function EditorPage({
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
 
+  const { data: plugins } = await supabase
+    .from("plugins")
+    .select("*")
+    .eq("user_id", user.id)
+    .or(`project_id.eq.${projectId},project_id.is.null`)
+    .order("sort_order", { ascending: true })
+
   return (
     <EditorShell
       project={project}
       documents={documents || []}
       storyBible={storyBible}
       characters={characters || []}
+      plugins={plugins || []}
     />
   )
 }

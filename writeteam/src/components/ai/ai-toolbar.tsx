@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -38,9 +39,15 @@ import {
   Minimize2,
   Shuffle,
   Palette,
+  Zap,
+  Lightbulb,
+  Puzzle,
+  Image as ImageIcon,
+  Cpu,
 } from "lucide-react"
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import type { Plugin } from "@/types/database"
 
 interface AIToolbarProps {
   selectedText: string
@@ -48,6 +55,12 @@ interface AIToolbarProps {
   projectId: string
   documentId: string
   onInsertText: (text: string) => void
+  plugins?: Plugin[]
+  preferredModel?: string | null
+  onToggleMuse?: () => void
+  onToggleVisualizePanel?: () => void
+  onOpenPluginManager?: () => void
+  saliencyData?: { activeCharacters: string[]; activeLocations: string[]; activePlotlines: string[] } | null
 }
 
 type AIFeature =
@@ -62,6 +75,8 @@ type AIFeature =
   | "shrink"
   | "twist"
   | "tone-shift"
+  | "quick-edit"
+  | "plugin"
 
 const WRITE_MODES = [
   { value: "auto", label: "自动 - AI 决定" },
@@ -100,12 +115,23 @@ const TONE_SHIFT_OPTIONS = [
   { value: "mysterious", label: "神秘" },
 ]
 
+const MODEL_OPTIONS = [
+  { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+  { value: "gpt-4o", label: "GPT-4o" },
+]
+
 export function AIToolbar({
   selectedText,
   documentContent,
   projectId,
   documentId,
   onInsertText,
+  plugins = [],
+  preferredModel,
+  onToggleMuse,
+  onToggleVisualizePanel,
+  onOpenPluginManager,
+  saliencyData,
 }: AIToolbarProps) {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState("")
@@ -124,6 +150,9 @@ export function AIToolbar({
   const [responseFingerprint, setResponseFingerprint] = useState("")
   const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [feedbackGiven, setFeedbackGiven] = useState<0 | 1 | -1>(0)
+  const [quickEditInstruction, setQuickEditInstruction] = useState("")
+  const [selectedModel, setSelectedModel] = useState(preferredModel || "gpt-4o-mini")
+  const [pluginInput, setPluginInput] = useState("")
 
   async function hashText(text: string): Promise<string> {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
@@ -132,7 +161,7 @@ export function AIToolbar({
       .join("")
   }
 
-  async function callAI(feature: AIFeature) {
+  async function callAI(feature: AIFeature, extraBody?: Record<string, unknown>) {
     setLoading(true)
     setActiveFeature(feature)
     setResult("")
@@ -141,14 +170,23 @@ export function AIToolbar({
     setFeedbackGiven(0)
 
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, unknown> = {
         projectId,
         documentId,
         context: documentContent.slice(-5000),
+        modelId: selectedModel,
       }
 
       if (proseModeOverride !== "default") {
         body.proseMode = proseModeOverride
+      }
+
+      if (saliencyData) {
+        body.saliency = saliencyData
+      }
+
+      if (extraBody) {
+        Object.assign(body, extraBody)
       }
 
       switch (feature) {
@@ -188,9 +226,14 @@ export function AIToolbar({
           body.text = selectedText
           body.tone = selectedTone
           break
+        case "quick-edit":
+          body.text = selectedText
+          body.instruction = quickEditInstruction
+          break
       }
 
-      const response = await fetch(`/api/ai/${feature}`, {
+      const endpoint = feature === "plugin" ? "/api/ai/plugin" : `/api/ai/${feature}`
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -224,6 +267,14 @@ export function AIToolbar({
     } finally {
       setLoading(false)
     }
+  }
+
+  async function callPlugin(plugin: Plugin) {
+    await callAI("plugin", {
+      pluginId: plugin.id,
+      text: selectedText,
+      input: pluginInput,
+    })
   }
 
   function handleInsert() {
@@ -286,13 +337,13 @@ export function AIToolbar({
   }
 
   return (
-    <div className="flex items-center gap-1.5 border-b bg-muted/30 px-3 py-1.5">
+    <div className="flex items-center gap-1 border-b bg-muted/30 px-3 py-1.5 overflow-x-auto">
       {/* Write */}
       <Popover>
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0">
                 <PenLine className="h-3.5 w-3.5" />
                 续写
               </Button>
@@ -360,7 +411,7 @@ export function AIToolbar({
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0">
                 <ListTree className="h-3.5 w-3.5" />
                 场景规划
               </Button>
@@ -411,7 +462,7 @@ export function AIToolbar({
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 连贯性
               </Button>
@@ -454,7 +505,7 @@ export function AIToolbar({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 text-xs"
+                className="h-8 gap-1.5 text-xs shrink-0"
                 disabled={!selectedText}
               >
                 <Wand2 className="h-3.5 w-3.5" />
@@ -511,13 +562,67 @@ export function AIToolbar({
         </PopoverContent>
       </Popover>
 
+      {/* Quick Edit */}
+      <Popover>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs shrink-0"
+                disabled={!selectedText}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                快编
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            {selectedText ? "自然语言指令编辑" : "请先选择文本"}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent className="w-80" align="start">
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">快速编辑</h4>
+            <p className="text-xs text-muted-foreground">
+              输入自然语言指令来编辑选中文本。
+            </p>
+            <Input
+              placeholder="例：改得更悬疑、增加对话、缩短为一句话..."
+              value={quickEditInstruction}
+              onChange={(e) => setQuickEditInstruction(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && quickEditInstruction.trim()) {
+                  callAI("quick-edit")
+                }
+              }}
+              className="h-8 text-xs"
+            />
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => callAI("quick-edit")}
+              disabled={loading || !quickEditInstruction.trim() || !selectedText}
+            >
+              {loading && activeFeature === "quick-edit" ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="mr-2 h-3.5 w-3.5" />
+              )}
+              执行编辑
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
       {/* Describe */}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 gap-1.5 text-xs shrink-0"
             onClick={() => callAI("describe")}
             disabled={loading || !selectedText}
           >
@@ -537,7 +642,7 @@ export function AIToolbar({
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0">
                 <Brain className="h-3.5 w-3.5" />
                 头脑风暴
               </Button>
@@ -578,7 +683,7 @@ export function AIToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 gap-1.5 text-xs shrink-0"
             onClick={() => callAI("twist")}
             disabled={loading}
           >
@@ -599,7 +704,7 @@ export function AIToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 gap-1.5 text-xs shrink-0"
             onClick={() => callAI("expand")}
             disabled={loading}
           >
@@ -620,7 +725,7 @@ export function AIToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 gap-1.5 text-xs shrink-0"
             onClick={() => callAI("shrink")}
             disabled={loading || !selectedText}
           >
@@ -645,7 +750,7 @@ export function AIToolbar({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 text-xs"
+                className="h-8 gap-1.5 text-xs shrink-0"
                 disabled={!selectedText}
               >
                 <Palette className="h-3.5 w-3.5" />
@@ -698,7 +803,7 @@ export function AIToolbar({
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0">
                 <FileText className="h-3.5 w-3.5" />
                 首稿
               </Button>
@@ -748,11 +853,141 @@ export function AIToolbar({
         </PopoverContent>
       </Popover>
 
+      {/* Plugins */}
+      {plugins.length > 0 && (
+        <Popover>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs shrink-0">
+                  <Puzzle className="h-3.5 w-3.5" />
+                  插件
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent>运行自定义 AI 插件</TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-72" align="start">
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm">AI 插件</h4>
+              <Input
+                placeholder="输入内容（可选）..."
+                value={pluginInput}
+                onChange={(e) => setPluginInput(e.target.value)}
+                className="h-8 text-xs"
+              />
+              <div className="space-y-1">
+                {plugins.map((plugin) => (
+                  <Button
+                    key={plugin.id}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start h-8 text-xs gap-2"
+                    onClick={() => callPlugin(plugin)}
+                    disabled={loading || (plugin.requires_selection && !selectedText)}
+                  >
+                    <span>{plugin.icon || "🔌"}</span>
+                    {plugin.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {/* Separator + Right-side tools */}
+      <div className="ml-auto flex items-center gap-1 shrink-0">
+        {/* Muse */}
+        {onToggleMuse && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={onToggleMuse}
+              >
+                <Lightbulb className="h-3.5 w-3.5" />
+                灵感
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>打开 Muse 灵感面板</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Visualize */}
+        {onToggleVisualizePanel && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={onToggleVisualizePanel}
+              >
+                <ImageIcon className="h-3.5 w-3.5" />
+                可视化
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>AI 图片生成</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Plugin Manager */}
+        {onOpenPluginManager && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={onOpenPluginManager}
+              >
+                <Puzzle className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>管理插件</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Model Selection */}
+        <Popover>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+                  <Cpu className="h-3.5 w-3.5" />
+                  {MODEL_OPTIONS.find((m) => m.value === selectedModel)?.label || "模型"}
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent>选择 AI 模型</TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-56" align="end">
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">选择模型</h4>
+              {MODEL_OPTIONS.map((model) => (
+                <Button
+                  key={model.value}
+                  variant={selectedModel === model.value ? "default" : "ghost"}
+                  size="sm"
+                  className="w-full justify-start h-8 text-xs"
+                  onClick={() => setSelectedModel(model.value)}
+                >
+                  {model.label}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
       {/* Result Panel */}
       {result && (
         <Popover open={!!result} onOpenChange={(open) => !open && setResult("")}>
           <PopoverTrigger asChild>
-            <Button variant="secondary" size="sm" className="ml-auto h-8 gap-1.5 text-xs">
+            <Button variant="secondary" size="sm" className="ml-2 h-8 gap-1.5 text-xs shrink-0">
               <Sparkles className="h-3.5 w-3.5" />
               查看结果
             </Button>

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { passage, context, projectId, documentId } = await request.json()
+  const { passage, context, projectId, documentId, modelId } = await request.json()
 
   if (!passage) {
     return Response.json({ error: "未提供待检查段落" }, { status: 400 })
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
         ],
         maxTokens: 1200,
         temperature: 0.3,
+        modelId,
       },
       {
         supabase,

@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { topic, context, projectId, documentId } = await request.json()
+  const { topic, context, projectId, documentId, modelId } = await request.json()
 
   if (!topic) {
     return Response.json({ error: "未提供主题" }, { status: 400 })
@@ -37,6 +37,7 @@ ${context ? `Story context for reference:\n${context.slice(-1000)}\n\n` : ""}Gen
         ],
         maxTokens: 1000,
         temperature: 1.0,
+        modelId,
       },
       {
         supabase,

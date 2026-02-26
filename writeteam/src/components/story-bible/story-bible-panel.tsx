@@ -41,8 +41,10 @@ import {
   FileText,
   Lightbulb,
   Trash2,
+  Eye,
 } from "lucide-react"
 import { toast } from "sonner"
+import { Switch } from "@/components/ui/switch"
 
 interface StoryBiblePanelProps {
   projectId: string
@@ -78,6 +80,24 @@ export function StoryBiblePanel({
   const [notes, setNotes] = useState(initialBible?.notes || "")
   const [tone, setTone] = useState(initialBible?.tone || "")
   const [aiRules, setAiRules] = useState(initialBible?.ai_rules || "")
+  const [visibility, setVisibility] = useState<Record<string, boolean>>(() => {
+    const vis = initialBible?.visibility
+    if (vis && typeof vis === "object" && !Array.isArray(vis)) {
+      return vis as Record<string, boolean>
+    }
+    return {}
+  })
+
+  function isFieldVisible(field: string): boolean {
+    return visibility[field] !== false
+  }
+
+  function toggleFieldVisibility(field: string) {
+    setVisibility((prev) => ({
+      ...prev,
+      [field]: prev[field] === false ? true : false,
+    }))
+  }
 
   async function handleSaveBible() {
     setSaving(true)
@@ -97,6 +117,7 @@ export function StoryBiblePanel({
       notes,
       tone,
       ai_rules: aiRules,
+      visibility,
     })
     if (result.error) {
       toast.error(result.error)
@@ -164,7 +185,7 @@ export function StoryBiblePanel({
       </div>
 
       <Tabs defaultValue="overview" className="flex flex-1 flex-col">
-        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-3">
+        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-4">
           <TabsTrigger value="overview" className="text-xs">
             概览
           </TabsTrigger>
@@ -173,6 +194,9 @@ export function StoryBiblePanel({
           </TabsTrigger>
           <TabsTrigger value="world" className="text-xs">
             世界观
+          </TabsTrigger>
+          <TabsTrigger value="visibility" className="text-xs">
+            AI 可见性
           </TabsTrigger>
         </TabsList>
 
@@ -466,6 +490,89 @@ export function StoryBiblePanel({
               />
             </div>
           </TabsContent>
+
+          {/* Visibility Tab */}
+          <TabsContent value="visibility" className="mt-0 space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-medium flex items-center gap-1.5">
+                <Eye className="h-3 w-3" /> AI 可见性控制
+              </Label>
+              <p className="text-[10px] text-muted-foreground">
+                控制 AI 在生成内容时能看到哪些 Story Bible 字段。关闭的字段不会注入 AI 提示词。
+              </p>
+            </div>
+            <div className="space-y-3">
+              <VisibilityToggle
+                label="题材和风格"
+                field="genre"
+                checked={isFieldVisible("genre")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="POV 与时态"
+                field="pov"
+                checked={isFieldVisible("pov")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="语调"
+                field="tone"
+                checked={isFieldVisible("tone")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="故事梗概"
+                field="synopsis"
+                checked={isFieldVisible("synopsis")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="主题"
+                field="themes"
+                checked={isFieldVisible("themes")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="场景设定"
+                field="setting"
+                checked={isFieldVisible("setting")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="世界构建"
+                field="worldbuilding"
+                checked={isFieldVisible("worldbuilding")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="大纲"
+                field="outline"
+                checked={isFieldVisible("outline")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="灵感池"
+                field="braindump"
+                checked={isFieldVisible("braindump")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="备注"
+                field="notes"
+                checked={isFieldVisible("notes")}
+                onToggle={toggleFieldVisibility}
+              />
+              <VisibilityToggle
+                label="角色信息"
+                field="characters"
+                checked={isFieldVisible("characters")}
+                onToggle={toggleFieldVisibility}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              注意：AI 规则（最高优先级）和文风模式始终可见，无法关闭。
+            </p>
+          </TabsContent>
         </ScrollArea>
       </Tabs>
     </div>
@@ -536,6 +643,28 @@ function CharacterField({
         }}
         rows={2}
         className="text-xs"
+      />
+    </div>
+  )
+}
+
+function VisibilityToggle({
+  label,
+  field,
+  checked,
+  onToggle,
+}: {
+  label: string
+  field: string
+  checked: boolean
+  onToggle: (field: string) => void
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <Label className="text-xs">{label}</Label>
+      <Switch
+        checked={checked}
+        onCheckedChange={() => onToggle(field)}
       />
     </div>
   )

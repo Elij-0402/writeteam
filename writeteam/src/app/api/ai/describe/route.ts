@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { text, projectId, documentId } = await request.json()
+  const { text, projectId, documentId, modelId } = await request.json()
 
   const storyCtx = await fetchStoryContext(supabase, projectId)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "describe" })
@@ -42,6 +42,7 @@ Make each description vivid and suitable for use in fiction. Provide 2-3 options
         ],
         maxTokens: 800,
         temperature: 0.9,
+        modelId,
       },
       {
         supabase,

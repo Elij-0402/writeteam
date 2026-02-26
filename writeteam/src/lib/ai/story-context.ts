@@ -18,6 +18,12 @@ export type AIFeature =
   | "shrink"
   | "twist"
   | "tone-shift"
+  | "quick-edit"
+  | "plugin"
+  | "muse"
+  | "saliency"
+  | "canvas-generate"
+  | "visualize"
 
 export interface StoryBibleData {
   genre: string | null
@@ -35,6 +41,13 @@ export interface StoryBibleData {
   braindump: string | null
   tone: string | null
   ai_rules: string | null
+  visibility: Record<string, boolean> | null
+}
+
+export interface SaliencyMap {
+  activeCharacters: string[]
+  activeLocations: string[]
+  activePlotlines: string[]
 }
 
 export interface CharacterData {
@@ -57,6 +70,7 @@ export interface StoryContext {
 export interface StoryPromptOptions {
   feature: AIFeature
   proseMode?: string | null // runtime override for prose mode
+  saliencyMap?: SaliencyMap | null // saliency data for context-aware AI
 }
 
 export interface StoryPromptContext {
@@ -75,8 +89,10 @@ const WRITING_FEATURES: AIFeature[] = [
   "describe",
   "shrink",
   "tone-shift",
+  "quick-edit",
+  "plugin",
 ]
-const PLANNING_FEATURES: AIFeature[] = ["scene-plan", "brainstorm", "twist"]
+const PLANNING_FEATURES: AIFeature[] = ["scene-plan", "brainstorm", "twist", "muse"]
 const CHECK_FEATURES: AIFeature[] = ["continuity-check"]
 
 function isWritingFeature(f: AIFeature): boolean {
@@ -99,7 +115,8 @@ export async function fetchStoryContext(
   supabase: SupabaseClient,
   projectId: string
 ): Promise<StoryContext> {
-  const [bibleResult, charsResult] = await Promise.all([
+  // Fetch project-level data
+  const [bibleResult, charsResult, projectResult] = await Promise.all([
     supabase
       .from("story_bibles")
       .select("*")
@@ -110,6 +127,11 @@ export async function fetchStoryContext(
       .select("*")
       .eq("project_id", projectId)
       .limit(15),
+    supabase
+      .from("projects")
+      .select("series_id")
+      .eq("id", projectId)
+      .single(),
   ])
 
   if (bibleResult.error && bibleResult.error.code !== "PGRST116") {
@@ -117,6 +139,18 @@ export async function fetchStoryContext(
   }
   if (charsResult.error) {
     console.error("Failed to fetch characters:", charsResult.error)
+  }
+
+  // Optionally fetch series bible if project belongs to a series
+  let seriesBibleData: Record<string, unknown> | null = null
+  const seriesId = projectResult.data?.series_id
+  if (seriesId) {
+    const { data: sb } = await supabase
+      .from("series_bibles")
+      .select("*")
+      .eq("series_id", seriesId)
+      .single()
+    seriesBibleData = sb
   }
 
   const bible: StoryBibleData | null = bibleResult.data
@@ -136,8 +170,19 @@ export async function fetchStoryContext(
         braindump: bibleResult.data.braindump ?? null,
         tone: bibleResult.data.tone ?? null,
         ai_rules: bibleResult.data.ai_rules ?? null,
+        visibility: (bibleResult.data.visibility as Record<string, boolean>) ?? null,
       }
     : null
+
+  // Merge series bible data into project bible (series data as fallback)
+  if (seriesBibleData && bible) {
+    if (!bible.genre && seriesBibleData.genre) bible.genre = seriesBibleData.genre as string
+    if (!bible.style && seriesBibleData.style) bible.style = seriesBibleData.style as string
+    if (!bible.themes && seriesBibleData.themes) bible.themes = seriesBibleData.themes as string
+    if (!bible.setting && seriesBibleData.setting) bible.setting = seriesBibleData.setting as string
+    if (!bible.worldbuilding && seriesBibleData.worldbuilding) bible.worldbuilding = seriesBibleData.worldbuilding as string
+    if (!bible.notes && seriesBibleData.notes) bible.notes = seriesBibleData.notes as string
+  }
 
   const characters: CharacterData[] = (charsResult.data ?? []).map(
     (c: Record<string, unknown>) => ({
@@ -168,23 +213,28 @@ export function buildStoryPromptContext(
     return { fullContext: "" }
   }
 
-  const { feature, proseMode } = options
+  const { feature, proseMode, saliencyMap } = options
   const bible = ctx.bible
+  const vis = bible?.visibility ?? {}
+
+  // Helper: check if a field is visible (default true if not set)
+  const isVisible = (field: string) => vis[field] !== false
 
   const sections: string[] = [
     buildAIRulesGuidance(bible?.ai_rules ?? null),
-    bible ? buildGenreStyleGuidance(bible, feature) : "",
-    bible ? buildWritingParamsGuidance(bible) : "",
-    buildToneGuidance(bible?.tone ?? null),
-    buildSynopsisGuidance(bible?.synopsis ?? null, feature),
-    buildThemesGuidance(bible?.themes ?? null, feature),
-    buildSettingGuidance(bible?.setting ?? null, feature),
-    buildWorldbuildingGuidance(bible?.worldbuilding ?? null),
-    buildOutlineGuidance(bible?.outline ?? null, feature),
-    buildBraindumpGuidance(bible?.braindump ?? null, feature),
-    buildNotesGuidance(bible?.notes ?? null),
-    buildCharacterGuidance(ctx.characters, feature),
+    bible && isVisible("genre") ? buildGenreStyleGuidance(bible, feature) : "",
+    bible && isVisible("pov") ? buildWritingParamsGuidance(bible) : "",
+    isVisible("tone") ? buildToneGuidance(bible?.tone ?? null) : "",
+    isVisible("synopsis") ? buildSynopsisGuidance(bible?.synopsis ?? null, feature) : "",
+    isVisible("themes") ? buildThemesGuidance(bible?.themes ?? null, feature) : "",
+    isVisible("setting") ? buildSettingGuidance(bible?.setting ?? null, feature) : "",
+    isVisible("worldbuilding") ? buildWorldbuildingGuidance(bible?.worldbuilding ?? null) : "",
+    isVisible("outline") ? buildOutlineGuidance(bible?.outline ?? null, feature) : "",
+    isVisible("braindump") ? buildBraindumpGuidance(bible?.braindump ?? null, feature) : "",
+    isVisible("notes") ? buildNotesGuidance(bible?.notes ?? null) : "",
+    isVisible("characters") ? buildCharacterGuidance(ctx.characters, feature) : "",
     buildProseModeSection(bible, proseMode ?? null),
+    saliencyMap ? buildSaliencyGuidance(saliencyMap) : "",
   ]
 
   const fullContext = sections.filter(Boolean).join("\n\n")
@@ -436,4 +486,19 @@ function buildProseModeSection(
   const result = buildProseModeGuidanceWithOverride(bible, proseMode)
   if (!result) return ""
   return `PROSE STYLE GUIDANCE:\n${result}`
+}
+
+function buildSaliencyGuidance(saliency: SaliencyMap): string {
+  const parts: string[] = []
+  if (saliency.activeCharacters.length > 0) {
+    parts.push(`Active characters in scene: ${saliency.activeCharacters.join(", ")}`)
+  }
+  if (saliency.activeLocations.length > 0) {
+    parts.push(`Active locations: ${saliency.activeLocations.join(", ")}`)
+  }
+  if (saliency.activePlotlines.length > 0) {
+    parts.push(`Active plotlines: ${saliency.activePlotlines.join(", ")}`)
+  }
+  if (parts.length === 0) return ""
+  return `SCENE SALIENCY (focus on these elements):\n${parts.join("\n")}`
 }

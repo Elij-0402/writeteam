@@ -44,6 +44,8 @@ export interface Database {
           genre: string | null
           cover_image_url: string | null
           word_count_goal: number | null
+          preferred_model: string | null
+          series_id: string | null
           created_at: string
           updated_at: string
         }
@@ -55,6 +57,8 @@ export interface Database {
           genre?: string | null
           cover_image_url?: string | null
           word_count_goal?: number | null
+          preferred_model?: string | null
+          series_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -66,6 +70,8 @@ export interface Database {
           genre?: string | null
           cover_image_url?: string | null
           word_count_goal?: number | null
+          preferred_model?: string | null
+          series_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -125,6 +131,7 @@ export interface Database {
           goals: string | null
           relationships: string | null
           notes: string | null
+          series_id: string | null
           created_at: string
           updated_at: string
         }
@@ -141,6 +148,7 @@ export interface Database {
           goals?: string | null
           relationships?: string | null
           notes?: string | null
+          series_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -157,6 +165,7 @@ export interface Database {
           goals?: string | null
           relationships?: string | null
           notes?: string | null
+          series_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -181,6 +190,7 @@ export interface Database {
           notes: string | null
           tone: string | null
           ai_rules: string | null
+          visibility: Json | null
           created_at: string
           updated_at: string
         }
@@ -203,6 +213,7 @@ export interface Database {
           notes?: string | null
           tone?: string | null
           ai_rules?: string | null
+          visibility?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -225,6 +236,7 @@ export interface Database {
           notes?: string | null
           tone?: string | null
           ai_rules?: string | null
+          visibility?: Json | null
           updated_at?: string
         }
         Relationships: []
@@ -282,6 +294,237 @@ export interface Database {
         }
         Relationships: []
       }
+      plugins: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string | null
+          name: string
+          description: string | null
+          system_prompt: string
+          user_prompt_template: string
+          requires_selection: boolean
+          max_tokens: number
+          temperature: number
+          icon: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id?: string | null
+          name: string
+          description?: string | null
+          system_prompt: string
+          user_prompt_template: string
+          requires_selection?: boolean
+          max_tokens?: number
+          temperature?: number
+          icon?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string | null
+          name?: string
+          description?: string | null
+          system_prompt?: string
+          user_prompt_template?: string
+          requires_selection?: boolean
+          max_tokens?: number
+          temperature?: number
+          icon?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      series: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          description?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      series_bibles: {
+        Row: {
+          id: string
+          series_id: string
+          user_id: string
+          genre: string | null
+          style: string | null
+          themes: string | null
+          setting: string | null
+          worldbuilding: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          series_id: string
+          user_id: string
+          genre?: string | null
+          style?: string | null
+          themes?: string | null
+          setting?: string | null
+          worldbuilding?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          series_id?: string
+          user_id?: string
+          genre?: string | null
+          style?: string | null
+          themes?: string | null
+          setting?: string | null
+          worldbuilding?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      canvas_nodes: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          node_type: string
+          label: string
+          content: string | null
+          position_x: number
+          position_y: number
+          width: number
+          height: number
+          color: string | null
+          metadata: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          node_type: string
+          label: string
+          content?: string | null
+          position_x?: number
+          position_y?: number
+          width?: number
+          height?: number
+          color?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          node_type?: string
+          label?: string
+          content?: string | null
+          position_x?: number
+          position_y?: number
+          width?: number
+          height?: number
+          color?: string | null
+          metadata?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      canvas_edges: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          source_node_id: string
+          target_node_id: string
+          label: string | null
+          edge_type: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          source_node_id: string
+          target_node_id: string
+          label?: string | null
+          edge_type?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          source_node_id?: string
+          target_node_id?: string
+          label?: string | null
+          edge_type?: string | null
+        }
+        Relationships: []
+      }
+      images: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          prompt: string
+          image_url: string
+          style: string | null
+          source_text: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          prompt: string
+          image_url: string
+          style?: string | null
+          source_text?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          prompt?: string
+          image_url?: string
+          style?: string | null
+          source_text?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -304,3 +547,9 @@ export type Document = Database['public']['Tables']['documents']['Row']
 export type Character = Database['public']['Tables']['characters']['Row']
 export type StoryBible = Database['public']['Tables']['story_bibles']['Row']
 export type AIHistory = Database['public']['Tables']['ai_history']['Row']
+export type Plugin = Database['public']['Tables']['plugins']['Row']
+export type Series = Database['public']['Tables']['series']['Row']
+export type SeriesBible = Database['public']['Tables']['series_bibles']['Row']
+export type CanvasNode = Database['public']['Tables']['canvas_nodes']['Row']
+export type CanvasEdge = Database['public']['Tables']['canvas_edges']['Row']
+export type Image = Database['public']['Tables']['images']['Row']

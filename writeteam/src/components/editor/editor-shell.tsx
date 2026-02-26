@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
-import type { Json } from "@/types/database"
+import { useState, useCallback, useRef, useEffect } from "react"
+import type { Json, Plugin } from "@/types/database"
 import Link from "next/link"
 import type { Project, Document, StoryBible, Character } from "@/types/database"
 import { createDocument, updateDocument, deleteDocument } from "@/app/actions/documents"
@@ -9,6 +9,10 @@ import { WritingEditor } from "@/components/editor/writing-editor"
 import { StoryBiblePanel } from "@/components/story-bible/story-bible-panel"
 import { AIChatPanel } from "@/components/ai/ai-chat-panel"
 import { AIToolbar } from "@/components/ai/ai-toolbar"
+import { MusePanel } from "@/components/ai/muse-panel"
+import { VisualizePanel } from "@/components/ai/visualize-panel"
+import { PluginManager } from "@/components/plugins/plugin-manager"
+import { SaliencyIndicator } from "@/components/editor/saliency-indicator"
 import { CommandPalette } from "@/components/layout/command-palette"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -43,37 +47,84 @@ import {
   ChevronRight,
   Download,
   Upload,
+  Lightbulb,
+  Image as ImageIcon,
+  LayoutGrid,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { exportAsText, exportAsDocx, exportProjectAsDocx } from "@/lib/export"
 import { parseImportedFile } from "@/lib/import"
+import { computeSaliency } from "@/lib/ai/saliency"
+import type { SaliencyMap } from "@/lib/ai/saliency"
 
 interface EditorShellProps {
   project: Project
   documents: Document[]
   storyBible: StoryBible | null
   characters: Character[]
+  plugins?: Plugin[]
 }
+
+type RightPanelType = "none" | "bible" | "chat" | "muse" | "visualize"
 
 export function EditorShell({
   project,
   documents: initialDocuments,
   storyBible: initialStoryBible,
   characters: initialCharacters,
+  plugins: initialPlugins = [],
 }: EditorShellProps) {
   const [documents, setDocuments] = useState(initialDocuments)
   const [activeDocId, setActiveDocId] = useState<string | null>(
     initialDocuments[0]?.id || null
   )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [rightPanel, setRightPanel] = useState<"none" | "bible" | "chat">("none")
+  const [rightPanel, setRightPanel] = useState<RightPanelType>("none")
   const [creatingDoc, setCreatingDoc] = useState(false)
   const [selectedText, setSelectedText] = useState("")
   const [editorContent, setEditorContent] = useState("")
+  const [pluginManagerOpen, setPluginManagerOpen] = useState(false)
+  const [plugins, setPlugins] = useState(initialPlugins)
+  const [saliencyMap, setSaliencyMap] = useState<SaliencyMap | null>(null)
+  const [saliencyLoading, setSaliencyLoading] = useState(false)
+  const saliencyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const activeDocument = documents.find((d) => d.id === activeDocId) || null
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Compute saliency debounced whenever document content changes
+  useEffect(() => {
+    if (!activeDocument?.content_text) {
+      return
+    }
+
+    if (saliencyTimeoutRef.current) {
+      clearTimeout(saliencyTimeoutRef.current)
+    }
+
+    saliencyTimeoutRef.current = setTimeout(() => {
+      setSaliencyLoading(true)
+      const charInfos = initialCharacters.map((c) => ({
+        name: c.name,
+        role: c.role,
+      }))
+      const result = computeSaliency(
+        activeDocument.content_text || "",
+        charInfos,
+        initialStoryBible?.setting,
+        initialStoryBible?.worldbuilding
+      )
+      setSaliencyMap(result)
+      setSaliencyLoading(false)
+    }, 5000)
+
+    return () => {
+      if (saliencyTimeoutRef.current) {
+        clearTimeout(saliencyTimeoutRef.current)
+      }
+    }
+  }, [activeDocument?.content_text, initialCharacters, initialStoryBible?.setting, initialStoryBible?.worldbuilding])
 
   const handleExportTxt = useCallback(() => {
     if (!activeDocument) return
@@ -122,7 +173,6 @@ export function EditorShell({
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "导入失败")
       }
-      // Reset file input so the same file can be re-imported
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
@@ -175,19 +225,111 @@ export function EditorShell({
 
   const handleInsertText = useCallback(
     (text: string) => {
-      // This will be handled by the editor via a ref/callback pattern
       setEditorContent(text)
     },
     []
   )
 
+  const toggleRightPanel = useCallback((panel: RightPanelType) => {
+    setRightPanel((current) => current === panel ? "none" : panel)
+  }, [])
+
   const totalWordCount = documents.reduce((sum, d) => sum + (d.word_count || 0), 0)
+
+  const renderEditorArea = () => (
+    <div className="flex h-full flex-col">
+      {activeDocument && (
+        <>
+          <AIToolbar
+            selectedText={selectedText}
+            documentContent={activeDocument.content_text || ""}
+            projectId={project.id}
+            documentId={activeDocument.id}
+            onInsertText={handleInsertText}
+            plugins={plugins}
+            preferredModel={project.preferred_model}
+            onToggleMuse={() => toggleRightPanel("muse")}
+            onToggleVisualizePanel={() => toggleRightPanel("visualize")}
+            onOpenPluginManager={() => setPluginManagerOpen(true)}
+            saliencyData={saliencyMap}
+          />
+          <WritingEditor
+            document={activeDocument}
+            projectId={project.id}
+            onUpdate={handleDocumentUpdate}
+            onSelectionChange={setSelectedText}
+            insertContent={editorContent}
+          />
+          <SaliencyIndicator
+            saliencyMap={saliencyMap}
+            loading={saliencyLoading}
+          />
+        </>
+      )}
+      {!activeDocument && (
+        <div className="flex flex-1 items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <FileText className="mx-auto mb-4 h-12 w-12 opacity-50" />
+            <p>请选择或创建文档后开始写作</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  const renderRightPanel = () => {
+    switch (rightPanel) {
+      case "bible":
+        return (
+          <StoryBiblePanel
+            projectId={project.id}
+            storyBible={initialStoryBible}
+            characters={initialCharacters}
+          />
+        )
+      case "chat":
+        return (
+          <AIChatPanel
+            projectId={project.id}
+            documentContent={activeDocument?.content_text || ""}
+          />
+        )
+      case "muse":
+        return (
+          <MusePanel
+            projectId={project.id}
+            documentContent={activeDocument?.content_text || ""}
+            onUseAsDirection={(text) => handleInsertText(text)}
+          />
+        )
+      case "visualize":
+        return (
+          <VisualizePanel
+            projectId={project.id}
+            selectedText={selectedText}
+          />
+        )
+      default:
+        return null
+    }
+  }
 
   return (
     <div className="flex h-screen flex-col bg-background">
       <CommandPalette
-        onToggleStoryBible={() => setRightPanel(rightPanel === "bible" ? "none" : "bible")}
-        onToggleChat={() => setRightPanel(rightPanel === "chat" ? "none" : "chat")}
+        onToggleStoryBible={() => toggleRightPanel("bible")}
+        onToggleChat={() => toggleRightPanel("chat")}
+        onToggleMuse={() => toggleRightPanel("muse")}
+        onNavigateCanvas={() => {
+          window.location.href = `/canvas/${project.id}`
+        }}
+      />
+      <PluginManager
+        open={pluginManagerOpen}
+        onOpenChange={setPluginManagerOpen}
+        projectId={project.id}
+        plugins={plugins}
+        onPluginsChange={setPlugins}
       />
       {/* Top Bar */}
       <header className="flex h-12 items-center justify-between border-b px-4">
@@ -213,15 +355,24 @@ export function EditorShell({
             {totalWordCount.toLocaleString()} 字
           </span>
           <Separator orientation="vertical" className="h-6" />
+          {/* Canvas Link */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href={`/canvas/${project.id}`}>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>故事画布</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant={rightPanel === "bible" ? "secondary" : "ghost"}
                 size="icon"
                 className="h-8 w-8"
-                onClick={() =>
-                  setRightPanel(rightPanel === "bible" ? "none" : "bible")
-                }
+                onClick={() => toggleRightPanel("bible")}
               >
                 <BookOpen className="h-4 w-4" />
               </Button>
@@ -234,14 +385,38 @@ export function EditorShell({
                 variant={rightPanel === "chat" ? "secondary" : "ghost"}
                 size="icon"
                 className="h-8 w-8"
-                onClick={() =>
-                  setRightPanel(rightPanel === "chat" ? "none" : "chat")
-                }
+                onClick={() => toggleRightPanel("chat")}
               >
                 <MessageSquare className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>AI 对话</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={rightPanel === "muse" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => toggleRightPanel("muse")}
+              >
+                <Lightbulb className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>灵感伙伴</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={rightPanel === "visualize" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => toggleRightPanel("visualize")}
+              >
+                <ImageIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>可视化</TooltipContent>
           </Tooltip>
         </div>
       </header>
@@ -394,80 +569,16 @@ export function EditorShell({
         {rightPanel !== "none" ? (
           <ResizablePanelGroup orientation="horizontal" className="flex-1">
             <ResizablePanel defaultSize={65} minSize={40}>
-              <div className="flex h-full flex-col">
-                {activeDocument && (
-                  <>
-                    <AIToolbar
-                      selectedText={selectedText}
-                      documentContent={activeDocument.content_text || ""}
-                      projectId={project.id}
-                      documentId={activeDocument.id}
-                      onInsertText={handleInsertText}
-                    />
-                    <WritingEditor
-                      document={activeDocument}
-                      projectId={project.id}
-                      onUpdate={handleDocumentUpdate}
-                      onSelectionChange={setSelectedText}
-                      insertContent={editorContent}
-                    />
-                  </>
-                )}
-                {!activeDocument && (
-                  <div className="flex flex-1 items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <FileText className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                      <p>请选择或创建文档后开始写作</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {renderEditorArea()}
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={35} minSize={25}>
-              {rightPanel === "bible" && (
-                <StoryBiblePanel
-                  projectId={project.id}
-                  storyBible={initialStoryBible}
-                  characters={initialCharacters}
-                />
-              )}
-              {rightPanel === "chat" && (
-                <AIChatPanel
-                  projectId={project.id}
-                  documentContent={activeDocument?.content_text || ""}
-                />
-              )}
+              {renderRightPanel()}
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
           <div className="flex flex-1 flex-col">
-            {activeDocument && (
-              <>
-                <AIToolbar
-                  selectedText={selectedText}
-                  documentContent={activeDocument.content_text || ""}
-                  projectId={project.id}
-                  documentId={activeDocument.id}
-                  onInsertText={handleInsertText}
-                />
-                <WritingEditor
-                  document={activeDocument}
-                  projectId={project.id}
-                  onUpdate={handleDocumentUpdate}
-                  onSelectionChange={setSelectedText}
-                  insertContent={editorContent}
-                />
-              </>
-            )}
-            {!activeDocument && (
-              <div className="flex flex-1 items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <FileText className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>请选择或创建文档后开始写作</p>
-                </div>
-              </div>
-            )}
+            {renderEditorArea()}
           </div>
         )}
       </div>

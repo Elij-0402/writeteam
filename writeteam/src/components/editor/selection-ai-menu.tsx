@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import type { Editor } from "@tiptap/react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Tooltip,
   TooltipContent,
@@ -22,6 +23,8 @@ import {
   X,
   Check,
   ChevronLeft,
+  Zap,
+  Image as ImageIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -31,9 +34,11 @@ interface SelectionAIMenuProps {
   editor: Editor
   projectId: string
   documentId: string | null
+  saliencyData?: { activeCharacters: string[]; activeLocations: string[]; activePlotlines: string[] } | null
+  onVisualize?: (text: string) => void
 }
 
-type AIAction = "rewrite" | "expand" | "describe" | "shrink" | "tone-shift"
+type AIAction = "rewrite" | "expand" | "describe" | "shrink" | "tone-shift" | "quick-edit"
 
 const TONE_OPTIONS = [
   { value: "tense", label: "紧张" },
@@ -48,15 +53,20 @@ export function SelectionAIMenu({
   editor,
   projectId,
   documentId,
+  saliencyData,
+  onVisualize,
 }: SelectionAIMenuProps) {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState("")
   const [activeAction, setActiveAction] = useState<AIAction | null>(null)
   const [showToneMenu, setShowToneMenu] = useState(false)
+  const [showQuickEdit, setShowQuickEdit] = useState(false)
+  const [quickEditInstruction, setQuickEditInstruction] = useState("")
   const [copied, setCopied] = useState(false)
   const [visible, setVisible] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const menuRef = useRef<HTMLDivElement>(null)
+  const quickEditInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handleSelectionUpdate = () => {
@@ -73,6 +83,8 @@ export function SelectionAIMenu({
       } else if (!hasSelection && !loading && !result) {
         setVisible(false)
         setShowToneMenu(false)
+        setShowQuickEdit(false)
+        setQuickEditInstruction("")
       }
     }
 
@@ -81,6 +93,12 @@ export function SelectionAIMenu({
       editor.off("selectionUpdate", handleSelectionUpdate)
     }
   }, [editor, loading, result])
+
+  useEffect(() => {
+    if (showQuickEdit && quickEditInputRef.current) {
+      quickEditInputRef.current.focus()
+    }
+  }, [showQuickEdit])
 
   const getSelectedText = useCallback(() => {
     const { from, to } = editor.state.selection
@@ -106,12 +124,16 @@ export function SelectionAIMenu({
     setShowToneMenu(false)
 
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, unknown> = {
         projectId,
         documentId: documentId || "",
         text: selectedText,
         context: getContext(),
         ...extraBody,
+      }
+
+      if (saliencyData) {
+        body.saliency = saliencyData
       }
 
       let endpoint = ""
@@ -131,6 +153,10 @@ export function SelectionAIMenu({
           break
         case "tone-shift":
           endpoint = "/api/ai/tone-shift"
+          break
+        case "quick-edit":
+          endpoint = "/api/ai/quick-edit"
+          body.instruction = quickEditInstruction
           break
       }
 
@@ -194,12 +220,26 @@ export function SelectionAIMenu({
     setResult("")
     setActiveAction(null)
     setShowToneMenu(false)
+    setShowQuickEdit(false)
+    setQuickEditInstruction("")
     setCopied(false)
     setVisible(false)
   }
 
   function handleToneSelect(tone: string) {
     callAI("tone-shift", { tone })
+  }
+
+  function handleQuickEditSubmit() {
+    if (!quickEditInstruction.trim()) return
+    callAI("quick-edit")
+  }
+
+  function handleVisualize() {
+    const selectedText = getSelectedText()
+    if (selectedText && onVisualize) {
+      onVisualize(selectedText)
+    }
   }
 
   if (!visible && !loading && !result) return null
@@ -248,8 +288,57 @@ export function SelectionAIMenu({
               </Tooltip>
             ))}
           </>
+        ) : showQuickEdit ? (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowQuickEdit(false)}
+                  disabled={loading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">返回</TooltipContent>
+            </Tooltip>
+            <Input
+              ref={quickEditInputRef}
+              placeholder="输入编辑指令，如：改得更悬疑..."
+              value={quickEditInstruction}
+              onChange={(e) => setQuickEditInstruction(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleQuickEditSubmit()
+              }}
+              className="h-8 w-56 text-xs"
+              disabled={loading}
+            />
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              onClick={handleQuickEditSubmit}
+              disabled={loading || !quickEditInstruction.trim()}
+            >
+              {loading && activeAction === "quick-edit" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </>
         ) : (
           <>
+            <MenuButton
+              icon={<Zap className="h-3.5 w-3.5" />}
+              label="快编"
+              tooltip="自然语言指令编辑"
+              loading={loading && activeAction === "quick-edit"}
+              disabled={isActive && activeAction !== "quick-edit"}
+              onClick={() => setShowQuickEdit(true)}
+            />
             <MenuButton
               icon={<Pencil className="h-3.5 w-3.5" />}
               label="改写"
@@ -290,6 +379,16 @@ export function SelectionAIMenu({
               disabled={isActive && activeAction !== "tone-shift"}
               onClick={() => setShowToneMenu(true)}
             />
+            {onVisualize && (
+              <MenuButton
+                icon={<ImageIcon className="h-3.5 w-3.5" />}
+                label="可视化"
+                tooltip="生成场景图片"
+                loading={false}
+                disabled={isActive}
+                onClick={handleVisualize}
+              />
+            )}
           </>
         )}
       </div>

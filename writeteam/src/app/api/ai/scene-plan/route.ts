@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { goal, context, projectId, documentId, proseMode } = await request.json()
+  const { goal, context, projectId, documentId, proseMode, modelId } = await request.json()
 
   if (!goal) {
     return Response.json({ error: "未提供场景规划目标" }, { status: 400 })
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
         ],
         maxTokens: 1800,
         temperature: 0.7,
+        modelId,
       },
       {
         supabase,

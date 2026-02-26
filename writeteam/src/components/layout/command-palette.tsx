@@ -19,6 +19,9 @@ import {
   Sun,
   LogOut,
   LayoutDashboard,
+  Lightbulb,
+  LayoutGrid,
+  Library,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { signOut } from "@/app/actions/auth"
@@ -27,12 +30,16 @@ interface CommandPaletteProps {
   onNewProject?: () => void
   onToggleStoryBible?: () => void
   onToggleChat?: () => void
+  onToggleMuse?: () => void
+  onNavigateCanvas?: () => void
 }
 
 export function CommandPalette({
   onNewProject,
   onToggleStoryBible,
   onToggleChat,
+  onToggleMuse,
+  onNavigateCanvas,
 }: CommandPaletteProps) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
@@ -70,6 +77,18 @@ export function CommandPalette({
             <LayoutDashboard className="mr-2 h-4 w-4" />
             前往项目面板
           </CommandItem>
+          <CommandItem
+            onSelect={() => runCommand(() => router.push("/series"))}
+          >
+            <Library className="mr-2 h-4 w-4" />
+            前往系列管理
+          </CommandItem>
+          {onNavigateCanvas && (
+            <CommandItem onSelect={() => runCommand(onNavigateCanvas)}>
+              <LayoutGrid className="mr-2 h-4 w-4" />
+              打开故事画布
+            </CommandItem>
+          )}
         </CommandGroup>
 
         <CommandSeparator />
@@ -91,6 +110,12 @@ export function CommandPalette({
             <CommandItem onSelect={() => runCommand(onToggleChat)}>
               <MessageSquare className="mr-2 h-4 w-4" />
               切换 AI 对话
+            </CommandItem>
+          )}
+          {onToggleMuse && (
+            <CommandItem onSelect={() => runCommand(onToggleMuse)}>
+              <Lightbulb className="mr-2 h-4 w-4" />
+              切换灵感伙伴
             </CommandItem>
           )}
         </CommandGroup>

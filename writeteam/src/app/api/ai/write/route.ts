@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未授权访问" }, { status: 401 })
   }
 
-  const { context, mode, guidance, projectId, documentId, proseMode } = await request.json()
+  const { context, mode, guidance, projectId, documentId, proseMode, modelId } = await request.json()
 
   const storyCtx = await fetchStoryContext(supabase, projectId)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "write", proseMode })
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
         ],
         maxTokens: 1000,
         temperature: 0.8,
+        modelId,
       },
       {
         supabase,
