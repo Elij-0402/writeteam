@@ -79,6 +79,28 @@ interface EditorShellProps {
 
 type RightPanelType = "none" | "bible" | "chat" | "muse" | "visualize"
 
+function countWords(text: string): number {
+  return text
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length
+}
+
+function buildTiptapDocFromText(text: string): Json {
+  const normalized = text.replace(/\r\n/g, "\n")
+  const lines = normalized.split("\n")
+  const paragraphs = lines.map((line) => ({
+    type: "paragraph",
+    content: line.length > 0 ? [{ type: "text", text: line }] : undefined,
+  }))
+
+  const content = paragraphs.length > 0 ? paragraphs : [{ type: "paragraph" }]
+
+  return {
+    type: "doc",
+    content,
+  }
+}
+
 export function EditorShell({
   project,
   documents: initialDocuments,
@@ -186,9 +208,12 @@ export function EditorShell({
         if (result.error) {
           toast.error(result.error)
         } else if (result.data) {
+          const importedWordCount = countWords(content)
+          const importedDoc = buildTiptapDocFromText(content)
           const updateResult = await updateDocument(result.data.id, {
+            content: importedDoc,
             content_text: content,
-            word_count: content.length,
+            word_count: importedWordCount,
           })
 
           if (updateResult.error) {
@@ -198,7 +223,12 @@ export function EditorShell({
             return
           }
 
-          const newDoc = { ...result.data, content_text: content, word_count: content.length }
+          const newDoc = {
+            ...result.data,
+            content: importedDoc,
+            content_text: content,
+            word_count: importedWordCount,
+          }
           const reorderedDocs = [...documents, newDoc].map((doc, sortOrder) => ({
             ...doc,
             sort_order: sortOrder,
@@ -382,12 +412,23 @@ export function EditorShell({
 
   const handleDocumentUpdate = useCallback(
     async (docId: string, updates: { content?: Json | null; content_text?: string; word_count?: number }) => {
-      await updateDocument(docId, updates)
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === docId ? { ...d, ...updates, updated_at: new Date().toISOString() } : d))
-      )
+      try {
+        const result = await updateDocument(docId, updates)
+
+        if (result.error) {
+          return { error: result.error }
+        }
+
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === docId ? { ...d, ...updates, updated_at: new Date().toISOString() } : d))
+        )
+
+        return { success: true }
+      } catch (error) {
+        return { error: getActionErrorMessage(error, "保存文档失败，请检查网络后重试") }
+      }
     },
-    []
+    [getActionErrorMessage]
   )
 
   const handleInsertText = useCallback(

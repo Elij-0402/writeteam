@@ -1,0 +1,156 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e164]:
+    - generic [ref=e165]:
+      - heading "Command Palette" [level=2] [ref=e166]
+      - paragraph [ref=e167]: Search for a command to run...
+    - banner [ref=e168]:
+      - generic [ref=e169]:
+        - link [ref=e170] [cursor=pointer]:
+          - /url: /dashboard
+          - button [ref=e171]:
+            - img
+        - generic [ref=e172]:
+          - img [ref=e173]
+          - generic [ref=e175]: QA-项目A
+      - generic [ref=e176]:
+        - generic [ref=e177]: 10 字
+        - link [ref=e178] [cursor=pointer]:
+          - /url: /canvas/6db028e2-bc11-4cb4-a36a-d5c981ce72f0
+          - button [ref=e179]:
+            - img
+        - button [ref=e180]:
+          - img
+        - button [ref=e181]:
+          - img
+        - button [ref=e182]:
+          - img
+        - button [ref=e183]:
+          - img
+    - generic [ref=e184]:
+      - generic [ref=e185]:
+        - generic [ref=e186]:
+          - generic [ref=e187]: 文档
+          - button [ref=e188]:
+            - img
+        - generic [ref=e192]:
+          - generic [ref=e193] [cursor=pointer]:
+            - generic [ref=e194]:
+              - img [ref=e195]
+              - generic [ref=e198]: QA-A-二章
+            - button [ref=e199]:
+              - img
+          - generic [ref=e200] [cursor=pointer]:
+            - generic [ref=e201]:
+              - img [ref=e202]
+              - generic [ref=e205]: 第 1 章
+            - button [ref=e206]:
+              - img
+        - generic [ref=e207]:
+          - button "新建文档" [ref=e208]:
+            - img
+            - text: 新建文档
+          - button "导出文档" [ref=e209]:
+            - img
+            - text: 导出文档
+          - button "导入文件" [ref=e210]:
+            - img
+            - text: 导入文件
+      - generic [ref=e212]:
+        - generic [ref=e213]:
+          - generic [ref=e214]:
+            - img [ref=e215]
+            - generic [ref=e218]: AI 服务未配置
+            - link "前往设置" [ref=e219] [cursor=pointer]:
+              - /url: /settings
+          - generic [ref=e220]:
+            - button "续写" [ref=e221]:
+              - img
+              - text: 续写
+            - button "场景规划" [ref=e222]:
+              - img
+              - text: 场景规划
+            - button "连贯性" [ref=e223]:
+              - img
+              - text: 连贯性
+            - button "改写" [disabled]:
+              - img
+              - text: 改写
+            - button "快编" [disabled]:
+              - img
+              - text: 快编
+            - button "描写" [disabled]:
+              - img
+              - text: 描写
+            - button "头脑风暴" [ref=e224]:
+              - img
+              - text: 头脑风暴
+            - button "情节反转" [ref=e225]:
+              - img
+              - text: 情节反转
+            - button "扩写" [ref=e226]:
+              - img
+              - text: 扩写
+            - button "压缩" [disabled]:
+              - img
+              - text: 压缩
+            - button "语调转换" [disabled]:
+              - img
+              - text: 语调转换
+            - button "首稿" [ref=e227]:
+              - img
+              - text: 首稿
+            - generic [ref=e228]:
+              - button "灵感" [ref=e229]:
+                - img
+                - text: 灵感
+              - button "可视化" [ref=e230]:
+                - img
+                - text: 可视化
+              - button [ref=e231]:
+                - img
+              - button "未配置" [ref=e232]:
+                - img
+                - text: 未配置
+        - generic [ref=e233]:
+          - generic [ref=e234]:
+            - button [ref=e235]:
+              - img
+            - button [ref=e236]:
+              - img
+            - button [ref=e237]:
+              - img
+            - button [ref=e238]:
+              - img
+            - button [ref=e239]:
+              - img
+            - button [ref=e240]:
+              - img
+            - button [ref=e241]:
+              - img
+            - button [ref=e242]:
+              - img
+            - button [ref=e243]:
+              - img
+            - button [ref=e244]:
+              - img
+            - button [ref=e245]:
+              - img
+            - button [ref=e246]:
+              - img
+            - generic [ref=e247]:
+              - generic [ref=e248]: 自动保存已启用（1 秒）
+              - generic [ref=e249]: 字数 10
+          - paragraph [ref=e253]: 离线失败测试-正文保持不 [验证A3] 连续输入第一段，观察自动保存状态。 [ [验证A3] 切换面板后继续输入第二段，检查无中断 [验证B-失败阶段] 触发离线保存失败，内容应保留 [验证B-截图] 。。A验证输入成功]变
+  - region "Notifications alt+T"
+  - generic [ref=e75] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e76]:
+      - img [ref=e77]
+    - generic [ref=e101]:
+      - button "Open issues overlay" [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]: "0"
+          - generic [ref=e105]: "1"
+        - generic [ref=e106]: Issue
+      - button "Collapse issues badge" [ref=e107]:
+        - img [ref=e108]
+  - alert [ref=e110]

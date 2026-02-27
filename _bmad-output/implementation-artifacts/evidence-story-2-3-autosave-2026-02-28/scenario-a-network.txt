@@ -1,0 +1,12 @@
+[GET] https://ilbsghjcdivuzixowqgq.supabase.co/auth/v1/user => [200] 
+[GET] http://127.0.0.1:3000/signup?_rsc=vusbg => [307] Temporary Redirect
+[GET] http://127.0.0.1:3000/dashboard => [200] OK
+[GET] http://127.0.0.1:3000/dashboard => [200] OK
+[GET] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0?_rsc=12qz7 => [200] OK
+[GET] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0?_rsc=12qz7 => [200] OK
+[POST] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0 => [200] OK
+[POST] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0 => [200] OK
+[POST] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0 => [200] OK
+[POST] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0 => [200] OK
+[POST] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0 => [200] OK
+[POST] http://127.0.0.1:3000/editor/6db028e2-bc11-4cb4-a36a-d5c981ce72f0 => [200] OK

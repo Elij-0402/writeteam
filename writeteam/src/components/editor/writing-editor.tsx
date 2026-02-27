@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { memo, useEffect, useRef, useState, useCallback } from "react"
 import type { Json } from "@/types/database"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -24,6 +24,7 @@ import {
   Undo,
   Redo,
   Minus,
+  Loader2,
 } from "lucide-react"
 import {
   Tooltip,
@@ -39,12 +40,24 @@ interface WritingEditorProps {
   onUpdate: (
     docId: string,
     updates: { content?: Json | null; content_text?: string; word_count?: number }
-  ) => void
+  ) => Promise<{ success?: boolean; error?: string }>
   onSelectionChange: (text: string) => void
   insertContent?: string
 }
 
-export function WritingEditor({
+type AutosaveState =
+  | { status: "idle" }
+  | { status: "saving"; docId: string }
+  | { status: "saved"; docId: string; savedAt: string }
+  | { status: "error"; docId: string; message: string }
+
+function countWords(text: string): number {
+  return text
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length
+}
+
+export const WritingEditor = memo(function WritingEditor({
   document,
   projectId,
   onUpdate,
@@ -53,6 +66,59 @@ export function WritingEditor({
 }: WritingEditorProps) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastInsertRef = useRef<string>("")
+  const latestDraftRef = useRef<{ content: Json | null; content_text: string; word_count: number } | null>(null)
+  const latestSaveRequestRef = useRef(0)
+  const [autosaveState, setAutosaveState] = useState<AutosaveState>({ status: "idle" })
+
+  const persistDraft = useCallback(
+    async (draft: { content: Json | null; content_text: string; word_count: number }) => {
+      latestDraftRef.current = draft
+      const requestId = latestSaveRequestRef.current + 1
+      latestSaveRequestRef.current = requestId
+      setAutosaveState({ status: "saving", docId: document.id })
+
+      let result: { success?: boolean; error?: string }
+      try {
+        result = await onUpdate(document.id, draft)
+      } catch {
+        result = { error: "保存文档失败，请检查网络后重试" }
+      }
+
+      if (latestSaveRequestRef.current !== requestId) {
+        return
+      }
+
+      if (result.error) {
+        setAutosaveState({ status: "error", docId: document.id, message: result.error })
+        return
+      }
+
+      setAutosaveState({
+        status: "saved",
+        docId: document.id,
+        savedAt: new Date().toLocaleTimeString("zh-CN"),
+      })
+    },
+    [document.id, onUpdate]
+  )
+
+  useEffect(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+    }
+
+    latestSaveRequestRef.current += 1
+    latestDraftRef.current = null
+  }, [document.id])
+
+  const handleRetrySave = useCallback(() => {
+    if (!latestDraftRef.current) {
+      return
+    }
+
+    void persistDraft(latestDraftRef.current)
+  }, [persistDraft])
 
   const editor = useEditor(
     {
@@ -82,10 +148,8 @@ export function WritingEditor({
         saveTimeoutRef.current = setTimeout(() => {
           const json = editor.getJSON()
           const text = editor.getText()
-          const wordCount = text
-            .split(/\s+/)
-            .filter((word) => word.length > 0).length
-          onUpdate(document.id, {
+          const wordCount = countWords(text)
+          void persistDraft({
             content: json,
             content_text: text,
             word_count: wordCount,
@@ -102,7 +166,7 @@ export function WritingEditor({
         }
       },
     },
-    [document.id]
+    [document.id, persistDraft]
   )
 
   // Handle external content insertion
@@ -124,7 +188,46 @@ export function WritingEditor({
 
   if (!editor) return null
 
-  const wordCount = editor.storage.characterCount.words()
+  const wordCount = countWords(editor.getText())
+
+  const renderAutosaveStatus = () => {
+    const stateMatchesCurrentDoc =
+      autosaveState.status === "idle" || autosaveState.docId === document.id
+
+    if (!stateMatchesCurrentDoc) {
+      return <span className="text-xs text-muted-foreground">自动保存已启用（1 秒）</span>
+    }
+
+    if (autosaveState.status === "idle") {
+      return <span className="text-xs text-muted-foreground">自动保存已启用（1 秒）</span>
+    }
+
+    if (autosaveState.status === "saving") {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          正在自动保存...
+        </span>
+      )
+    }
+
+    if (autosaveState.status === "saved") {
+      return (
+        <span className="text-xs text-emerald-600" aria-live="polite">
+          已保存 {autosaveState.savedAt}
+        </span>
+      )
+    }
+
+    return (
+      <span className="inline-flex items-center gap-2 text-xs text-destructive" aria-live="polite">
+        自动保存失败，可继续编辑
+        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={handleRetrySave}>
+          立即重试
+        </Button>
+      </span>
+    )
+  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -211,8 +314,14 @@ export function WritingEditor({
           active={false}
           onClick={() => editor.chain().focus().redo().run()}
         />
-        <div className="ml-auto text-xs text-muted-foreground">
-          字数 {wordCount.toLocaleString()}
+        <div className="ml-auto flex items-center gap-3">
+          {autosaveState.status === "error" && autosaveState.docId === document.id ? (
+            <span className="text-xs text-destructive" title={autosaveState.message}>
+              {autosaveState.message}
+            </span>
+          ) : null}
+          {renderAutosaveStatus()}
+          <span className="text-xs text-muted-foreground">字数 {wordCount.toLocaleString()}</span>
         </div>
       </div>
 
@@ -227,7 +336,7 @@ export function WritingEditor({
       </div>
     </div>
   )
-}
+})
 
 function ToolbarButton({
   icon,
