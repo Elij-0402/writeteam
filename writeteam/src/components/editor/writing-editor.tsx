@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { countDocumentWords } from "@/lib/text-stats"
 
 interface WritingEditorProps {
   document: Document
@@ -50,12 +51,6 @@ type AutosaveState =
   | { status: "saving"; docId: string }
   | { status: "saved"; docId: string; savedAt: string }
   | { status: "error"; docId: string; message: string }
-
-function countWords(text: string): number {
-  return text
-    .split(/\s+/)
-    .filter((word) => word.length > 0).length
-}
 
 export const WritingEditor = memo(function WritingEditor({
   document,
@@ -148,7 +143,7 @@ export const WritingEditor = memo(function WritingEditor({
         saveTimeoutRef.current = setTimeout(() => {
           const json = editor.getJSON()
           const text = editor.getText()
-          const wordCount = countWords(text)
+          const wordCount = countDocumentWords(text)
           void persistDraft({
             content: json,
             content_text: text,
@@ -188,7 +183,7 @@ export const WritingEditor = memo(function WritingEditor({
 
   if (!editor) return null
 
-  const wordCount = countWords(editor.getText())
+  const wordCount = countDocumentWords(editor.getText())
 
   const renderAutosaveStatus = () => {
     const stateMatchesCurrentDoc =

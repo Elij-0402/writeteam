@@ -68,6 +68,7 @@ import { exportAsText, exportAsDocx, exportProjectAsDocx } from "@/lib/export"
 import { parseImportedFile } from "@/lib/import"
 import { computeSaliency } from "@/lib/ai/saliency"
 import type { SaliencyMap } from "@/lib/ai/saliency"
+import { countDocumentWords } from "@/lib/text-stats"
 
 interface EditorShellProps {
   project: Project
@@ -78,12 +79,6 @@ interface EditorShellProps {
 }
 
 type RightPanelType = "none" | "bible" | "chat" | "muse" | "visualize"
-
-function countWords(text: string): number {
-  return text
-    .split(/\s+/)
-    .filter((word) => word.length > 0).length
-}
 
 function buildTiptapDocFromText(text: string): Json {
   const normalized = text.replace(/\r\n/g, "\n")
@@ -134,7 +129,10 @@ export function EditorShell({
 
   const getActionErrorMessage = useCallback((error: unknown, fallbackMessage: string) => {
     if (typeof error === "object" && error && "message" in error) {
-      return fallbackMessage
+      const message = String((error as { message?: unknown }).message ?? "").trim()
+      if (message.length > 0) {
+        return message
+      }
     }
 
     return fallbackMessage
@@ -175,30 +173,53 @@ export function EditorShell({
 
   const handleExportTxt = useCallback(() => {
     if (!activeDocument) return
-    exportAsText(activeDocument.title, activeDocument.content_text || "")
-    toast.success("已导出为 .txt")
-  }, [activeDocument])
+    try {
+      exportAsText(`${project.title}-${activeDocument.title}`, activeDocument.content_text || "")
+      toast.success("已导出为 .txt")
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "导出失败，请稍后重试或改为 .docx"))
+    }
+  }, [activeDocument, getActionErrorMessage, project.title])
 
   const handleExportDocx = useCallback(async () => {
     if (!activeDocument) return
-    await exportAsDocx(activeDocument.title, activeDocument.content_text || "")
-    toast.success("已导出为 .docx")
-  }, [activeDocument])
+    const exportTitle = `${project.title}-${activeDocument.title}`
+
+    try {
+      await exportAsDocx(exportTitle, activeDocument.content_text || "")
+      toast.success("已导出为 .docx")
+      return
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "导出 .docx 失败，已尝试导出为 .txt"))
+    }
+
+    try {
+      exportAsText(exportTitle, activeDocument.content_text || "")
+      toast.success("已降级导出为 .txt")
+    } catch (fallbackError) {
+      toast.error(getActionErrorMessage(fallbackError, "导出失败，请检查浏览器下载权限后重试"))
+    }
+  }, [activeDocument, getActionErrorMessage, project.title])
 
   const handleExportProject = useCallback(async () => {
     if (documents.length === 0) return
-    const chapters = documents.map((doc) => ({
-      title: doc.title,
-      content: doc.content_text || "",
-    }))
-    await exportProjectAsDocx(project.title, chapters)
-    toast.success("已导出整个项目")
-  }, [documents, project.title])
+    try {
+      const chapters = documents.map((doc) => ({
+        title: doc.title,
+        content: doc.content_text || "",
+      }))
+      await exportProjectAsDocx(project.title, chapters)
+      toast.success("已导出整个项目")
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "导出项目失败，请稍后重试"))
+    }
+  }, [documents, getActionErrorMessage, project.title])
 
   const handleImportFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file) return
+
       try {
         const { title, content } = await parseImportedFile(file)
         const formData = new FormData()
@@ -208,7 +229,7 @@ export function EditorShell({
         if (result.error) {
           toast.error(result.error)
         } else if (result.data) {
-          const importedWordCount = countWords(content)
+          const importedWordCount = countDocumentWords(content)
           const importedDoc = buildTiptapDocFromText(content)
           const updateResult = await updateDocument(result.data.id, {
             content: importedDoc,
@@ -229,34 +250,20 @@ export function EditorShell({
             content_text: content,
             word_count: importedWordCount,
           }
-          const reorderedDocs = [...documents, newDoc].map((doc, sortOrder) => ({
-            ...doc,
-            sort_order: sortOrder,
-          }))
-          const reorderResult = await reorderDocuments(
-            project.id,
-            reorderedDocs.map((doc) => doc.id)
-          )
 
-          if (reorderResult.error) {
-            setDocuments((prev) => [...prev, newDoc])
-            setActiveDocId(result.data.id)
-            toast.error(reorderResult.error)
-            toast.message("文件已导入，排序同步未完成，请稍后重试")
-          } else {
-            setDocuments(reorderedDocs)
-            setActiveDocId(result.data.id)
-            toast.success("文件已导入")
-          }
+          setDocuments((prev) => [...prev, newDoc])
+          setActiveDocId(result.data.id)
+          toast.success("文件已导入")
         }
       } catch (err) {
         toast.error(getActionErrorMessage(err, "导入失败，请检查文件格式或网络后重试"))
-      }
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
       }
     },
-    [documents, getActionErrorMessage, project.id]
+    [getActionErrorMessage, project.id]
   )
 
   const handleCreateDocument = useCallback(async () => {
@@ -789,7 +796,10 @@ export function EditorShell({
                   variant="ghost"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    toast.message("支持 .txt/.docx，单文件最大 5MB")
+                    fileInputRef.current?.click()
+                  }}
                 >
                   <Upload className="mr-2 h-4 w-4" />
                   导入文件
