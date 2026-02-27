@@ -8,6 +8,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { MessageSquare, Send, Loader2, User, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import { useAIRecovery } from "@/hooks/use-ai-recovery"
+import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
+import { readAIStream } from "@/lib/ai/read-ai-stream"
 
 interface Message {
   role: "user" | "assistant"
@@ -20,7 +23,8 @@ interface AIChatPanelProps {
 }
 
 export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
-  const { getHeaders } = useAIConfigContext()
+  const { getHeaders, config } = useAIConfigContext()
+  const recovery = useAIRecovery({ config, getHeaders })
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
@@ -40,52 +44,57 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setLoading(true)
+    recovery.clearError()
+
+    const endpoint = "/api/ai/chat"
+    const body = {
+      messages: [...messages, userMessage],
+      projectId,
+      context: documentContent.slice(-3000),
+    }
+
+    // Store request context for recovery
+    recovery.storeRequestContext(endpoint, body, async (reader) => {
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }])
+      await readAIStream(reader, (text) => {
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: "assistant", content: text }
+          return updated
+        })
+      })
+    })
 
     try {
-      const response = await fetch("/api/ai/chat", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getHeaders() },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-          projectId,
-          context: documentContent.slice(-3000),
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
-        throw new Error("对话请求失败")
+        await recovery.handleResponseError(response)
+        return
       }
 
       const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullText = ""
 
       setMessages((prev) => [...prev, { role: "assistant", content: "" }])
 
       if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          fullText += chunk
+        await readAIStream(reader, (text) => {
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = {
               role: "assistant",
-              content: fullText,
+              content: text,
             }
             return updated
           })
-        }
+        })
       }
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "抱歉，发生了错误。请检查 API Key 配置后重试。",
-        },
-      ])
+    } catch (error) {
+      recovery.handleFetchError(error)
     } finally {
       setLoading(false)
     }
@@ -161,6 +170,19 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
           </div>
         )}
       </ScrollArea>
+
+      {/* Recovery Action Bar */}
+      {recovery.error && (
+        <div className="border-t px-4 py-2">
+          <RecoveryActionBar
+            error={recovery.error}
+            onRetry={recovery.handleRetry}
+            onSwitchModel={recovery.handleSwitchModel}
+            onDismiss={recovery.clearError}
+            isRetrying={recovery.isRetrying}
+          />
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t p-4">

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "AI 服务未配置" }, { status: 400 })
   }
 
-  const { text, projectId, documentId } = await request.json()
+  const body = await request.json()
+  const { text, projectId, documentId } = body
 
   const storyCtx = await fetchStoryContext(supabase, projectId)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "describe" })
@@ -57,6 +58,7 @@ Make each description vivid and suitable for use in fiction. Provide 2-3 options
         documentId: documentId || null,
         feature: "describe",
         promptLog: text,
+        ...extractRetryMeta(body),
       }
     )
   } catch {

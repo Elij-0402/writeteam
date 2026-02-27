@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "AI 服务未配置" }, { status: 400 })
   }
 
-  const { goal, context, projectId, documentId, proseMode } = await request.json()
+  const body = await request.json()
+  const { goal, context, projectId, documentId, proseMode } = body
 
   if (!goal) {
     return Response.json({ error: "未提供场景规划目标" }, { status: 400 })
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
         documentId: documentId || null,
         feature: "scene-plan",
         promptLog: goal.slice(0, 500),
+        ...extractRetryMeta(body),
       }
     )
   } catch {

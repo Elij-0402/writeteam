@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "AI 服务未配置" }, { status: 400 })
   }
 
-  const { text, mode, customInstructions, projectId, documentId, proseMode } = await request.json()
+  const body = await request.json()
+  const { text, mode, customInstructions, projectId, documentId, proseMode } = body
 
   if (!text) {
     return Response.json({ error: "未选择文本" }, { status: 400 })
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
         documentId: documentId || null,
         feature: "rewrite",
         promptLog: userPrompt.slice(0, 500),
+        ...extractRetryMeta(body),
       }
     )
   } catch {

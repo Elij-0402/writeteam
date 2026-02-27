@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "AI 服务未配置" }, { status: 400 })
   }
 
-  const { text, tone, projectId, documentId, proseMode } = await request.json()
+  const body = await request.json()
+  const { text, tone, projectId, documentId, proseMode } = body
 
   const toneLabel = TONE_LABELS[tone] || tone
 
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
         documentId: documentId || null,
         feature: "tone-shift",
         promptLog: userPrompt.slice(0, 500),
+        ...extractRetryMeta(body),
       }
     )
   } catch {

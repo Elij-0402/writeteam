@@ -48,6 +48,9 @@ import {
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import { useAIRecovery } from "@/hooks/use-ai-recovery"
+import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
+import { readAIStream } from "@/lib/ai/read-ai-stream"
 import type { Plugin } from "@/types/database"
 
 interface AIToolbarProps {
@@ -128,6 +131,7 @@ export function AIToolbar({
   saliencyData,
 }: AIToolbarProps) {
   const { isConfigured, getHeaders, config } = useAIConfigContext()
+  const recovery = useAIRecovery({ config, getHeaders })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState("")
   const [activeFeature, setActiveFeature] = useState<AIFeature | null>(null)
@@ -162,6 +166,7 @@ export function AIToolbar({
     setCopied(false)
     setResponseFingerprint("")
     setFeedbackGiven(0)
+    recovery.clearError()
 
     try {
       const body: Record<string, unknown> = {
@@ -226,6 +231,16 @@ export function AIToolbar({
       }
 
       const endpoint = feature === "plugin" ? "/api/ai/plugin" : `/api/ai/${feature}`
+
+      // Store request context for recovery retry
+      recovery.storeRequestContext(endpoint, body, async (reader) => {
+        const fullText = await readAIStream(reader, setResult)
+        if (fullText) {
+          const fingerprint = await hashText(fullText)
+          setResponseFingerprint(fingerprint)
+        }
+      })
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getHeaders() },
@@ -233,30 +248,20 @@ export function AIToolbar({
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "AI 请求失败")
+        await recovery.handleResponseError(response)
+        return
       }
 
       const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullText = ""
-
       if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          fullText += chunk
-          setResult(fullText)
+        const fullText = await readAIStream(reader, setResult)
+        if (fullText) {
+          const fingerprint = await hashText(fullText)
+          setResponseFingerprint(fingerprint)
         }
       }
-
-      if (fullText) {
-        const fingerprint = await hashText(fullText)
-        setResponseFingerprint(fingerprint)
-      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "AI 请求失败")
+      recovery.handleFetchError(error)
     } finally {
       setLoading(false)
     }
@@ -1024,6 +1029,19 @@ export function AIToolbar({
         </Popover>
       )}
     </div>
+
+      {/* Recovery Action Bar */}
+      {recovery.error && (
+        <div className="border-t px-3 py-2">
+          <RecoveryActionBar
+            error={recovery.error}
+            onRetry={recovery.handleRetry}
+            onSwitchModel={recovery.handleSwitchModel}
+            onDismiss={recovery.clearError}
+            isRetrying={recovery.isRetrying}
+          />
+        </div>
+      )}
     </div>
   )
 }

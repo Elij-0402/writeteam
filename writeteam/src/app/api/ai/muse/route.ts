@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "AI 服务未配置" }, { status: 400 })
   }
 
-  const { mode, projectId, documentId, context, input } = await request.json()
+  const body = await request.json()
+  const { mode, projectId, documentId, context, input } = body
 
   if (!mode || !["what-if", "random-prompt", "suggest"].includes(mode)) {
     return Response.json({ error: "无效的灵感模式" }, { status: 400 })
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
         documentId: documentId || null,
         feature: "muse",
         promptLog: `[Muse: ${museMode}] ${userPrompt.slice(0, 400)}`,
+        ...extractRetryMeta(body),
       }
     )
   } catch {

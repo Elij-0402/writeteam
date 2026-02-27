@@ -26,3 +26,30 @@ export const PROVIDER_PRESETS = [
   { name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1" },
   { name: "硅基流动", baseUrl: "https://api.siliconflow.cn/v1" },
 ] as const
+
+/**
+ * Create a temporary AI config override for recovery model switching.
+ * Only replaces modelId (and optionally baseUrl). Does NOT modify localStorage.
+ */
+export function createTemporaryConfig(
+  currentConfig: AIProviderConfig,
+  overrides: { modelId: string; baseUrl?: string }
+): AIProviderConfig {
+  return {
+    ...currentConfig,
+    modelId: overrides.modelId,
+    baseUrl: overrides.baseUrl ?? currentConfig.baseUrl,
+    modelName: overrides.modelId,
+  }
+}
+
+/**
+ * Build HTTP headers from an AIProviderConfig for use in fetch() calls.
+ */
+export function buildConfigHeaders(config: AIProviderConfig): Record<string, string> {
+  return {
+    [AI_CONFIG_HEADERS.BASE_URL]: config.baseUrl,
+    [AI_CONFIG_HEADERS.API_KEY]: config.apiKey,
+    [AI_CONFIG_HEADERS.MODEL_ID]: config.modelId,
+  }
+}

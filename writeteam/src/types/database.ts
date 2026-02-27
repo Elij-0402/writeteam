@@ -257,6 +257,11 @@ export interface Database {
           response_fingerprint: string | null
           user_rating: number | null
           rated_at: string | null
+          error_type: string | null
+          error_message: string | null
+          is_retry: boolean | null
+          recovery_status: string | null
+          attempted_model: string | null
           created_at: string
         }
         Insert: {
@@ -274,6 +279,11 @@ export interface Database {
           response_fingerprint?: string | null
           user_rating?: number | null
           rated_at?: string | null
+          error_type?: string | null
+          error_message?: string | null
+          is_retry?: boolean | null
+          recovery_status?: string | null
+          attempted_model?: string | null
           created_at?: string
         }
         Update: {
@@ -291,6 +301,11 @@ export interface Database {
           response_fingerprint?: string | null
           user_rating?: number | null
           rated_at?: string | null
+          error_type?: string | null
+          error_message?: string | null
+          is_retry?: boolean | null
+          recovery_status?: string | null
+          attempted_model?: string | null
         }
         Relationships: []
       }

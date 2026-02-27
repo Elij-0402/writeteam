@@ -30,6 +30,9 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import { useAIRecovery } from "@/hooks/use-ai-recovery"
+import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
+import { readAIStream } from "@/lib/ai/read-ai-stream"
 
 interface SelectionAIMenuProps {
   editor: Editor
@@ -57,7 +60,8 @@ export function SelectionAIMenu({
   saliencyData,
   onVisualize,
 }: SelectionAIMenuProps) {
-  const { getHeaders } = useAIConfigContext()
+  const { getHeaders, config } = useAIConfigContext()
+  const recovery = useAIRecovery({ config, getHeaders })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState("")
   const [activeAction, setActiveAction] = useState<AIAction | null>(null)
@@ -124,6 +128,7 @@ export function SelectionAIMenu({
     setResult("")
     setCopied(false)
     setShowToneMenu(false)
+    recovery.clearError()
 
     try {
       const body: Record<string, unknown> = {
@@ -162,6 +167,11 @@ export function SelectionAIMenu({
           break
       }
 
+      // Store request context for recovery retry
+      recovery.storeRequestContext(endpoint, body as Record<string, unknown>, async (reader) => {
+        await readAIStream(reader, setResult)
+      })
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getHeaders() },
@@ -169,26 +179,17 @@ export function SelectionAIMenu({
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "AI 请求失败")
+        await recovery.handleResponseError(response)
+        return
       }
 
       const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullText = ""
 
       if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          fullText += chunk
-          setResult(fullText)
-        }
+        await readAIStream(reader, setResult)
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "AI 请求失败")
-      setActiveAction(null)
+      recovery.handleFetchError(error)
     } finally {
       setLoading(false)
     }
@@ -226,6 +227,7 @@ export function SelectionAIMenu({
     setQuickEditInstruction("")
     setCopied(false)
     setVisible(false)
+    recovery.clearError()
   }
 
   function handleToneSelect(tone: string) {
@@ -244,9 +246,9 @@ export function SelectionAIMenu({
     }
   }
 
-  if (!visible && !loading && !result) return null
+  if (!visible && !loading && !result && !recovery.error) return null
 
-  const isActive = loading || !!result
+  const isActive = loading || !!result || !!recovery.error
 
   return createPortal(
     <div
@@ -449,6 +451,19 @@ export function SelectionAIMenu({
               关闭
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Recovery Action Bar */}
+      {recovery.error && (
+        <div className="border-t p-2">
+          <RecoveryActionBar
+            error={recovery.error}
+            onRetry={recovery.handleRetry}
+            onSwitchModel={recovery.handleSwitchModel}
+            onDismiss={resetState}
+            isRetrying={recovery.isRetrying}
+          />
         </div>
       )}
     </div>,
