@@ -39,6 +39,8 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isAuthPage && !isPublicPage && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.searchParams.set('reason', 'session_expired')
+    url.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
 

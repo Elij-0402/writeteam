@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn } from "@/app/actions/auth"
@@ -21,6 +21,30 @@ export default function LoginPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [reason, setReason] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [nextPath, setNextPath] = useState("/dashboard")
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const nextParam = params.get("next")
+
+    setReason(params.get("reason"))
+    setAuthError(params.get("error"))
+    if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
+      setNextPath(nextParam)
+    }
+  }, [])
+
+  const contextualError =
+    error ||
+    (reason === "session_expired"
+      ? "登录状态已失效，请重新登录后继续。"
+      : authError === "auth_callback_error"
+        ? "登录回调失败，请重试或重新登录。"
+        : authError === "signout_failed"
+          ? "退出时网络异常，请重新登录后再试。"
+          : null)
 
   async function handleSubmit(formData: FormData) {
     setLoading(true)
@@ -35,7 +59,7 @@ export default function LoginPage() {
       }
 
       if (result?.success) {
-        router.push("/dashboard")
+        router.push(nextPath)
         return
       }
 
@@ -62,9 +86,9 @@ export default function LoginPage() {
         </CardHeader>
         <form action={handleSubmit}>
           <CardContent className="space-y-5">
-            {error && (
+            {contextualError && (
               <div className="rounded-md border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
+                {contextualError}
               </div>
             )}
             <div className="space-y-2">
