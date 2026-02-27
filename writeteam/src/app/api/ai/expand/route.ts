@@ -17,10 +17,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { text, context, projectId, documentId, proseMode } = body
+  const { text, context, projectId, documentId, proseMode, saliency } = body
+
+  if (!text) {
+    return Response.json({ error: "未提供文本内容" }, { status: 400 })
+  }
 
   const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
-  const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "expand", proseMode })
+  const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "expand", proseMode, saliencyMap: saliency ?? null })
 
   let systemPrompt = `You are a creative fiction writing assistant. Your task is to expand the given passage by adding more detail, description, sensory imagery, internal thoughts, and moment-to-moment action. Slow down the pacing and flesh out the scene without changing the plot direction. Return ONLY the expanded prose.`
 

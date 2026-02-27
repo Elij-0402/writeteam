@@ -17,14 +17,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { text, mode, customInstructions, projectId, documentId, proseMode } = body
+  const { text, mode, customInstructions, projectId, documentId, proseMode, saliency } = body
 
   if (!text) {
     return Response.json({ error: "未选择文本" }, { status: 400 })
   }
 
   const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
-  const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "rewrite", proseMode })
+  const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "rewrite", proseMode, saliencyMap: saliency ?? null })
 
   let systemPrompt = `You are a skilled fiction editor. Rewrite the given text according to the instructions. Return ONLY the rewritten text — no explanations, no meta-commentary.`
 

@@ -44,6 +44,8 @@ interface WritingEditorProps {
   ) => Promise<{ success?: boolean; error?: string }>
   onSelectionChange: (text: string) => void
   insertContent?: string
+  replaceContent?: string
+  saliencyData?: { activeCharacters: string[]; activeLocations: string[]; activePlotlines: string[] } | null
 }
 
 type AutosaveState =
@@ -58,6 +60,8 @@ export const WritingEditor = memo(function WritingEditor({
   onUpdate,
   onSelectionChange,
   insertContent,
+  replaceContent,
+  saliencyData,
 }: WritingEditorProps) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastInsertRef = useRef<string>("")
@@ -171,6 +175,24 @@ export const WritingEditor = memo(function WritingEditor({
       editor.chain().focus().insertContent(insertContent).run()
     }
   }, [insertContent, editor])
+
+  // Handle external content replacement (replaces current selection)
+  const lastReplaceRef = useRef<string>("")
+  useEffect(() => {
+    if (replaceContent && replaceContent !== lastReplaceRef.current && editor) {
+      lastReplaceRef.current = replaceContent
+      // Strip uniqueness suffix appended by parent (text + "\0" + timestamp)
+      const actualContent = replaceContent.includes("\0")
+        ? replaceContent.slice(0, replaceContent.lastIndexOf("\0"))
+        : replaceContent
+      const { from, to } = editor.state.selection
+      if (from !== to) {
+        editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, actualContent).run()
+      } else {
+        editor.chain().focus().insertContent(actualContent).run()
+      }
+    }
+  }, [replaceContent, editor])
 
   // Cleanup save timeout on unmount
   useEffect(() => {
@@ -327,6 +349,7 @@ export const WritingEditor = memo(function WritingEditor({
           editor={editor}
           projectId={projectId}
           documentId={document.id}
+          saliencyData={saliencyData}
         />
       </div>
     </div>

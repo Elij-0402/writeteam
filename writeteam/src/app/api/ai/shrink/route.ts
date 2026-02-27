@@ -17,18 +17,22 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { text, projectId, documentId, proseMode } = body
+  const { text, projectId, documentId, proseMode, saliency } = body
+
+  if (!text) {
+    return Response.json({ error: "未选择文本" }, { status: 400 })
+  }
 
   const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
-  const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "shrink", proseMode })
+  const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "shrink", proseMode, saliencyMap: saliency ?? null })
 
-  let systemPrompt = `你是文本编辑助手。将给定文本压缩精简至约50%长度，保留核心信息和意义，保持原文风格。不要添加新内容。`
+  let systemPrompt = `You are a skilled text editor. Condense the given text to approximately 50% of its original length. Preserve the core meaning, key information, and original style. Do not add new content. Return ONLY the condensed text.`
 
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `请精简以下文本：\n\n${text}`
+  const userPrompt = `Condense the following text to roughly 50% of its length while preserving meaning and style:\n\n${text}`
 
   try {
     return createOpenAIStreamResponse(

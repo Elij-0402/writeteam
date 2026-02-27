@@ -445,6 +445,16 @@ export function EditorShell({
     []
   )
 
+  const [replaceContent, setReplaceContent] = useState("")
+
+  const handleReplaceSelection = useCallback(
+    (text: string) => {
+      // Append timestamp to ensure uniqueness even for identical content
+      setReplaceContent(text + "\0" + Date.now())
+    },
+    []
+  )
+
   const toggleRightPanel = useCallback((panel: RightPanelType) => {
     setRightPanel((current) => current === panel ? "none" : panel)
   }, [])
@@ -461,6 +471,7 @@ export function EditorShell({
             projectId={project.id}
             documentId={activeDocument.id}
             onInsertText={handleInsertText}
+            onReplaceSelection={handleReplaceSelection}
             plugins={plugins}
             onToggleMuse={() => toggleRightPanel("muse")}
             onToggleVisualizePanel={() => toggleRightPanel("visualize")}
@@ -473,6 +484,8 @@ export function EditorShell({
             onUpdate={handleDocumentUpdate}
             onSelectionChange={setSelectedText}
             insertContent={editorContent}
+            replaceContent={replaceContent}
+            saliencyData={saliencyMap}
           />
           <SaliencyIndicator
             saliencyMap={saliencyMap}

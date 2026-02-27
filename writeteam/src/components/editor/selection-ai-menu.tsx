@@ -172,11 +172,20 @@ export function SelectionAIMenu({
         await readAIStream(reader, setResult)
       })
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getHeaders() },
-        body: JSON.stringify(body),
-      })
+      const ttfbController = new AbortController()
+      const ttfbTimer = setTimeout(() => ttfbController.abort(), 3000)
+
+      let response: Response
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getHeaders() },
+          body: JSON.stringify(body),
+          signal: ttfbController.signal,
+        })
+      } finally {
+        clearTimeout(ttfbTimer)
+      }
 
       if (!response.ok) {
         await recovery.handleResponseError(response)

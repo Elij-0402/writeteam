@@ -59,6 +59,7 @@ interface AIToolbarProps {
   projectId: string
   documentId: string
   onInsertText: (text: string) => void
+  onReplaceSelection?: (text: string) => void
   plugins?: Plugin[]
   onToggleMuse?: () => void
   onToggleVisualizePanel?: () => void
@@ -124,6 +125,7 @@ export function AIToolbar({
   projectId,
   documentId,
   onInsertText,
+  onReplaceSelection,
   plugins = [],
   onToggleMuse,
   onToggleVisualizePanel,
@@ -241,11 +243,20 @@ export function AIToolbar({
         }
       })
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getHeaders() },
-        body: JSON.stringify(body),
-      })
+      const ttfbController = new AbortController()
+      const ttfbTimer = setTimeout(() => ttfbController.abort(), 3000)
+
+      let response: Response
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getHeaders() },
+          body: JSON.stringify(body),
+          signal: ttfbController.signal,
+        })
+      } finally {
+        clearTimeout(ttfbTimer)
+      }
 
       if (!response.ok) {
         await recovery.handleResponseError(response)
@@ -273,6 +284,15 @@ export function AIToolbar({
       text: selectedText,
       input: pluginInput,
     })
+  }
+
+  function handleReplace() {
+    if (result && onReplaceSelection && selectedText) {
+      onReplaceSelection(result)
+      setResult("")
+      setActiveFeature(null)
+      toast.success("已替换选中文本")
+    }
   }
 
   function handleInsert() {
@@ -995,6 +1015,11 @@ export function AIToolbar({
                 <Button size="sm" className="flex-1" onClick={handleInsert}>
                   插入编辑器
                 </Button>
+                {selectedText && onReplaceSelection && (
+                  <Button size="sm" variant="outline" className="flex-1" onClick={handleReplace}>
+                    替换选区
+                  </Button>
+                )}
                 {activeFeature === "scene-plan" && (
                   <Button size="sm" variant="outline" onClick={handleUseScenePlanAsDraft}>
                     用作首稿输入
