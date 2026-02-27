@@ -461,6 +461,34 @@ export function StoryBiblePanel({
                           placeholder="主角、反派、配角..."
                         />
                       </div>
+                      <div className="grid gap-2">
+                        <Label>角色描述</Label>
+                        <Textarea name="description" placeholder="简要角色描述..." rows={2} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>性格</Label>
+                        <Textarea name="personality" placeholder="角色特征、习惯..." rows={2} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>外貌</Label>
+                        <Textarea name="appearance" placeholder="外形描写..." rows={2} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>背景经历</Label>
+                        <Textarea name="backstory" placeholder="角色过往经历..." rows={2} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>目标</Label>
+                        <Textarea name="goals" placeholder="这个角色想要什么？" rows={2} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>关系</Label>
+                        <Textarea name="relationships" placeholder="与其他角色的关系..." rows={2} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>备注</Label>
+                        <Textarea name="notes" placeholder="补充设定、禁忌和口头禅等..." rows={2} />
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button type="submit" disabled={creatingChar}>
@@ -494,6 +522,18 @@ export function StoryBiblePanel({
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="space-y-3 pb-3">
+                      <CharacterField
+                        label="姓名"
+                        value={char.name}
+                        placeholder="角色姓名"
+                        onSave={(val) => handleUpdateCharacter(char.id, "name", val)}
+                      />
+                      <CharacterField
+                        label="定位"
+                        value={char.role || ""}
+                        placeholder="主角、反派、配角..."
+                        onSave={(val) => handleUpdateCharacter(char.id, "role", val)}
+                      />
                       <CharacterField
                         label="角色描述"
                         value={char.description || ""}
@@ -529,6 +569,12 @@ export function StoryBiblePanel({
                         value={char.relationships || ""}
                         placeholder="与其他角色的关系..."
                         onSave={(val) => handleUpdateCharacter(char.id, "relationships", val)}
+                      />
+                      <CharacterField
+                        label="备注"
+                        value={char.notes || ""}
+                        placeholder="补充设定、禁忌和口头禅等..."
+                        onSave={(val) => handleUpdateCharacter(char.id, "notes", val)}
                       />
                       <Separator />
                       <Button

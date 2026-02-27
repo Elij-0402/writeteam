@@ -233,6 +233,7 @@ export function buildStoryPromptContext(
     isVisible("braindump") ? buildBraindumpGuidance(bible?.braindump ?? null, feature) : "",
     isVisible("notes") ? buildNotesGuidance(bible?.notes ?? null) : "",
     isVisible("characters") ? buildCharacterGuidance(ctx.characters, feature) : "",
+    isVisible("characters") ? buildCharacterHealthGuidance(ctx.characters) : "",
     buildProseModeSection(bible, proseMode ?? null),
     saliencyMap ? buildSaliencyGuidance(saliencyMap) : "",
   ]
@@ -477,6 +478,46 @@ function buildCharacterGuidance(
   }
 
   return lines.join("\n")
+}
+
+function buildCharacterHealthGuidance(characters: CharacterData[]): string {
+  if (characters.length === 0) {
+    return "CHARACTER CONTEXT NOTICE:\n当前没有角色资料。若输出出现人物行为不一致，建议先在故事圣经中新增核心角色（姓名、定位、性格）后重试。"
+  }
+
+  const duplicateNames = new Set<string>()
+  const seenNames = new Set<string>()
+  let missingIdentityFields = 0
+  for (const character of characters) {
+    const name = character.name.trim()
+    if (seenNames.has(name)) {
+      duplicateNames.add(name)
+    } else {
+      seenNames.add(name)
+    }
+
+    if (!character.description && !character.personality) {
+      missingIdentityFields += 1
+    }
+  }
+
+  const notices: string[] = []
+  if (duplicateNames.size > 0) {
+    notices.push(
+      `检测到同名角色：${Array.from(duplicateNames).join("、")}。建议在故事圣经中重命名，避免 AI 混淆人物。`
+    )
+  }
+  if (missingIdentityFields > 0) {
+    notices.push(
+      `${missingIdentityFields} 个角色缺少“描述/性格”关键字段。建议补全后再执行写作类功能，以提升角色一致性。`
+    )
+  }
+
+  if (notices.length === 0) {
+    return ""
+  }
+
+  return `CHARACTER CONTEXT NOTICE:\n${notices.join("\n")}`
 }
 
 function buildProseModeSection(
