@@ -1,0 +1,79 @@
+# generated: 2026-02-27
+# project: writeteam
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-27
+project: writeteam
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: in-progress
+  1-1-基于-starter-template-建立实现基线: done
+  1-2-用户注册登录与访问隔离: in-progress
+  1-3-byok-配置-连接测试与模型选择: backlog
+  1-4-ai-失败恢复闭环: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-写作项目管理: backlog
+  2-2-项目内文档管理与排序: backlog
+  2-3-长文本编辑与自动保存: backlog
+  2-4-文档导入与导出: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-故事圣经核心字段管理: backlog
+  3-2-角色资料管理与写作复用: backlog
+  3-3-可见性控制与系列共享设定: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-上下文写作能力-续写-改写-扩写-缩写: backlog
+  4-2-选区快速编辑: backlog
+  4-3-连续性检查与修正建议: backlog
+  4-4-构思协作与风格控制: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-canvas-节点与连接管理: backlog
+  5-2-ai-规划生成与正文上下文往返: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-ai-结果正负反馈闭环: backlog
+  6-2-失败类型定位与影响范围分析: backlog
+  6-3-支持排障建议与恢复-runbook: backlog
+  epic-6-retrospective: optional

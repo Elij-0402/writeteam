@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return Response.json({ error: "未授权访问" }, { status: 401 })
+    return Response.json({ error: "未登录" }, { status: 401 })
   }
 
   const aiConfig = resolveAIConfig(request)

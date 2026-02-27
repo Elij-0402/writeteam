@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WriteTeam Color Themes</title>
+  <style>
+    body { margin: 0; font-family: Poppins, Arial, sans-serif; background: #faf9f5; color: #141413; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 8px; }
+    p { margin: 0 0 18px; color: #5f5d56; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .swatch { border: 1px solid #e8e6dc; border-radius: 12px; overflow: hidden; background: #fff; }
+    .color { height: 88px; }
+    .meta { padding: 10px 12px; font-size: 13px; }
+    .demo { margin-top: 18px; border: 1px solid #e8e6dc; border-radius: 14px; background: #fff; padding: 16px; }
+    .btn { border: 0; border-radius: 10px; padding: 10px 14px; color: #fff; background: #d97757; }
+    .tag { display: inline-block; border-radius: 999px; padding: 3px 8px; font-size: 12px; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>WriteTeam 色彩基线</h1>
+    <p>基于参考品牌规范与本项目 UX 方向（现代、平衡密度、无衬线）。</p>
+
+    <div class="grid">
+      <div class="swatch"><div class="color" style="background:#141413"></div><div class="meta">Primary Dark · #141413</div></div>
+      <div class="swatch"><div class="color" style="background:#faf9f5"></div><div class="meta">Primary Light · #faf9f5</div></div>
+      <div class="swatch"><div class="color" style="background:#b0aea5"></div><div class="meta">Mid Gray · #b0aea5</div></div>
+      <div class="swatch"><div class="color" style="background:#e8e6dc"></div><div class="meta">Light Gray · #e8e6dc</div></div>
+      <div class="swatch"><div class="color" style="background:#d97757"></div><div class="meta">Accent Action · #d97757</div></div>
+      <div class="swatch"><div class="color" style="background:#6a9bcc"></div><div class="meta">Accent Info · #6a9bcc</div></div>
+      <div class="swatch"><div class="color" style="background:#788c5d"></div><div class="meta">Accent Success · #788c5d</div></div>
+      <div class="swatch"><div class="color" style="background:#d54d4d"></div><div class="meta">Error Token · #d54d4d</div></div>
+    </div>
+
+    <div class="demo">
+      <button class="btn">继续写作</button>
+      <span class="tag" style="background:#edf3fb;color:#2e5f90">信息</span>
+      <span class="tag" style="background:#edf2e8;color:#476333">成功</span>
+      <span class="tag" style="background:#fbeceb;color:#8b2f2f">错误</span>
+    </div>
+  </div>
+</body>
+</html>

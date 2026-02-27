@@ -58,7 +58,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Dev Dependencies
 - **ESLint** ^9 (flat config: `eslint-config-next` core-web-vitals + typescript)
-- **pnpm** (package manager, lockfile: `pnpm-lock.yaml`)
+- **npm** (package manager, lockfile: `package-lock.json`)
 
 ### Version Constraints
 - Next.js 16 uses `proxy.ts` convention (NOT deprecated `middleware.ts`)

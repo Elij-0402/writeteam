@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WriteTeam UX Design Directions</title>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --fg: #141413;
+      --muted: #b0aea5;
+      --line: #e8e6dc;
+      --accent: #d97757;
+      --info: #6a9bcc;
+      --ok: #788c5d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Poppins, "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(250,249,245,0.92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(6px);
+      padding: 16px 20px;
+    }
+    h1 { margin: 0; font-size: 22px; }
+    .sub { color: #605f59; margin-top: 6px; font-size: 14px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      padding: 16px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 4px 20px rgba(20,20,19,0.06);
+    }
+    .bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      color: #4f4d47;
+      background: #fcfbf8;
+    }
+    .shot {
+      min-height: 220px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      background: linear-gradient(180deg, #fff, #f8f7f3);
+    }
+    .line { height: 10px; border-radius: 999px; background: #eae8df; }
+    .line.sm { width: 42%; }
+    .line.md { width: 68%; }
+    .line.lg { width: 92%; }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #e6ded8;
+      color: #674a3f;
+      background: #fff4ef;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .box { border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: #fff; }
+    .tone-a { border-left: 4px solid var(--accent); }
+    .tone-b { border-left: 4px solid var(--info); }
+    .tone-c { border-left: 4px solid var(--ok); }
+    .note { padding: 0 12px 12px; font-size: 13px; color: #4f4d47; }
+    .best { color: #fff; background: var(--ok); border-radius: 999px; padding: 2px 8px; font-size: 11px; }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WriteTeam 设计方向探索（Step 9）</h1>
+    <div class="sub">6 个方向，均基于既定视觉基础与“晚间低负担创作”核心体验。</div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <div class="bar"><strong>D1 编辑器优先</strong><span>高效率</span></div>
+      <div class="shot">
+        <div class="row"><span class="pill">继续写作</span><span class="pill">模型状态</span></div>
+        <div class="line lg"></div><div class="line lg"></div><div class="line md"></div>
+        <div class="cols"><div class="box tone-a">AI 快速工具条</div><div class="box">恢复动作</div></div>
+      </div>
+      <div class="note">主区域几乎全给正文，所有辅助能力贴边出现，最少打断。</div>
+    </section>
+
+    <section class="card">
+      <div class="bar"><strong>D2 三栏工作台</strong><span>控制感</span></div>
+      <div class="shot">
+        <div class="cols">
+          <div class="box">项目/章节</div><div class="box">AI 状态中心</div>
+        </div>
+        <div class="box tone-b">正文编辑区</div>
+        <div class="line lg"></div><div class="line md"></div>
+      </div>
+      <div class="note">左侧内容、中央写作、右侧 AI/诊断，信息组织最稳定。</div>
+    </section>
+
+    <section class="card">
+      <div class="bar"><strong>D3 恢复优先流</strong><span class="best">推荐</span></div>
+      <div class="shot">
+        <div class="row"><span class="pill">连接正常</span><span class="pill">可用模型 12</span></div>
+        <div class="box tone-c">失败时就地弹出：重试 / 自动切换 / 继续写作</div>
+        <div class="line lg"></div><div class="line lg"></div><div class="line sm"></div>
+      </div>
+      <div class="note">把“失败可恢复”做成核心体验，最匹配你的真实痛点。</div>
+    </section>
+
+    <section class="card">
+      <div class="bar"><strong>D4 轻量移动优先</strong><span>跨端</span></div>
+      <div class="shot">
+        <div class="box">底部主操作条：续写 / 改写 / 继续</div>
+        <div class="line lg"></div><div class="line md"></div><div class="line lg"></div>
+        <div class="row"><span class="pill">自动保存</span><span class="pill">会话延续</span></div>
+      </div>
+      <div class="note">手机上保持可写与可恢复，适合晚间碎片化创作。</div>
+    </section>
+
+    <section class="card">
+      <div class="bar"><strong>D5 极简沉浸</strong><span>专注</span></div>
+      <div class="shot">
+        <div class="box">无干扰正文 + 上下文 AI 气泡</div>
+        <div class="line lg"></div><div class="line lg"></div><div class="line lg"></div>
+        <div class="line md"></div>
+      </div>
+      <div class="note">尽量隐藏系统层，适合进入创作状态时长文本推进。</div>
+    </section>
+
+    <section class="card">
+      <div class="bar"><strong>D6 品质可视化</strong><span>质量导向</span></div>
+      <div class="shot">
+        <div class="box tone-a">输出质量提示：风格一致性 / 原创提示 / 精修建议</div>
+        <div class="line lg"></div><div class="line md"></div>
+        <div class="cols"><div class="box">一键采纳</div><div class="box">对比原文</div></div>
+      </div>
+      <div class="note">强调“高质量可感知”，让用户明确感到输出提升。</div>
+    </section>
+  </main>
+</body>
+</html>

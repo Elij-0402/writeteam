@@ -8,7 +8,7 @@ WriteTeam is a full-stack AI creative writing app inspired by Sudowrite. It incl
 - shadcn/ui + Tailwind CSS v4
 - Supabase (Auth + Postgres + RLS)
 - TipTap editor
-- OpenAI API (server-side route handlers)
+- BYOK OpenAI-compatible API (server-side route handlers)
 
 ## Features
 
@@ -25,7 +25,7 @@ WriteTeam is a full-stack AI creative writing app inspired by Sudowrite. It incl
 - Node.js 20+
 - npm 10+
 - A Supabase project
-- An OpenAI API key
+- A compatible model provider endpoint/key configured in-app (BYOK)
 
 ## Environment Variables
 
@@ -34,7 +34,6 @@ Create `.env.local` in the project root with:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 Quick start:
@@ -81,15 +80,16 @@ Open `http://localhost:3000`.
 
 - `src/app` - routes, layouts, API routes, server actions
 - `src/components` - editor, AI UI, dashboard, story bible, shadcn/ui
-- `src/lib/supabase` - server/browser/middleware client helpers
+- `src/lib/supabase` - server/browser/proxy session helpers
 - `src/types/database.ts` - typed Supabase schema
 - `supabase/migrations` - database schema migrations
 
 ## AI and Security Notes
 
-- Keep `OPENAI_API_KEY` server-side only (never `NEXT_PUBLIC_`).
+- This project uses BYOK: users provide model config client-side and requests pass via `X-AI-*` headers.
+- The server never persists provider API keys.
 - AI route handlers live in `src/app/api/ai/*` and run on the server.
-- Supabase auth/session handling is wired through `src/middleware.ts` and `src/lib/supabase/*`.
+- Supabase auth/session handling is wired through `src/proxy.ts` and `src/lib/supabase/*`.
 
 ## Verification
 
@@ -104,4 +104,4 @@ If build fails with missing Supabase env vars, verify `.env.local` exists and in
 
 ## Notes
 
-- Next.js currently warns that `middleware.ts` convention is deprecated in favor of `proxy`; current behavior remains functional.
+- Next.js 16 uses `proxy.ts` convention for request/session handling in this project.
