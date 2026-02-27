@@ -1,4 +1,5 @@
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
+import { classifyHttpError } from "@/lib/ai/error-classification"
 import { SupabaseClient } from "@supabase/supabase-js"
 
 interface OpenAIStreamOptions {
@@ -47,8 +48,7 @@ export async function createOpenAIStreamResponse(
   })
 
   if (!response.ok) {
-    const error = await response.text()
-    return Response.json({ error: `AI API 错误: ${error}` }, { status: 500 })
+    return Response.json({ error: classifyHttpError(response.status, "ai-stream") }, { status: 500 })
   }
 
   const encoder = new TextEncoder()

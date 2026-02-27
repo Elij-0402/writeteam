@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
+import { classifyHttpError, classifyNetworkError, AI_FETCH_TIMEOUT_MS } from "@/lib/ai/error-classification"
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -22,31 +23,39 @@ export async function GET(request: NextRequest) {
   }
 
   const url = `${aiConfig.baseUrl.replace(/\/+$/, "")}/models`
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), AI_FETCH_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, { headers })
+    const response = await fetch(url, { headers, signal: controller.signal })
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
-      const error = await response.text()
-      return Response.json({ error: `获取模型列表失败: ${error}` }, { status: 500 })
+      return Response.json(
+        { error: classifyHttpError(response.status, "model-list") },
+        { status: response.status >= 500 ? 502 : response.status }
+      )
     }
 
     const data = await response.json()
 
-    // Handle both { data: [...] } (OpenAI) and { models: [...] } formats
+    // Handle both { data: [...] } (OpenAI) and { models: [...] } (Ollama) and direct array formats
     const rawModels = Array.isArray(data.data) ? data.data : Array.isArray(data.models) ? data.models : Array.isArray(data) ? data : []
 
-    const models = rawModels.map((m: Record<string, unknown>) => ({
-      id: m.id as string,
-      name: (m.name as string) || (m.id as string),
-      owned_by: (m.owned_by as string) || "",
-    }))
+    const models = rawModels
+      .filter((m: Record<string, unknown>) => typeof m.id === "string" && m.id)
+      .map((m: Record<string, unknown>) => ({
+        id: String(m.id),
+        name: String(m.name || m.id),
+        owned_by: String(m.owned_by || ""),
+      }))
 
     return Response.json({ models })
   } catch (error) {
+    clearTimeout(timeoutId)
     return Response.json(
-      { error: `连接失败: ${error instanceof Error ? error.message : "未知错误"}` },
-      { status: 500 }
+      { error: classifyNetworkError(error) },
+      { status: 502 }
     )
   }
 }

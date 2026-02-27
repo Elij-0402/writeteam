@@ -42,8 +42,8 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
   1-1-基于-starter-template-建立实现基线: done
-  1-2-用户注册登录与访问隔离: in-progress
-  1-3-byok-配置-连接测试与模型选择: backlog
+  1-2-用户注册登录与访问隔离: done
+  1-3-byok-配置-连接测试与模型选择: done
   1-4-ai-失败恢复闭环: backlog
   epic-1-retrospective: optional
 

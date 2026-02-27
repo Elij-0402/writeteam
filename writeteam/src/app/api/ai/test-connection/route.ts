@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
+import { classifyHttpError, classifyNetworkError, AI_FETCH_TIMEOUT_MS } from "@/lib/ai/error-classification"
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -23,6 +24,8 @@ export async function POST(request: NextRequest) {
 
   const url = `${aiConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`
   const startedAt = Date.now()
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), AI_FETCH_TIMEOUT_MS)
 
   try {
     const response = await fetch(url, {
@@ -36,13 +39,18 @@ export async function POST(request: NextRequest) {
         max_tokens: 5,
         temperature: 0,
       }),
+      signal: controller.signal,
     })
+    clearTimeout(timeoutId)
 
     const latencyMs = Date.now() - startedAt
 
     if (!response.ok) {
-      const error = await response.text()
-      return Response.json({ success: false, error: `连接失败: ${error}`, latency_ms: latencyMs })
+      return Response.json({
+        success: false,
+        error: classifyHttpError(response.status, "connection-test"),
+        latency_ms: latencyMs,
+      })
     }
 
     const data = await response.json()
@@ -50,9 +58,10 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ success: true, model, latency_ms: latencyMs })
   } catch (error) {
+    clearTimeout(timeoutId)
     return Response.json({
       success: false,
-      error: `连接失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      error: classifyNetworkError(error),
       latency_ms: Date.now() - startedAt,
     })
   }
