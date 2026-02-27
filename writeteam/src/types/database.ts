@@ -545,7 +545,14 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reorder_documents: {
+        Args: {
+          p_project_id: string
+          p_user_id: string
+          p_ordered_document_ids: string[]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

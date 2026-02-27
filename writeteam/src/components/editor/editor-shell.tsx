@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import type { Json, Plugin } from "@/types/database"
 import Link from "next/link"
 import type { Project, Document, StoryBible, Character } from "@/types/database"
-import { createDocument, updateDocument, deleteDocument } from "@/app/actions/documents"
+import { createDocument, updateDocument, deleteDocument, reorderDocuments } from "@/app/actions/documents"
 import { WritingEditor } from "@/components/editor/writing-editor"
 import { StoryBiblePanel } from "@/components/story-bible/story-bible-panel"
 import { AIChatPanel } from "@/components/ai/ai-chat-panel"
@@ -34,8 +34,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import {
   PenLine,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Plus,
   FileText,
   BookOpen,
@@ -88,10 +99,24 @@ export function EditorShell({
   const [plugins, setPlugins] = useState(initialPlugins)
   const [saliencyMap, setSaliencyMap] = useState<SaliencyMap | null>(null)
   const [saliencyLoading, setSaliencyLoading] = useState(false)
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
+  const [reorderingDocId, setReorderingDocId] = useState<string | null>(null)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameDocId, setRenameDocId] = useState<string | null>(null)
+  const [renameTitle, setRenameTitle] = useState("")
+  const [renameSubmitting, setRenameSubmitting] = useState(false)
   const saliencyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const activeDocument = documents.find((d) => d.id === activeDocId) || null
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const getActionErrorMessage = useCallback((error: unknown, fallbackMessage: string) => {
+    if (typeof error === "object" && error && "message" in error) {
+      return fallbackMessage
+    }
+
+    return fallbackMessage
+  }, [])
 
   // Compute saliency debounced whenever document content changes
   useEffect(() => {
@@ -161,57 +186,199 @@ export function EditorShell({
         if (result.error) {
           toast.error(result.error)
         } else if (result.data) {
-          await updateDocument(result.data.id, {
+          const updateResult = await updateDocument(result.data.id, {
             content_text: content,
             word_count: content.length,
           })
+
+          if (updateResult.error) {
+            setDocuments((prev) => [...prev, result.data!])
+            setActiveDocId(result.data.id)
+            toast.error("文件已导入，但内容保存失败，请重试")
+            return
+          }
+
           const newDoc = { ...result.data, content_text: content, word_count: content.length }
-          setDocuments((prev) => [...prev, newDoc])
-          setActiveDocId(result.data.id)
-          toast.success("文件已导入")
+          const reorderedDocs = [...documents, newDoc].map((doc, sortOrder) => ({
+            ...doc,
+            sort_order: sortOrder,
+          }))
+          const reorderResult = await reorderDocuments(
+            project.id,
+            reorderedDocs.map((doc) => doc.id)
+          )
+
+          if (reorderResult.error) {
+            setDocuments((prev) => [...prev, newDoc])
+            setActiveDocId(result.data.id)
+            toast.error(reorderResult.error)
+            toast.message("文件已导入，排序同步未完成，请稍后重试")
+          } else {
+            setDocuments(reorderedDocs)
+            setActiveDocId(result.data.id)
+            toast.success("文件已导入")
+          }
         }
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "导入失败")
+        toast.error(getActionErrorMessage(err, "导入失败，请检查文件格式或网络后重试"))
       }
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
     },
-    [project.id]
+    [documents, getActionErrorMessage, project.id]
   )
 
   const handleCreateDocument = useCallback(async () => {
     setCreatingDoc(true)
-    const formData = new FormData()
-    formData.set("title", `第 ${documents.length + 1} 章`)
-    formData.set("documentType", "chapter")
-    const result = await createDocument(project.id, formData)
-    if (result.error) {
-      toast.error(result.error)
-    } else if (result.data) {
-      setDocuments((prev) => [...prev, result.data!])
-      setActiveDocId(result.data.id)
-      toast.success("文档已创建")
+    try {
+      const formData = new FormData()
+      formData.set("title", `第 ${documents.length + 1} 章`)
+      formData.set("documentType", "chapter")
+      const result = await createDocument(project.id, formData)
+      if (result.error) {
+        toast.error(result.error)
+      } else if (result.data) {
+        setDocuments((prev) => [...prev, result.data!])
+        setActiveDocId(result.data.id)
+        toast.success("文档已创建")
+      }
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "创建失败，请检查网络后重试"))
+    } finally {
+      setCreatingDoc(false)
     }
-    setCreatingDoc(false)
-  }, [documents.length, project.id])
+  }, [documents.length, getActionErrorMessage, project.id])
 
   const handleDeleteDocument = useCallback(
     async (docId: string) => {
-      const result = await deleteDocument(docId, project.id)
-      if (result.error) {
-        toast.error(result.error)
-      } else {
-        setDocuments((prev) => prev.filter((d) => d.id !== docId))
-        if (activeDocId === docId) {
-          const remaining = documents.filter((d) => d.id !== docId)
-          setActiveDocId(remaining[0]?.id || null)
+      setDeletingDocId(docId)
+      try {
+        const result = await deleteDocument(docId, project.id)
+        if (result.error) {
+          toast.error(result.error)
+        } else {
+          setDocuments((prev) => {
+            const deletedIndex = prev.findIndex((d) => d.id === docId)
+            const remaining = prev.filter((d) => d.id !== docId)
+
+            if (activeDocId === docId) {
+              const fallbackDoc = remaining[deletedIndex] || remaining[deletedIndex - 1] || null
+              setActiveDocId(fallbackDoc?.id || null)
+            }
+
+            return remaining
+          })
+          toast.success("文档已删除")
         }
-        toast.success("文档已删除")
+      } catch (error) {
+        toast.error(getActionErrorMessage(error, "删除失败，请检查网络后重试"))
+      } finally {
+        setDeletingDocId(null)
       }
     },
-    [activeDocId, documents, project.id]
+    [activeDocId, getActionErrorMessage, project.id]
   )
+
+  const moveDocument = useCallback((list: Document[], docId: string, direction: "up" | "down") => {
+    const index = list.findIndex((doc) => doc.id === docId)
+    if (index === -1) {
+      return list
+    }
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= list.length) {
+      return list
+    }
+
+    const next = [...list]
+    const [moved] = next.splice(index, 1)
+    next.splice(targetIndex, 0, moved)
+
+    return next.map((doc, sortOrder) => ({ ...doc, sort_order: sortOrder }))
+  }, [])
+
+  const handleReorderDocument = useCallback(
+    async (docId: string, direction: "up" | "down") => {
+      if (reorderingDocId) {
+        return
+      }
+
+      const previousDocs = documents
+      const reorderedDocs = moveDocument(previousDocs, docId, direction)
+
+      if (reorderedDocs === previousDocs) {
+        return
+      }
+
+      setReorderingDocId(docId)
+      setDocuments(reorderedDocs)
+      try {
+        const result = await reorderDocuments(
+          project.id,
+          reorderedDocs.map((doc) => doc.id)
+        )
+
+        if (result.error) {
+          setDocuments(previousDocs)
+          toast.error(result.error)
+        } else {
+          toast.success("文档顺序已更新")
+        }
+      } catch (error) {
+        setDocuments(previousDocs)
+        toast.error(getActionErrorMessage(error, "排序失败，请检查网络后重试"))
+      } finally {
+        setReorderingDocId(null)
+      }
+    },
+    [documents, getActionErrorMessage, moveDocument, project.id, reorderingDocId]
+  )
+
+  const openRenameDialog = useCallback((doc: Document) => {
+    setRenameDocId(doc.id)
+    setRenameTitle(doc.title)
+    setRenameOpen(true)
+  }, [])
+
+  const handleRenameDocument = useCallback(async () => {
+    if (!renameDocId) {
+      return
+    }
+
+    const trimmedTitle = renameTitle.trim()
+    if (!trimmedTitle) {
+      toast.error("标题不能为空")
+      return
+    }
+
+    setRenameSubmitting(true)
+    try {
+      const result = await updateDocument(renameDocId, { title: trimmedTitle })
+
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === renameDocId
+            ? { ...doc, title: trimmedTitle, updated_at: new Date().toISOString() }
+            : doc
+        )
+      )
+
+      setRenameOpen(false)
+      setRenameDocId(null)
+      setRenameTitle("")
+      toast.success("文档名称已更新")
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "重命名失败，请检查网络后重试"))
+    } finally {
+      setRenameSubmitting(false)
+    }
+  }, [getActionErrorMessage, renameDocId, renameTitle])
 
   const handleDocumentUpdate = useCallback(
     async (docId: string, updates: { content?: Json | null; content_text?: string; word_count?: number }) => {
@@ -452,7 +619,7 @@ export function EditorShell({
             <>
               <ScrollArea className="flex-1 px-2">
                 <div className="space-y-1 pb-4">
-                  {documents.map((doc) => (
+                  {documents.map((doc, index) => (
                     <div
                       key={doc.id}
                       className={cn(
@@ -480,11 +647,45 @@ export function EditorShell({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openRenameDialog(doc)
+                            }}
+                            disabled={renameSubmitting || deletingDocId === doc.id || reorderingDocId === doc.id}
+                          >
+                            重命名
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReorderDocument(doc.id, "up")
+                            }}
+                            disabled={index === 0 || deletingDocId === doc.id || reorderingDocId !== null}
+                          >
+                            <ArrowUp className="mr-2 h-4 w-4" />
+                            上移
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReorderDocument(doc.id, "down")
+                            }}
+                            disabled={
+                              index === documents.length - 1 ||
+                              deletingDocId === doc.id ||
+                              reorderingDocId !== null
+                            }
+                          >
+                            <ArrowDown className="mr-2 h-4 w-4" />
+                            下移
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDeleteDocument(doc.id)
                             }}
+                            disabled={deletingDocId === doc.id || reorderingDocId === doc.id || renameSubmitting}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             删除
@@ -581,6 +782,58 @@ export function EditorShell({
           </div>
         )}
       </div>
+
+      <Dialog
+        open={renameOpen}
+        onOpenChange={(open) => {
+          if (renameSubmitting) {
+            return
+          }
+          setRenameOpen(open)
+          if (!open) {
+            setRenameDocId(null)
+            setRenameTitle("")
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>重命名文档</DialogTitle>
+            <DialogDescription>输入新的文档标题，保存后立即生效。</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameTitle}
+            onChange={(e) => setRenameTitle(e.target.value)}
+            maxLength={120}
+            placeholder="请输入文档标题"
+            disabled={renameSubmitting}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                handleRenameDocument()
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setRenameOpen(false)
+                setRenameDocId(null)
+                setRenameTitle("")
+              }}
+              disabled={renameSubmitting}
+            >
+              取消
+            </Button>
+            <Button type="button" onClick={handleRenameDocument} disabled={renameSubmitting}>
+              {renameSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

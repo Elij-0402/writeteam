@@ -35,6 +35,7 @@ export default async function EditorPage({
     .eq("project_id", projectId)
     .eq("user_id", user.id)
     .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
 
   const { data: storyBible } = await supabase
     .from("story_bibles")
