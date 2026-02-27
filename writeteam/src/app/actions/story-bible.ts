@@ -2,6 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import {
+  hasConcurrentStoryBibleUpdate,
+  sanitizeStoryBibleUpdates,
+} from "@/app/actions/story-bible-guards"
 
 export async function getStoryBible(projectId: string) {
   const supabase = await createClient()
@@ -21,21 +25,52 @@ export async function getStoryBible(projectId: string) {
 
 export async function updateStoryBible(
   projectId: string,
-  updates: Record<string, unknown>
+  updates: Record<string, unknown>,
+  expectedUpdatedAt?: string | null
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "未登录" }
 
-  const { error } = await supabase
+  const sanitizedUpdates = sanitizeStoryBibleUpdates(updates)
+  if (Object.keys(sanitizedUpdates).length === 0) {
+    return { error: "没有可保存的字段" }
+  }
+
+  if (expectedUpdatedAt) {
+    const { data: current, error: currentError } = await supabase
+      .from("story_bibles")
+      .select("updated_at")
+      .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    if (currentError) {
+      return { error: currentError.message }
+    }
+
+    const currentUpdatedAt = current?.updated_at ?? null
+    if (hasConcurrentStoryBibleUpdate(currentUpdatedAt, expectedUpdatedAt)) {
+      return {
+        error: "保存失败：检测到他处已更新故事圣经，请刷新后重试。",
+        conflict: true,
+        latestUpdatedAt: currentUpdatedAt,
+      }
+    }
+  }
+
+  const nextUpdatedAt = new Date().toISOString()
+  const { data, error } = await supabase
     .from("story_bibles")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...sanitizedUpdates, updated_at: nextUpdatedAt })
     .eq("project_id", projectId)
     .eq("user_id", user.id)
+    .select("updated_at")
+    .single()
 
   if (error) return { error: error.message }
   revalidatePath(`/editor/${projectId}`)
-  return { success: true }
+  return { success: true, updatedAt: data?.updated_at ?? nextUpdatedAt }
 }
 
 export async function getCharacters(projectId: string) {

@@ -47,15 +47,15 @@ development_status:
   1-4-ai-失败恢复闭环: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-写作项目管理: done
   2-2-项目内文档管理与排序: done
   2-3-长文本编辑与自动保存: done
   2-4-文档导入与导出: done
   epic-2-retrospective: optional
 
-  epic-3: backlog
-  3-1-故事圣经核心字段管理: backlog
+  epic-3: in-progress
+  3-1-故事圣经核心字段管理: done
   3-2-角色资料管理与写作复用: backlog
   3-3-可见性控制与系列共享设定: backlog
   epic-3-retrospective: optional

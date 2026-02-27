@@ -42,6 +42,7 @@ import {
   Lightbulb,
   Trash2,
   Eye,
+  RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
@@ -59,6 +60,9 @@ export function StoryBiblePanel({
 }: StoryBiblePanelProps) {
   const [characters, setCharacters] = useState(initialCharacters)
   const [saving, setSaving] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [hasConflict, setHasConflict] = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialBible?.updated_at ?? null)
   const [newCharOpen, setNewCharOpen] = useState(false)
   const [creatingChar, setCreatingChar] = useState(false)
 
@@ -97,9 +101,15 @@ export function StoryBiblePanel({
       ...prev,
       [field]: prev[field] === false ? true : false,
     }))
+    setHasUnsavedChanges(true)
+  }
+
+  function markDirty() {
+    setHasUnsavedChanges(true)
   }
 
   async function handleSaveBible() {
+    if (saving || hasConflict) return
     setSaving(true)
     const result = await updateStoryBible(projectId, {
       braindump,
@@ -118,11 +128,20 @@ export function StoryBiblePanel({
       tone,
       ai_rules: aiRules,
       visibility,
-    })
+    }, lastSavedAt)
+
     if (result.error) {
-      toast.error(result.error)
+      if ("conflict" in result && result.conflict) {
+        setHasConflict(true)
+        toast.error("检测到并发冲突：请刷新页面后重新编辑并保存，避免误覆盖。")
+      } else {
+        toast.error(result.error)
+      }
     } else {
       toast.success("故事圣经已保存")
+      setHasUnsavedChanges(false)
+      setHasConflict(false)
+      setLastSavedAt(("updatedAt" in result ? result.updatedAt : null) ?? new Date().toISOString())
     }
     setSaving(false)
   }
@@ -166,22 +185,48 @@ export function StoryBiblePanel({
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">故事圣经</h3>
+          <div>
+            <h3 className="text-sm font-semibold">故事圣经</h3>
+            <p className="text-[10px] text-muted-foreground">
+              {saving
+                ? "保存中..."
+                : hasConflict
+                  ? "检测到并发冲突，请刷新后再保存"
+                : hasUnsavedChanges
+                  ? "有未保存更改"
+                  : lastSavedAt
+                    ? `上次保存：${new Date(lastSavedAt).toLocaleString("zh-CN")}`
+                    : "尚未保存"}
+            </p>
+          </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1 text-xs"
-          onClick={handleSaveBible}
-          disabled={saving}
-        >
-          {saving ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Save className="h-3 w-3" />
+        <div className="flex items-center gap-2">
+          {hasConflict && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="h-3 w-3" />
+              刷新
+            </Button>
           )}
-          保存
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={handleSaveBible}
+            disabled={saving || hasConflict}
+          >
+            {saving ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Save className="h-3 w-3" />
+            )}
+            保存
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="flex flex-1 flex-col">
@@ -210,7 +255,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="把你的原始灵感都记录在这里，AI 会参考这些内容..."
                 value={braindump}
-                onChange={(e) => setBraindump(e.target.value)}
+                onChange={(e) => {
+                  setBraindump(e.target.value)
+                  markDirty()
+                }}
                 rows={4}
                 className="text-xs"
               />
@@ -221,7 +269,10 @@ export function StoryBiblePanel({
                 <Input
                   placeholder="奇幻、科幻..."
                   value={genre}
-                  onChange={(e) => setGenre(e.target.value)}
+                  onChange={(e) => {
+                    setGenre(e.target.value)
+                    markDirty()
+                  }}
                   className="h-8 text-xs"
                 />
               </div>
@@ -230,13 +281,19 @@ export function StoryBiblePanel({
                 <Input
                   placeholder="黑暗、抒情..."
                   value={style}
-                  onChange={(e) => setStyle(e.target.value)}
+                  onChange={(e) => {
+                    setStyle(e.target.value)
+                    markDirty()
+                  }}
                   className="h-8 text-xs"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">文风模式</Label>
-                <Select value={proseMode} onValueChange={setProseMode}>
+                <Select value={proseMode} onValueChange={(value) => {
+                  setProseMode(value)
+                  markDirty()
+                }}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
@@ -254,7 +311,10 @@ export function StoryBiblePanel({
                 <Input
                   placeholder="温暖、紧张、忧郁..."
                   value={tone}
-                  onChange={(e) => setTone(e.target.value)}
+                  onChange={(e) => {
+                    setTone(e.target.value)
+                    markDirty()
+                  }}
                   className="h-8 text-xs"
                 />
               </div>
@@ -263,7 +323,10 @@ export function StoryBiblePanel({
                 <Input
                   placeholder="第三人称限知"
                   value={pov}
-                  onChange={(e) => setPov(e.target.value)}
+                  onChange={(e) => {
+                    setPov(e.target.value)
+                    markDirty()
+                  }}
                   className="h-8 text-xs"
                 />
               </div>
@@ -272,7 +335,10 @@ export function StoryBiblePanel({
                 <Input
                   placeholder="过去时"
                   value={tense}
-                  onChange={(e) => setTense(e.target.value)}
+                  onChange={(e) => {
+                    setTense(e.target.value)
+                    markDirty()
+                  }}
                   className="h-8 text-xs"
                 />
               </div>
@@ -284,7 +350,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="故事的高层概要..."
                 value={synopsis}
-                onChange={(e) => setSynopsis(e.target.value)}
+                onChange={(e) => {
+                  setSynopsis(e.target.value)
+                  markDirty()
+                }}
                 rows={4}
                 className="text-xs"
               />
@@ -294,7 +363,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder='[{"chapter":"第1章","beats":["节拍1","节拍2"]}] 或每行一个节拍'
                 value={outlineText}
-                onChange={(e) => setOutlineText(e.target.value)}
+                onChange={(e) => {
+                  setOutlineText(e.target.value)
+                  markDirty()
+                }}
                 rows={4}
                 className="text-xs font-mono"
               />
@@ -304,7 +376,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="故事要探讨的核心主题..."
                 value={themes}
-                onChange={(e) => setThemes(e.target.value)}
+                onChange={(e) => {
+                  setThemes(e.target.value)
+                  markDirty()
+                }}
                 rows={3}
                 className="text-xs"
               />
@@ -314,7 +389,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="粘贴 1-3 段目标叙事风格文本"
                 value={styleSample}
-                onChange={(e) => setStyleSample(e.target.value)}
+                onChange={(e) => {
+                  setStyleSample(e.target.value)
+                  markDirty()
+                }}
                 rows={4}
                 className="text-xs"
               />
@@ -324,7 +402,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="其他补充说明..."
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => {
+                  setNotes(e.target.value)
+                  markDirty()
+                }}
                 rows={3}
                 className="text-xs"
               />
@@ -340,7 +421,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="例：绝对不要写性描写；角色「小明」永远说方言；战斗场景不超过500字..."
                 value={aiRules}
-                onChange={(e) => setAiRules(e.target.value)}
+                onChange={(e) => {
+                  setAiRules(e.target.value)
+                  markDirty()
+                }}
                 rows={4}
                 className="text-xs"
               />
@@ -472,7 +556,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="故事发生在何时何地？"
                 value={setting}
-                onChange={(e) => setSetting(e.target.value)}
+                onChange={(e) => {
+                  setSetting(e.target.value)
+                  markDirty()
+                }}
                 rows={4}
                 className="text-xs"
               />
@@ -484,7 +571,10 @@ export function StoryBiblePanel({
               <Textarea
                 placeholder="规则、魔法系统、科技、社会、文化..."
                 value={worldbuilding}
-                onChange={(e) => setWorldbuilding(e.target.value)}
+                onChange={(e) => {
+                  setWorldbuilding(e.target.value)
+                  markDirty()
+                }}
                 rows={8}
                 className="text-xs"
               />
