@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "缺少选中文本或编辑指令" }, { status: 400 })
   }
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "quick-edit", proseMode })
 
   let systemPrompt = `You are a creative fiction writing AI assistant. Your task is to edit the selected text according to the author's natural language instruction. Return ONLY the edited text — no explanations, no quotes, no markdown.`

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未提供大纲" }, { status: 400 })
   }
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "first-draft", proseMode })
 
   let systemPrompt = `You are a professional fiction writer. Given an outline or scene beats, write a complete, polished first draft scene. Write vivid, engaging prose with dialogue, action, and description. Match the specified POV and tense. Do NOT include meta-commentary — just write the scene.`

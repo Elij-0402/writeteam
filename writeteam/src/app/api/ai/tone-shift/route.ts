@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   const toneLabel = TONE_LABELS[tone] || tone
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "tone-shift", proseMode })
 
   let systemPrompt = `你是散文风格专家。将给定文本改写为${toneLabel}语调，保持内容和情节不变，只改变表达方式和措辞。`

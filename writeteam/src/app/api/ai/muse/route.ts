@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   const museMode = mode as MuseMode
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext: storyContext } = buildStoryPromptContext(storyCtx, {
     feature: "muse",
   })

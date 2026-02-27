@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { context, projectId, documentId } = body
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "twist" })
 
   let systemPrompt = `你是创意写作顾问。基于给定的故事上下文，生成3-5个出人意料但合理的情节反转建议。每个反转用"## 反转N: [标题]"格式，包含反转描述和对后续剧情的影响。`

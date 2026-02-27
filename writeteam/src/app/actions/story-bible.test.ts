@@ -5,6 +5,7 @@ import {
   mapCharacterMutationError,
   sanitizeCharacterUpdates,
   sanitizeStoryBibleUpdates,
+  validateVisibilityUpdate,
 } from "./story-bible-guards"
 
 describe("sanitizeStoryBibleUpdates", () => {
@@ -20,6 +21,41 @@ describe("sanitizeStoryBibleUpdates", () => {
     expect(result).toEqual({
       genre: "奇幻",
       tone: "紧张",
+    })
+  })
+})
+
+describe("validateVisibilityUpdate", () => {
+  it("rejects unknown visibility keys with actionable Chinese guidance", () => {
+    const result = validateVisibilityUpdate({
+      genre: true,
+      hack_field: true,
+    })
+
+    expect(result.error).toContain("可见性设置包含未知字段")
+    expect(result.error).toContain("hack_field")
+  })
+
+  it("rejects non-boolean visibility values", () => {
+    const result = validateVisibilityUpdate({
+      genre: "yes",
+    })
+
+    expect(result.error).toContain("布尔值")
+  })
+
+  it("fills defaults and keeps explicit boolean switches", () => {
+    const result = validateVisibilityUpdate({
+      genre: false,
+      synopsis: true,
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.value).toMatchObject({
+      genre: false,
+      synopsis: true,
+      characters: true,
+      worldbuilding: true,
     })
   })
 })

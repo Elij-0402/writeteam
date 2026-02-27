@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未提供主题" }, { status: 400 })
   }
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "brainstorm" })
 
   let systemPrompt = `You are a creative brainstorming partner for fiction writers. Generate unique, interesting, and diverse ideas. Be creative and unexpected. Format each idea as a numbered list item with a brief explanation.`

@@ -77,6 +77,53 @@ export interface StoryPromptContext {
   fullContext: string // The complete formatted context to inject into system prompt
 }
 
+const VISIBILITY_FIELDS = [
+  "genre",
+  "pov",
+  "tone",
+  "synopsis",
+  "themes",
+  "setting",
+  "worldbuilding",
+  "outline",
+  "braindump",
+  "notes",
+  "characters",
+] as const
+
+type VisibilityField = (typeof VISIBILITY_FIELDS)[number]
+type VisibilityMap = Record<VisibilityField, boolean>
+
+function normalizeVisibility(input: unknown): VisibilityMap {
+  const defaults: VisibilityMap = {
+    genre: true,
+    pov: true,
+    tone: true,
+    synopsis: true,
+    themes: true,
+    setting: true,
+    worldbuilding: true,
+    outline: true,
+    braindump: true,
+    notes: true,
+    characters: true,
+  }
+
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return defaults
+  }
+
+  const raw = input as Record<string, unknown>
+  for (const key of VISIBILITY_FIELDS) {
+    const value = raw[key]
+    if (typeof value === "boolean") {
+      defaults[key] = value
+    }
+  }
+
+  return defaults
+}
+
 // ---------------------------------------------------------------------------
 // Feature-group helpers
 // ---------------------------------------------------------------------------
@@ -113,25 +160,37 @@ function isCheckFeature(f: AIFeature): boolean {
 
 export async function fetchStoryContext(
   supabase: SupabaseClient,
-  projectId: string
+  projectId: string,
+  userId?: string
 ): Promise<StoryContext> {
+  const withUserScope = <T>(query: T): T => {
+    if (!userId) {
+      return query
+    }
+
+    return (query as { eq: (column: string, value: string) => T }).eq("user_id", userId)
+  }
+
   // Fetch project-level data
   const [bibleResult, charsResult, projectResult] = await Promise.all([
-    supabase
-      .from("story_bibles")
-      .select("*")
-      .eq("project_id", projectId)
-      .single(),
-    supabase
-      .from("characters")
-      .select("*")
-      .eq("project_id", projectId)
-      .limit(15),
-    supabase
-      .from("projects")
-      .select("series_id")
-      .eq("id", projectId)
-      .single(),
+    withUserScope(
+      supabase
+        .from("story_bibles")
+        .select("*")
+        .eq("project_id", projectId)
+    ).single(),
+    withUserScope(
+      supabase
+        .from("characters")
+        .select("*")
+        .eq("project_id", projectId)
+    ).limit(15),
+    withUserScope(
+      supabase
+        .from("projects")
+        .select("series_id")
+        .eq("id", projectId)
+    ).single(),
   ])
 
   if (bibleResult.error && bibleResult.error.code !== "PGRST116") {
@@ -145,11 +204,12 @@ export async function fetchStoryContext(
   let seriesBibleData: Record<string, unknown> | null = null
   const seriesId = projectResult.data?.series_id
   if (seriesId) {
-    const { data: sb } = await supabase
-      .from("series_bibles")
-      .select("*")
-      .eq("series_id", seriesId)
-      .single()
+    const { data: sb } = await withUserScope(
+      supabase
+        .from("series_bibles")
+        .select("*")
+        .eq("series_id", seriesId)
+    ).single()
     seriesBibleData = sb
   }
 
@@ -170,18 +230,52 @@ export async function fetchStoryContext(
         braindump: bibleResult.data.braindump ?? null,
         tone: bibleResult.data.tone ?? null,
         ai_rules: bibleResult.data.ai_rules ?? null,
-        visibility: (bibleResult.data.visibility as Record<string, boolean>) ?? null,
+        visibility: normalizeVisibility(bibleResult.data.visibility),
       }
     : null
 
   // Merge series bible data into project bible (series data as fallback)
   if (seriesBibleData && bible) {
-    if (!bible.genre && seriesBibleData.genre) bible.genre = seriesBibleData.genre as string
-    if (!bible.style && seriesBibleData.style) bible.style = seriesBibleData.style as string
-    if (!bible.themes && seriesBibleData.themes) bible.themes = seriesBibleData.themes as string
-    if (!bible.setting && seriesBibleData.setting) bible.setting = seriesBibleData.setting as string
-    if (!bible.worldbuilding && seriesBibleData.worldbuilding) bible.worldbuilding = seriesBibleData.worldbuilding as string
-    if (!bible.notes && seriesBibleData.notes) bible.notes = seriesBibleData.notes as string
+    if (bible.genre == null && seriesBibleData.genre) bible.genre = seriesBibleData.genre as string
+    if (bible.style == null && seriesBibleData.style) bible.style = seriesBibleData.style as string
+    if (bible.themes == null && seriesBibleData.themes) bible.themes = seriesBibleData.themes as string
+    if (bible.setting == null && seriesBibleData.setting) bible.setting = seriesBibleData.setting as string
+    if (bible.worldbuilding == null && seriesBibleData.worldbuilding) bible.worldbuilding = seriesBibleData.worldbuilding as string
+    if (bible.notes == null && seriesBibleData.notes) bible.notes = seriesBibleData.notes as string
+  } else if (seriesBibleData && !bible) {
+    const seriesFallbackBible: StoryBibleData = {
+      genre: (seriesBibleData.genre as string | undefined) ?? null,
+      style: (seriesBibleData.style as string | undefined) ?? null,
+      prose_mode: null,
+      style_sample: null,
+      synopsis: null,
+      themes: (seriesBibleData.themes as string | undefined) ?? null,
+      setting: (seriesBibleData.setting as string | undefined) ?? null,
+      pov: null,
+      tense: null,
+      worldbuilding: (seriesBibleData.worldbuilding as string | undefined) ?? null,
+      outline: null,
+      notes: (seriesBibleData.notes as string | undefined) ?? null,
+      braindump: null,
+      tone: null,
+      ai_rules: null,
+      visibility: normalizeVisibility(null),
+    }
+
+    return {
+      bible: seriesFallbackBible,
+      characters: (charsResult.data ?? []).map((c: Record<string, unknown>) => ({
+        name: c.name as string,
+        role: (c.role as string | null) ?? null,
+        description: (c.description as string | null) ?? null,
+        personality: (c.personality as string | null) ?? null,
+        appearance: (c.appearance as string | null) ?? null,
+        backstory: (c.backstory as string | null) ?? null,
+        goals: (c.goals as string | null) ?? null,
+        relationships: (c.relationships as string | null) ?? null,
+        notes: (c.notes as string | null) ?? null,
+      })),
+    }
   }
 
   const characters: CharacterData[] = (charsResult.data ?? []).map(
@@ -215,10 +309,10 @@ export function buildStoryPromptContext(
 
   const { feature, proseMode, saliencyMap } = options
   const bible = ctx.bible
-  const vis = bible?.visibility ?? {}
+  const vis = normalizeVisibility(bible?.visibility)
 
   // Helper: check if a field is visible (default true if not set)
-  const isVisible = (field: string) => vis[field] !== false
+  const isVisible = (field: VisibilityField) => vis[field] !== false
 
   const sections: string[] = [
     buildAIRulesGuidance(bible?.ai_rules ?? null),
@@ -233,7 +327,7 @@ export function buildStoryPromptContext(
     isVisible("braindump") ? buildBraindumpGuidance(bible?.braindump ?? null, feature) : "",
     isVisible("notes") ? buildNotesGuidance(bible?.notes ?? null) : "",
     isVisible("characters") ? buildCharacterGuidance(ctx.characters, feature) : "",
-    isVisible("characters") ? buildCharacterHealthGuidance(ctx.characters) : "",
+    isVisible("characters") ? buildCharacterHealthGuidance(ctx.characters) : buildCharacterVisibilityNotice(),
     buildProseModeSection(bible, proseMode ?? null),
     saliencyMap ? buildSaliencyGuidance(saliencyMap) : "",
   ]
@@ -478,6 +572,10 @@ function buildCharacterGuidance(
   }
 
   return lines.join("\n")
+}
+
+function buildCharacterVisibilityNotice(): string {
+  return "CHARACTER CONTEXT NOTICE:\n角色上下文已关闭。若当前任务需要人物一致性，请在“AI 可见性控制”中开启“角色信息”后重试。"
 }
 
 function buildCharacterHealthGuidance(characters: CharacterData[]): string {

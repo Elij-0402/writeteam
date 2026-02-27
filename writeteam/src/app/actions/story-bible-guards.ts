@@ -19,9 +19,25 @@ const ALLOWED_STORY_BIBLE_UPDATE_FIELDS = [
   "visibility",
 ] as const
 
+const ALLOWED_VISIBILITY_FIELDS = [
+  "genre",
+  "pov",
+  "tone",
+  "synopsis",
+  "themes",
+  "setting",
+  "worldbuilding",
+  "outline",
+  "braindump",
+  "notes",
+  "characters",
+] as const
+
 type StoryBibleUpdateField = (typeof ALLOWED_STORY_BIBLE_UPDATE_FIELDS)[number]
 type StoryBibleTableUpdate = Database["public"]["Tables"]["story_bibles"]["Update"]
 export type StoryBibleUpdateInput = Pick<StoryBibleTableUpdate, StoryBibleUpdateField>
+type VisibilityField = (typeof ALLOWED_VISIBILITY_FIELDS)[number]
+export type StoryBibleVisibility = Record<VisibilityField, boolean>
 
 const ALLOWED_CHARACTER_MUTATION_FIELDS = [
   "name",
@@ -52,6 +68,67 @@ export function sanitizeStoryBibleUpdates(updates: Record<string, unknown>): Sto
   )
 
   return Object.fromEntries(filteredEntries) as StoryBibleUpdateInput
+}
+
+function isVisibilityField(key: string): key is VisibilityField {
+  return (ALLOWED_VISIBILITY_FIELDS as readonly string[]).includes(key)
+}
+
+export function validateVisibilityUpdate(value: unknown): {
+  value: StoryBibleVisibility | null
+  error: string | null
+} {
+  if (value == null) {
+    return { value: null, error: null }
+  }
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return {
+      value: null,
+      error: "保存失败：可见性设置格式无效，请在“AI 可见性控制”中逐项开关后再保存。",
+    }
+  }
+
+  const raw = value as Record<string, unknown>
+  const unknownKeys = Object.keys(raw).filter((key) => !isVisibilityField(key))
+  if (unknownKeys.length > 0) {
+    return {
+      value: null,
+      error: `保存失败：可见性设置包含未知字段（${unknownKeys.join("、")}）。请刷新页面后重试，或仅使用预设开关字段。`,
+    }
+  }
+
+  const normalized: StoryBibleVisibility = {
+    genre: true,
+    pov: true,
+    tone: true,
+    synopsis: true,
+    themes: true,
+    setting: true,
+    worldbuilding: true,
+    outline: true,
+    braindump: true,
+    notes: true,
+    characters: true,
+  }
+
+  for (const key of ALLOWED_VISIBILITY_FIELDS) {
+    const rawValue = raw[key]
+    if (rawValue === undefined) {
+      continue
+    }
+
+    if (typeof rawValue !== "boolean") {
+      return {
+        value: null,
+        error: `保存失败：可见性字段「${key}」必须是布尔值（true/false），请修正后重试。`,
+      }
+    }
+
+    normalized[key] = rawValue
+  }
+
+  return { value: normalized, error: null }
 }
 
 export function hasConcurrentStoryBibleUpdate(

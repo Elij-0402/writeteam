@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未提供待检查段落" }, { status: 400 })
   }
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "continuity-check" })
 
   let systemPrompt =

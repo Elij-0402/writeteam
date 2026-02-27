@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { text, projectId, documentId, proseMode } = body
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "shrink", proseMode })
 
   let systemPrompt = `你是文本编辑助手。将给定文本压缩精简至约50%长度，保留核心信息和意义，保持原文风格。不要添加新内容。`

@@ -8,6 +8,7 @@ import {
   mapCharacterMutationError,
   sanitizeCharacterUpdates,
   sanitizeStoryBibleUpdates,
+  validateVisibilityUpdate,
 } from "@/app/actions/story-bible-guards"
 
 export async function getStoryBible(projectId: string) {
@@ -36,6 +37,24 @@ export async function updateStoryBible(
   if (!user) return { error: "未登录" }
 
   const sanitizedUpdates = sanitizeStoryBibleUpdates(updates)
+  if (Object.keys(sanitizedUpdates).length === 0) {
+    return { error: "没有可保存的字段" }
+  }
+
+  if ("visibility" in sanitizedUpdates) {
+    const rawVisibility = sanitizedUpdates.visibility
+    if (rawVisibility === undefined) {
+      delete sanitizedUpdates.visibility
+    } else {
+      const validatedVisibility = validateVisibilityUpdate(rawVisibility)
+      if (validatedVisibility.error) {
+        return { error: validatedVisibility.error }
+      }
+
+      sanitizedUpdates.visibility = validatedVisibility.value
+    }
+  }
+
   if (Object.keys(sanitizedUpdates).length === 0) {
     return { error: "没有可保存的字段" }
   }

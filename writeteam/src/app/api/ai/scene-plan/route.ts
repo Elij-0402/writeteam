@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未提供场景规划目标" }, { status: 400 })
   }
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "scene-plan", proseMode })
 
   let systemPrompt =

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "缺少必要参数" }, { status: 400 })
   }
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
 
   // First compute heuristic saliency as a fast baseline
   const heuristicResult = computeSaliency(

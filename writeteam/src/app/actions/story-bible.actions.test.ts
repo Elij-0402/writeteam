@@ -9,7 +9,7 @@ vi.mock("next/cache", () => ({
 }))
 
 import { createClient } from "@/lib/supabase/server"
-import { createCharacter, deleteCharacter, updateCharacter } from "./story-bible"
+import { createCharacter, deleteCharacter, updateCharacter, updateStoryBible } from "./story-bible"
 
 type User = { id: string }
 
@@ -48,12 +48,13 @@ function buildDeleteCharactersTable() {
   return table
 }
 
-function mockSupabaseClient(user: User | null, charactersTable: Record<string, unknown>) {
+function mockSupabaseClient(user: User | null, handlers: Record<string, unknown>) {
   const from = vi.fn((table: string) => {
-    if (table !== "characters") {
+    const target = handlers[table]
+    if (!target) {
       throw new Error(`unexpected table: ${table}`)
     }
-    return charactersTable
+    return target
   })
 
   vi.mocked(createClient).mockResolvedValue({
@@ -64,6 +65,16 @@ function mockSupabaseClient(user: User | null, charactersTable: Record<string, u
   } as never)
 }
 
+function buildStoryBiblesUpdateTable() {
+  const table = {
+    update: vi.fn(() => table),
+    eq: vi.fn(() => table),
+    select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { updated_at: "2026-02-28T00:00:00.000Z" }, error: null })) })),
+  }
+
+  return table
+}
+
 describe("story-bible Server Action auth and isolation", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -71,7 +82,7 @@ describe("story-bible Server Action auth and isolation", () => {
 
   it("rejects create/update/delete when user is unauthenticated", async () => {
     const table = buildCharactersTable()
-    mockSupabaseClient(null, table)
+    mockSupabaseClient(null, { characters: table })
 
     const formData = new FormData()
     formData.set("name", "林晚")
@@ -86,7 +97,7 @@ describe("story-bible Server Action auth and isolation", () => {
       maybeSingleResults: [{ data: null, error: null }],
       singleResults: [{ data: { id: "char-1" }, error: null }],
     })
-    mockSupabaseClient({ id: "user-1" }, table)
+    mockSupabaseClient({ id: "user-1" }, { characters: table })
 
     const formData = new FormData()
     formData.set("name", "林晚")
@@ -109,7 +120,7 @@ describe("story-bible Server Action auth and isolation", () => {
         { data: { project_id: "project-1" }, error: null },
       ],
     })
-    mockSupabaseClient({ id: "user-1" }, table)
+    mockSupabaseClient({ id: "user-1" }, { characters: table })
 
     const result = await updateCharacter("char-1", { name: "  新名字  " })
 
@@ -126,7 +137,7 @@ describe("story-bible Server Action auth and isolation", () => {
         { data: { id: "char-2" }, error: null },
       ],
     })
-    mockSupabaseClient({ id: "user-1" }, table)
+    mockSupabaseClient({ id: "user-1" }, { characters: table })
 
     const result = await updateCharacter("char-1", { name: "冲突名" })
 
@@ -135,12 +146,49 @@ describe("story-bible Server Action auth and isolation", () => {
 
   it("scopes deleteCharacter by current user", async () => {
     const table = buildDeleteCharactersTable()
-    mockSupabaseClient({ id: "user-1" }, table)
+    mockSupabaseClient({ id: "user-1" }, { characters: table })
 
     const result = await deleteCharacter("char-1", "project-1")
 
     expect(result).toEqual({ success: true })
     expect(table.eq).toHaveBeenCalledWith("id", "char-1")
     expect(table.eq).toHaveBeenCalledWith("user_id", "user-1")
+  })
+
+  it("ignores undefined visibility updates instead of clearing visibility", async () => {
+    const table = buildStoryBiblesUpdateTable()
+    mockSupabaseClient(
+      { id: "user-1" },
+      {
+        story_bibles: table,
+      }
+    )
+
+    const result = await updateStoryBible("project-1", {
+      genre: "奇幻",
+      visibility: undefined,
+    })
+
+    expect(result).toEqual({ success: true, updatedAt: "2026-02-28T00:00:00.000Z" })
+    const payload = vi.mocked(table.update).mock.calls[0]?.[0] as Record<string, unknown>
+    expect(payload.genre).toBe("奇幻")
+    expect(payload).not.toHaveProperty("visibility")
+  })
+
+  it("returns no-updatable-fields when visibility is explicitly undefined only", async () => {
+    const table = buildStoryBiblesUpdateTable()
+    mockSupabaseClient(
+      { id: "user-1" },
+      {
+        story_bibles: table,
+      }
+    )
+
+    const result = await updateStoryBible("project-1", {
+      visibility: undefined,
+    })
+
+    expect(result).toEqual({ error: "没有可保存的字段" })
+    expect(table.update).not.toHaveBeenCalled()
   })
 })

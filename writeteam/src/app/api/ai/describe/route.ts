@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { text, projectId, documentId } = body
 
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "describe" })
 
   let systemPrompt = `You are a creative writing assistant specializing in sensory description. Given a word, phrase, or passage, generate vivid descriptions organized by the five senses plus metaphors. Format your response clearly with headers for each sense.`

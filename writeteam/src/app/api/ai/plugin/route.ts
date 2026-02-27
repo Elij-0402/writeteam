@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Fetch story context for template variable replacement
-  const storyCtx = await fetchStoryContext(supabase, projectId)
+  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
   const { fullContext: storyContext } = buildStoryPromptContext(storyCtx, {
     feature: "plugin",
   })
