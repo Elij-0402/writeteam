@@ -32,6 +32,7 @@ vi.mock("@/hooks/use-ai-recovery", () => ({
   useAIRecovery: () => ({
     error: null,
     isRetrying: false,
+    setError: vi.fn(),
     clearError: vi.fn(),
     storeRequestContext: vi.fn(),
     handleResponseError: vi.fn(),

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run src/app/actions/story-bible.test.ts src/app/actions/story-bible.actions.test.ts src/app/actions/series.test.ts src/lib/ai/story-context.test.ts src/lib/ai/context-writing.test.ts src/app/api/ai/quick-edit/route.test.ts src/components/ai/recovery-action-bar.test.tsx src/components/ai/ai-toolbar.quick-edit.test.tsx && node --test tests/story-4-2-quick-edit.test.mjs"
+    "test": "vitest run src/app/actions/story-bible.test.ts src/app/actions/story-bible.actions.test.ts src/app/actions/series.test.ts src/lib/ai/story-context.test.ts src/lib/ai/context-writing.test.ts src/lib/ai/read-ai-stream.test.ts src/app/api/ai/quick-edit/route.test.ts src/app/api/ai/continuity-check/route.test.ts src/components/ai/recovery-action-bar.test.tsx src/components/ai/ai-toolbar.quick-edit.test.tsx src/components/ai/ai-toolbar.continuity.test.tsx && node --test tests/story-4-2-quick-edit.test.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.33",

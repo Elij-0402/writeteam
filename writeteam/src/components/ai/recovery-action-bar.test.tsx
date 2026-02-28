@@ -1,8 +1,8 @@
 /* @vitest-environment jsdom */
 
-import { render, screen } from "@testing-library/react"
+import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeAll, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import { RecoveryActionBar } from "./recovery-action-bar"
 
 beforeAll(() => {
@@ -15,6 +15,10 @@ beforeAll(() => {
 })
 
 describe("RecoveryActionBar", () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   it("triggers retry, switch-model, and dismiss actions", async () => {
     const user = userEvent.setup()
     const onRetry = vi.fn()
@@ -48,5 +52,30 @@ describe("RecoveryActionBar", () => {
 
     await user.keyboard("{Escape}")
     expect(onDismiss).toHaveBeenCalled()
+  })
+
+  it("keeps key recovery actions reachable on mobile viewport", () => {
+    vi.stubGlobal("innerWidth", 375)
+    window.dispatchEvent(new Event("resize"))
+
+    render(
+      <RecoveryActionBar
+        error={{
+          errorType: "timeout",
+          message: "连接超时",
+          retriable: true,
+          suggestedActions: ["retry", "switch_model"],
+          severity: "medium",
+        }}
+        onRetry={vi.fn()}
+        onSwitchModel={vi.fn()}
+        onDismiss={vi.fn()}
+        isRetrying={false}
+      />
+    )
+
+    expect(screen.getAllByRole("button", { name: "重试" })[0]).toBeTruthy()
+    expect(screen.getAllByRole("button", { name: "切换模型" })[0]).toBeTruthy()
+    expect(screen.getAllByRole("button", { name: "继续写作" })[0]).toBeTruthy()
   })
 })

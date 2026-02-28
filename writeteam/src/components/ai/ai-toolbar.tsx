@@ -47,11 +47,14 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import { useAIRecovery } from "@/hooks/use-ai-recovery"
 import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
 import { readAIStream } from "@/lib/ai/read-ai-stream"
 import { AI_TTFB_MS } from "@/lib/ai/timing"
+import { parseContinuityResult, type ContinuityIssue, type ContinuityResult } from "@/lib/ai/continuity-result"
+import type { ErrorClassification } from "@/lib/ai/error-classification"
 import type { Plugin } from "@/types/database"
 
 interface AIToolbarProps {
@@ -154,6 +157,7 @@ export function AIToolbar({
   const [feedbackGiven, setFeedbackGiven] = useState<0 | 1 | -1>(0)
   const [quickEditInstruction, setQuickEditInstruction] = useState("")
   const [pluginInput, setPluginInput] = useState("")
+  const [continuityResult, setContinuityResult] = useState<ContinuityResult | null>(null)
 
   async function hashText(text: string): Promise<string> {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
@@ -166,6 +170,7 @@ export function AIToolbar({
     setLoading(true)
     setActiveFeature(feature)
     setResult("")
+    setContinuityResult(null)
     setCopied(false)
     setResponseFingerprint("")
     setFeedbackGiven(0)
@@ -237,7 +242,41 @@ export function AIToolbar({
 
       // Store request context for recovery retry
       recovery.storeRequestContext(endpoint, body, async (reader) => {
-        const fullText = await readAIStream(reader, setResult)
+        let streamEventError: ErrorClassification | null = null
+        const fullText = await readAIStream(reader, setResult, {
+          onErrorEvent: (event) => {
+            streamEventError = {
+              errorType:
+                event.errorType === "auth" ||
+                event.errorType === "model_not_found" ||
+                event.errorType === "rate_limit" ||
+                event.errorType === "timeout" ||
+                event.errorType === "provider_unavailable" ||
+                event.errorType === "server_error" ||
+                event.errorType === "network" ||
+                event.errorType === "format_incompatible"
+                  ? event.errorType
+                  : "unknown",
+              message: event.error,
+              retriable: event.retriable ?? true,
+              suggestedActions:
+                event.suggestedActions?.filter(
+                  (item): item is "retry" | "switch_model" | "check_config" | "wait_and_retry" =>
+                    item === "retry" ||
+                    item === "switch_model" ||
+                    item === "check_config" ||
+                    item === "wait_and_retry"
+                ) ?? ["retry", "switch_model"],
+              severity: "medium",
+            }
+          },
+        })
+        if (streamEventError) {
+          recovery.setError(streamEventError)
+        }
+        if (feature === "continuity-check") {
+          setContinuityResult(parseContinuityResult(fullText))
+        }
         if (fullText) {
           const fingerprint = await hashText(fullText)
           setResponseFingerprint(fingerprint)
@@ -269,6 +308,7 @@ export function AIToolbar({
 
       const reader = response.body?.getReader()
       if (reader) {
+        let streamEventError: ErrorClassification | null = null
         const fullText = await readAIStream(reader, setResult, {
           onFirstChunk: () => {
             if (!firstChunkReceived) {
@@ -276,8 +316,40 @@ export function AIToolbar({
               clearTimeout(ttfbTimer)
             }
           },
+          onErrorEvent: (event) => {
+            streamEventError = {
+              errorType:
+                event.errorType === "auth" ||
+                event.errorType === "model_not_found" ||
+                event.errorType === "rate_limit" ||
+                event.errorType === "timeout" ||
+                event.errorType === "provider_unavailable" ||
+                event.errorType === "server_error" ||
+                event.errorType === "network" ||
+                event.errorType === "format_incompatible"
+                  ? event.errorType
+                  : "unknown",
+              message: event.error,
+              retriable: event.retriable ?? true,
+              suggestedActions:
+                event.suggestedActions?.filter(
+                  (item): item is "retry" | "switch_model" | "check_config" | "wait_and_retry" =>
+                    item === "retry" ||
+                    item === "switch_model" ||
+                    item === "check_config" ||
+                    item === "wait_and_retry"
+                ) ?? ["retry", "switch_model"],
+              severity: "medium",
+            }
+          },
         })
         clearTimeout(ttfbTimer)
+        if (streamEventError) {
+          recovery.setError(streamEventError)
+        }
+        if (feature === "continuity-check") {
+          setContinuityResult(parseContinuityResult(fullText))
+        }
         if (fullText) {
           const fingerprint = await hashText(fullText)
           setResponseFingerprint(fingerprint)
@@ -304,6 +376,7 @@ export function AIToolbar({
     if (result && onReplaceSelection && selectedText) {
       onReplaceSelection(result)
       setResult("")
+      setContinuityResult(null)
       setActiveFeature(null)
       toast.success("已替换选中文本")
     }
@@ -313,9 +386,28 @@ export function AIToolbar({
     if (result) {
       onInsertText(result)
       setResult("")
+      setContinuityResult(null)
       setActiveFeature(null)
       toast.success("文本已插入编辑器")
     }
+  }
+
+  function handleInsertContinuityIssue(issue: ContinuityIssue) {
+    onInsertText(issue.insertionText)
+    toast.success("建议已插入编辑器")
+  }
+
+  function handleReplaceContinuityIssue(issue: ContinuityIssue) {
+    if (!selectedText || !onReplaceSelection) {
+      return
+    }
+    onReplaceSelection(issue.replacementText)
+    toast.success("建议已替换选区")
+  }
+
+  function handleCopyContinuityIssue(issue: ContinuityIssue) {
+    navigator.clipboard.writeText(issue.fix)
+    toast.success("建议已复制到剪贴板")
   }
 
   function handleUseScenePlanAsDraft() {
@@ -1010,7 +1102,12 @@ export function AIToolbar({
 
       {/* Result Panel */}
       {result && (
-        <Popover open={!!result} onOpenChange={(open) => !open && setResult("")}>
+        <Popover open={!!result} onOpenChange={(open) => {
+          if (!open) {
+            setResult("")
+            setContinuityResult(null)
+          }
+        }}>
           <PopoverTrigger asChild>
             <Button variant="secondary" size="sm" className="ml-2 h-8 gap-1.5 text-xs shrink-0">
               <Sparkles className="h-3.5 w-3.5" />
@@ -1020,11 +1117,64 @@ export function AIToolbar({
           <PopoverContent className="w-[500px]" align="end" side="bottom">
             <div className="space-y-3">
               <h4 className="font-medium text-sm">AI 结果</h4>
-              <ScrollArea className="max-h-[300px]">
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {result}
-                </div>
-              </ScrollArea>
+              {activeFeature === "continuity-check" && continuityResult ? (
+                <ScrollArea className="max-h-[320px]">
+                  <div className="space-y-3 text-sm">
+                    <div className="rounded-md border bg-muted/30 p-2">
+                      <p className="font-medium">{continuityResult.summary}</p>
+                    </div>
+                    {continuityResult.issues.length > 0 ? (
+                      continuityResult.issues.map((issue, index) => (
+                        <div key={`${issue.issue}-${index}`} className="space-y-2 rounded-md border p-3">
+                          {issue.evidenceSource === "未知" && (
+                            <div className="rounded-md border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-700">
+                              当前建议缺少可信来源标注，请重试连贯性检查后再应用。
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">{issue.type}</Badge>
+                            <Badge variant="outline">{issue.evidenceSource}</Badge>
+                          </div>
+                          <p><span className="font-medium">问题：</span>{issue.issue}</p>
+                          <p><span className="font-medium">原因：</span>{issue.reason}</p>
+                          <p><span className="font-medium">证据：</span>{issue.evidence}</p>
+                          <p><span className="font-medium">建议：</span>{issue.fix}</p>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              onClick={() => handleInsertContinuityIssue(issue)}
+                              disabled={issue.evidenceSource === "未知"}
+                            >
+                              插入建议
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleReplaceContinuityIssue(issue)}
+                              disabled={!selectedText || !onReplaceSelection || issue.evidenceSource === "未知"}
+                            >
+                              按建议替换选区
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleCopyContinuityIssue(issue)}>
+                              复制建议
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-md border bg-muted/20 p-2 text-muted-foreground">
+                        {continuityResult.raw}
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <ScrollArea className="max-h-[300px]">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {result}
+                  </div>
+                </ScrollArea>
+              )}
               <div className="flex gap-2">
                 <Button size="sm" className="flex-1" onClick={handleInsert}>
                   插入编辑器
