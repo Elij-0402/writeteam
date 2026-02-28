@@ -11,7 +11,9 @@ import {
   addEdge,
   type Node,
   type Edge,
+  type HandleType,
   type Connection,
+  type FinalConnectionState,
   type NodeChange,
   type NodeTypes,
 } from "@xyflow/react"
@@ -21,9 +23,11 @@ import type { CanvasNode as CanvasNodeType, CanvasEdge as CanvasEdgeType } from 
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import {
   createCanvasNode,
+  cleanupDanglingCanvasEdges,
   updateCanvasNode,
   deleteCanvasNode,
   createCanvasEdge,
+  updateCanvasEdge,
   deleteCanvasEdge,
   updateNodePositions,
 } from "@/app/actions/canvas"
@@ -35,6 +39,7 @@ interface CanvasEditorProps {
   projectId: string
   initialNodes: CanvasNodeType[]
   initialEdges: CanvasEdgeType[]
+  initialEdgesWarning?: string | null
 }
 
 function toFlowNode(n: CanvasNodeType): Node {
@@ -65,7 +70,7 @@ function toFlowEdge(e: CanvasEdgeType): Edge {
   }
 }
 
-export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEditorProps) {
+export function CanvasEditor({ projectId, initialNodes, initialEdges, initialEdgesWarning }: CanvasEditorProps) {
   const { getHeaders } = useAIConfigContext()
   const nodeTypes: NodeTypes = useMemo(() => ({ canvasNode: CanvasNode }), [])
 
@@ -73,6 +78,10 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges.map(toFlowEdge))
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [saveMessage, setSaveMessage] = useState("")
+  const [pendingRetry, setPendingRetry] = useState<(() => Promise<void>) | null>(null)
+  const [edgesWarning, setEdgesWarning] = useState(initialEdgesWarning ?? "")
 
   // Track node counter for initial positioning of new nodes
   const nodeCountRef = useRef(initialNodes.length)
@@ -90,12 +99,22 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
       position_y: pos.y,
     }))
     pendingPositionsRef.current.clear()
-    updateNodePositions(payload).then((result) => {
+    setSaveStatus("saving")
+    setSaveMessage("正在保存节点位置...")
+    updateNodePositions(projectId, payload).then((result) => {
       if (result.error) {
-        console.error("Failed to save positions:", result.error)
+        setSaveStatus("error")
+        setSaveMessage(`保存失败：${result.error}`)
+        setPendingRetry(() => async () => {
+          flushPositions()
+        })
+      } else {
+        setSaveStatus("saved")
+        setSaveMessage("节点位置已保存")
+        setPendingRetry(null)
       }
     })
-  }, [])
+  }, [projectId])
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -133,20 +152,30 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
       })
 
       if (result.error) {
+        setSaveStatus("error")
+        setSaveMessage(`连接失败：${result.error}`)
+        setPendingRetry(() => async () => {
+          await onConnect(connection)
+        })
         toast.error(`连接失败: ${result.error}`)
         return
       }
 
       if (result.data) {
+        setPendingRetry(null)
+        setSaveStatus("saved")
+        setSaveMessage(result.deduped ? "连接已存在，已复用" : "连接已保存")
         setEdges((eds) =>
-          addEdge(
-            {
-              ...connection,
-              id: result.data!.id,
-              type: "default",
-            },
-            eds
-          )
+          eds.some((edge) => edge.id === result.data!.id)
+            ? eds
+            : addEdge(
+                {
+                  ...connection,
+                  id: result.data!.id,
+                  type: "default",
+                },
+                eds
+              )
         )
       }
     },
@@ -175,6 +204,11 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
       })
 
       if (result.error) {
+        setSaveStatus("error")
+        setSaveMessage(`添加节点失败：${result.error}`)
+        setPendingRetry(() => async () => {
+          await handleAddNode(type)
+        })
         toast.error(`添加节点失败: ${result.error}`)
         return
       }
@@ -183,6 +217,9 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
         nodeCountRef.current += 1
         const newNode = toFlowNode(result.data)
         setNodes((nds) => [...nds, newNode])
+        setPendingRetry(null)
+        setSaveStatus("saved")
+        setSaveMessage("节点已保存")
         toast.success("节点已添加")
       }
     },
@@ -270,8 +307,13 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
 
   const handleUpdateNode = useCallback(
     async (nodeId: string, data: Record<string, unknown>) => {
-      const result = await updateCanvasNode(nodeId, data)
+      const result = await updateCanvasNode(projectId, nodeId, data)
       if (result.error) {
+        setSaveStatus("error")
+        setSaveMessage(`更新失败：${result.error}`)
+        setPendingRetry(() => async () => {
+          await handleUpdateNode(nodeId, data)
+        })
         toast.error(`更新失败: ${result.error}`)
         return
       }
@@ -291,15 +333,23 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
           }
         })
       )
+      setPendingRetry(null)
+      setSaveStatus("saved")
+      setSaveMessage("节点已更新")
       toast.success("节点已更新")
     },
-    [setNodes]
+    [projectId, setNodes]
   )
 
   const handleDeleteNode = useCallback(
     async (nodeId: string) => {
-      const result = await deleteCanvasNode(nodeId)
+      const result = await deleteCanvasNode(projectId, nodeId)
       if (result.error) {
+        setSaveStatus("error")
+        setSaveMessage(`删除失败：${result.error}`)
+        setPendingRetry(() => async () => {
+          await handleDeleteNode(nodeId)
+        })
         toast.error(`删除失败: ${result.error}`)
         return
       }
@@ -309,19 +359,136 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
         eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
       )
       setSelectedNodeId(null)
+      setPendingRetry(null)
+      setSaveStatus("saved")
+      setSaveMessage("节点已删除")
       toast.success("节点已删除")
     },
-    [setNodes, setEdges]
+    [projectId, setNodes, setEdges]
   )
 
   const handleEdgesDelete = useCallback(
     async (deletedEdges: Edge[]) => {
       for (const edge of deletedEdges) {
-        await deleteCanvasEdge(edge.id)
+        const result = await deleteCanvasEdge(projectId, edge.id)
+        if (result.error) {
+          setSaveStatus("error")
+          setSaveMessage(`删除连接失败：${result.error}`)
+          setPendingRetry(() => async () => {
+            await handleEdgesDelete(deletedEdges)
+          })
+          toast.error(`删除连接失败: ${result.error}`)
+          return
+        }
       }
+      setPendingRetry(null)
+      setSaveStatus("saved")
+      setSaveMessage("连接已删除")
     },
-    []
+    [projectId]
   )
+
+  const handleReconnect = useCallback(
+    async (oldEdge: Edge, newConnection: Connection) => {
+      if (!newConnection.source || !newConnection.target) {
+        return
+      }
+
+      const result = await updateCanvasEdge(projectId, oldEdge.id, {
+        source_node_id: newConnection.source,
+        target_node_id: newConnection.target,
+      })
+
+      if (result.error) {
+        setSaveStatus("error")
+        setSaveMessage(`重连失败：${result.error}`)
+        setPendingRetry(() => async () => {
+          await handleReconnect(oldEdge, newConnection)
+        })
+        toast.error(`重连失败: ${result.error}`)
+        return
+      }
+
+      setEdges((eds) =>
+        eds.map((edge) =>
+          edge.id === oldEdge.id
+            ? {
+                ...edge,
+                source: newConnection.source!,
+                target: newConnection.target!,
+              }
+            : edge
+        )
+      )
+      setPendingRetry(null)
+      setSaveStatus("saved")
+      setSaveMessage("连接已更新")
+    },
+    [projectId, setEdges]
+  )
+
+  const handleReconnectEnd = useCallback(
+    async (
+      _event: MouseEvent | TouchEvent,
+      edge: Edge,
+      _handleType: HandleType,
+      state: FinalConnectionState
+    ) => {
+      if (state.isValid) return
+      const result = await deleteCanvasEdge(projectId, edge.id)
+      if (result.error) {
+        setSaveStatus("error")
+        setSaveMessage(`清理无效连接失败：${result.error}`)
+        setPendingRetry(() => async () => {
+          await handleReconnectEnd(_event, edge, _handleType, state)
+        })
+        toast.error(`清理无效连接失败: ${result.error}`)
+        return
+      }
+
+      setEdges((eds) => eds.filter((current) => current.id !== edge.id))
+      setPendingRetry(null)
+      setSaveStatus("saved")
+      setSaveMessage("无效连接已清理")
+    },
+    [projectId, setEdges]
+  )
+
+  const handleRetry = useCallback(async () => {
+    if (!pendingRetry) return
+    setSaveStatus("saving")
+    setSaveMessage("正在重试...")
+    await pendingRetry()
+  }, [pendingRetry])
+
+  const handleCleanupDanglingEdges = useCallback(async () => {
+    setSaveStatus("saving")
+    setSaveMessage("正在修复失效连接...")
+    const result = await cleanupDanglingCanvasEdges(projectId)
+    if (result.error) {
+      setSaveStatus("error")
+      setSaveMessage(`修复失败：${result.error}`)
+      setPendingRetry(() => async () => {
+        await handleCleanupDanglingEdges()
+      })
+      toast.error(`修复失败: ${result.error}`)
+      return
+    }
+
+    setEdgesWarning("")
+    setPendingRetry(null)
+    setSaveStatus("saved")
+    setSaveMessage(result.deleted && result.deleted > 0 ? `已清理 ${result.deleted} 条失效连接` : "无需修复，连接状态正常")
+    if (result.deleted && result.deleted > 0) {
+      setEdges((eds) =>
+        eds.filter((edge) => {
+          const sourceExists = nodes.some((n) => n.id === edge.source)
+          const targetExists = nodes.some((n) => n.id === edge.target)
+          return sourceExists && targetExists
+        })
+      )
+    }
+  }, [projectId, setEdges, nodes])
 
   const selectedNode = selectedNodeId
     ? nodes.find((n) => n.id === selectedNodeId)
@@ -335,6 +502,21 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
         generating={generating}
       />
 
+      {edgesWarning && (
+        <div className="absolute top-14 left-3 z-10 flex max-w-[min(90vw,520px)] items-center gap-2 rounded-md border border-amber-300 bg-amber-50/95 px-3 py-2 text-xs text-amber-900 shadow-sm backdrop-blur-sm">
+          <span>{edgesWarning}</span>
+          <button
+            type="button"
+            className="rounded border border-amber-400 px-2 py-0.5 text-amber-900 hover:bg-amber-100"
+            onClick={() => {
+              void handleCleanupDanglingEdges()
+            }}
+          >
+            立即修复
+          </button>
+        </div>
+      )}
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -344,6 +526,8 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
         onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
         onEdgesDelete={handleEdgesDelete}
+        onReconnect={handleReconnect}
+        onReconnectEnd={handleReconnectEnd}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}
@@ -361,6 +545,42 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
           maskColor="rgba(0,0,0,0.1)"
         />
       </ReactFlow>
+
+      {(saveStatus === "saving" || saveStatus === "saved" || saveStatus === "error") && (
+        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 rounded-md border bg-background/95 px-3 py-2 text-xs shadow-sm backdrop-blur-sm">
+          <span
+            className={
+              saveStatus === "error"
+                ? "text-destructive"
+                : saveStatus === "saved"
+                  ? "text-emerald-600"
+                  : "text-muted-foreground"
+            }
+          >
+            {saveMessage}
+          </span>
+          {saveStatus === "error" && pendingRetry && (
+            <button
+              type="button"
+              className="rounded border px-2 py-0.5 text-foreground hover:bg-muted"
+              onClick={() => {
+                void handleRetry()
+              }}
+            >
+              重试保存
+            </button>
+          )}
+          {saveStatus === "error" && (
+            <button
+              type="button"
+              className="rounded border px-2 py-0.5 text-foreground hover:bg-muted"
+              onClick={() => window.location.reload()}
+            >
+              刷新重载
+            </button>
+          )}
+        </div>
+      )}
 
       {selectedNode && (
         <NodeDetailPanel

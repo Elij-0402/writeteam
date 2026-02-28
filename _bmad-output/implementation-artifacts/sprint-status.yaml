@@ -67,8 +67,8 @@ development_status:
   4-4-构思协作与风格控制: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-canvas-节点与连接管理: backlog
+  epic-5: in-progress
+  5-1-canvas-节点与连接管理: review
   5-2-ai-规划生成与正文上下文往返: backlog
   epic-5-retrospective: optional
 

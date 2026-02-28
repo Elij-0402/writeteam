@@ -30,8 +30,9 @@ export default async function CanvasPage({
     redirect("/dashboard")
   }
 
-  const { data: nodes } = await getCanvasNodes(projectId)
-  const { data: edges } = await getCanvasEdges(projectId)
+  const { data: nodes, error: nodesError } = await getCanvasNodes(projectId)
+  const { data: edges, error: edgesError, warning: edgesWarning } = await getCanvasEdges(projectId)
+  const initialLoadError = nodesError || edgesError || null
 
   return (
     <div className="flex h-screen flex-col">
@@ -48,10 +49,16 @@ export default async function CanvasPage({
         </div>
       </div>
       <div className="flex-1">
+        {initialLoadError && (
+          <div className="border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            画布加载部分失败：{initialLoadError}。你仍可继续编辑并手动重试保存。
+          </div>
+        )}
         <CanvasEditor
           projectId={projectId}
           initialNodes={nodes || []}
           initialEdges={edges || []}
+          initialEdgesWarning={edgesWarning || null}
         />
       </div>
     </div>

@@ -44,7 +44,7 @@ function CanvasNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!w-2.5 !h-2.5 !bg-muted-foreground/50 !border-background"
+        className="!w-11 !h-11 md:!w-2.5 md:!h-2.5 !bg-transparent md:!bg-muted-foreground/50 !border-0 md:!border !border-background"
       />
       <div className="flex items-center gap-1.5 mb-1">
         <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -62,7 +62,7 @@ function CanvasNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-2.5 !h-2.5 !bg-muted-foreground/50 !border-background"
+        className="!w-11 !h-11 md:!w-2.5 md:!h-2.5 !bg-transparent md:!bg-muted-foreground/50 !border-0 md:!border !border-background"
       />
     </div>
   )

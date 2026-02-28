@@ -23,7 +23,7 @@ const NODE_TYPE_OPTIONS = [
 ]
 
 const COLOR_OPTIONS = [
-  { value: "", label: "默认" },
+  { value: "default", label: "默认" },
   { value: "#3b82f6", label: "蓝色" },
   { value: "#22c55e", label: "绿色" },
   { value: "#a855f7", label: "紫色" },
@@ -52,7 +52,7 @@ export function NodeDetailPanel({ node, onUpdate, onDelete, onClose }: NodeDetai
   const [label, setLabel] = useState(node.label)
   const [content, setContent] = useState(node.content || "")
   const [nodeType, setNodeType] = useState(node.nodeType)
-  const [color, setColor] = useState(node.color || "")
+  const [color, setColor] = useState(node.color || "default")
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -62,7 +62,7 @@ export function NodeDetailPanel({ node, onUpdate, onDelete, onClose }: NodeDetai
       label,
       content: content || null,
       node_type: nodeType,
-      color: color || null,
+      color: color === "default" ? null : color,
     })
     setSaving(false)
   }
