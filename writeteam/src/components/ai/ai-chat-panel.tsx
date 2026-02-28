@@ -4,6 +4,14 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { MessageSquare, Send, Loader2, User, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,17 +27,44 @@ interface Message {
 
 interface AIChatPanelProps {
   projectId: string
+  documentId: string | null
   documentContent: string
+  onInsertToEditor: (text: string) => void
+  hasStyleSample: boolean
 }
 
-export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
+const PROSE_MODES = [
+  { value: "default", label: "跟随故事圣经" },
+  { value: "balanced", label: "均衡" },
+  { value: "cinematic", label: "电影感" },
+  { value: "lyrical", label: "抒情" },
+  { value: "minimal", label: "简洁" },
+  { value: "match-style", label: "匹配风格" },
+] as const
+
+export function AIChatPanel({
+  projectId,
+  documentId,
+  documentContent,
+  onInsertToEditor,
+  hasStyleSample,
+}: AIChatPanelProps) {
   const { getHeaders, config } = useAIConfigContext()
   const recovery = useAIRecovery({ config, getHeaders })
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [proseModeOverride, setProseModeOverride] = useState("default")
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const fallbackToBalanced = proseModeOverride === "match-style" && !hasStyleSample
+  const effectiveProseMode =
+    proseModeOverride === "default"
+      ? null
+      : fallbackToBalanced
+        ? "balanced"
+        : proseModeOverride
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -50,7 +85,9 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
     const body = {
       messages: [...messages, userMessage],
       projectId,
+      documentId,
       context: documentContent.slice(-3000),
+      proseMode: effectiveProseMode,
     }
 
     // Store request context for recovery
@@ -78,21 +115,28 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
       }
 
       const reader = response.body?.getReader()
+      if (!reader) {
+        recovery.setError({
+          errorType: "format_incompatible",
+          message: "AI 返回为空响应，请重试或切换模型后继续写作。",
+          retriable: true,
+          suggestedActions: ["retry", "switch_model"],
+          severity: "medium",
+        })
+        return
+      }
 
       setMessages((prev) => [...prev, { role: "assistant", content: "" }])
-
-      if (reader) {
-        await readAIStream(reader, (text) => {
-          setMessages((prev) => {
-            const updated = [...prev]
-            updated[updated.length - 1] = {
-              role: "assistant",
-              content: text,
-            }
-            return updated
-          })
+      await readAIStream(reader, (text) => {
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: text,
+          }
+          return updated
         })
-      }
+      })
     } catch (error) {
       recovery.handleFetchError(error)
     } finally {
@@ -113,6 +157,29 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <MessageSquare className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold">AI 对话</h3>
+        <Badge variant="secondary" className="ml-auto text-[10px]">
+          模式：{PROSE_MODES.find((item) => item.value === proseModeOverride)?.label ?? "跟随故事圣经"}
+        </Badge>
+      </div>
+
+      <div className="border-b px-4 py-2 space-y-2">
+        <Select value={proseModeOverride} onValueChange={setProseModeOverride}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="选择对话文风模式" />
+          </SelectTrigger>
+          <SelectContent>
+            {PROSE_MODES.map((mode) => (
+              <SelectItem key={mode.value} value={mode.value} className="text-xs">
+                {mode.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {fallbackToBalanced && (
+          <p className="text-[11px] text-amber-700">
+            当前项目缺少 style sample，已自动回落为“均衡”模式。
+          </p>
+        )}
       </div>
 
       {/* Messages */}
@@ -157,6 +224,18 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
                       <Loader2 className="h-4 w-4 animate-spin" />
                     )}
                   </div>
+                  {message.role === "assistant" && message.content ? (
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-[11px]"
+                        onClick={() => onInsertToEditor(message.content)}
+                      >
+                        插入正文
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
                 {message.role === "user" && (
                   <Avatar className="h-7 w-7 shrink-0">
@@ -201,6 +280,7 @@ export function AIChatPanel({ projectId, documentContent }: AIChatPanelProps) {
             className="h-[60px] w-10 shrink-0"
             onClick={handleSend}
             disabled={!input.trim() || loading}
+            aria-label="发送"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

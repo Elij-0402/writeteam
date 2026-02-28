@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Sparkles,
   Loader2,
@@ -16,6 +24,9 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import { useAIRecovery } from "@/hooks/use-ai-recovery"
+import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
+import { readAIStream } from "@/lib/ai/read-ai-stream"
 
 interface MuseGeneration {
   id: string
@@ -26,8 +37,10 @@ interface MuseGeneration {
 
 interface MusePanelProps {
   projectId: string
+  documentId: string | null
   documentContent: string
   onUseAsDirection: (text: string) => void
+  hasStyleSample: boolean
 }
 
 const MODE_CONFIG = {
@@ -52,79 +65,106 @@ type MuseMode = keyof typeof MODE_CONFIG
 
 export function MusePanel({
   projectId,
+  documentId,
   documentContent,
   onUseAsDirection,
+  hasStyleSample,
 }: MusePanelProps) {
-  const { getHeaders } = useAIConfigContext()
+  const { getHeaders, config } = useAIConfigContext()
+  const recovery = useAIRecovery({ config, getHeaders })
   const [loading, setLoading] = useState(false)
   const [activeMode, setActiveMode] = useState<MuseMode | null>(null)
   const [whatIfInput, setWhatIfInput] = useState("")
   const [generations, setGenerations] = useState<MuseGeneration[]>([])
   const [streamingText, setStreamingText] = useState("")
+  const [proseModeOverride, setProseModeOverride] = useState("default")
+
+  const fallbackToBalanced = proseModeOverride === "match-style" && !hasStyleSample
+  const effectiveProseMode =
+    proseModeOverride === "default"
+      ? null
+      : fallbackToBalanced
+        ? "balanced"
+        : proseModeOverride
+
+  async function consumeMuseStream(reader: ReadableStreamDefaultReader<Uint8Array>, mode: MuseMode) {
+    const fullText = await readAIStream(reader, setStreamingText)
+    if (fullText) {
+      const newGeneration: MuseGeneration = {
+        id: crypto.randomUUID(),
+        mode,
+        text: fullText,
+        timestamp: Date.now(),
+      }
+      setGenerations((prev) => [newGeneration, ...prev])
+      setStreamingText("")
+      if (mode === "what-if") {
+        setWhatIfInput("")
+      }
+    }
+  }
 
   const callMuse = useCallback(
     async (mode: MuseMode) => {
       setLoading(true)
       setActiveMode(mode)
       setStreamingText("")
+      recovery.clearError()
 
       try {
         const body: Record<string, string> = {
           mode,
           projectId,
+          documentId: documentId ?? "",
           context: documentContent.slice(-5000),
+        }
+
+        if (effectiveProseMode) {
+          body.proseMode = effectiveProseMode
         }
 
         if (mode === "what-if" && whatIfInput.trim()) {
           body.input = whatIfInput.trim()
         }
 
-        const response = await fetch("/api/ai/muse", {
+        const endpoint = "/api/ai/muse"
+
+        recovery.storeRequestContext(endpoint, body, async (reader) => {
+          await consumeMuseStream(reader, mode)
+        })
+
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getHeaders() },
           body: JSON.stringify(body),
         })
 
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "灵感生成失败")
+          await recovery.handleResponseError(response)
+          return
         }
 
         const reader = response.body?.getReader()
-        const decoder = new TextDecoder()
-        let fullText = ""
-
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            const chunk = decoder.decode(value, { stream: true })
-            fullText += chunk
-            setStreamingText(fullText)
-          }
+        if (!reader) {
+          recovery.setError({
+            errorType: "format_incompatible",
+            message: "灵感返回为空响应，请重试或切换模型后继续写作。",
+            retriable: true,
+            suggestedActions: ["retry", "switch_model"],
+            severity: "medium",
+          })
+          return
         }
 
-        if (fullText) {
-          const newGeneration: MuseGeneration = {
-            id: crypto.randomUUID(),
-            mode,
-            text: fullText,
-            timestamp: Date.now(),
-          }
-          setGenerations((prev) => [newGeneration, ...prev])
-          setStreamingText("")
-          if (mode === "what-if") {
-            setWhatIfInput("")
-          }
-        }
+        await consumeMuseStream(reader, mode)
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "灵感生成失败")
+        recovery.handleFetchError(error)
       } finally {
         setLoading(false)
         setActiveMode(null)
       }
     },
-    [projectId, documentContent, whatIfInput, getHeaders]
+    [projectId, documentId, documentContent, whatIfInput, effectiveProseMode, getHeaders, recovery]
   )
 
   function handleUseAsDirection(text: string) {
@@ -147,6 +187,20 @@ export function MusePanel({
           <Sparkles className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold">灵感缪斯</h3>
         </div>
+        <Badge variant="secondary" className="text-[10px]">
+          模式：
+          {proseModeOverride === "default"
+            ? "跟随故事圣经"
+            : proseModeOverride === "balanced"
+              ? "均衡"
+              : proseModeOverride === "cinematic"
+                ? "电影感"
+                : proseModeOverride === "lyrical"
+                  ? "抒情"
+                  : proseModeOverride === "minimal"
+                    ? "简洁"
+                    : "匹配风格"}
+        </Badge>
         {generations.length > 0 && (
           <Button
             variant="ghost"
@@ -161,6 +215,25 @@ export function MusePanel({
       </div>
 
       <div className="space-y-3 border-b px-4 py-3">
+        <Select value={proseModeOverride} onValueChange={setProseModeOverride}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="选择灵感文风模式" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default" className="text-xs">跟随故事圣经</SelectItem>
+            <SelectItem value="balanced" className="text-xs">均衡</SelectItem>
+            <SelectItem value="cinematic" className="text-xs">电影感</SelectItem>
+            <SelectItem value="lyrical" className="text-xs">抒情</SelectItem>
+            <SelectItem value="minimal" className="text-xs">简洁</SelectItem>
+            <SelectItem value="match-style" className="text-xs">匹配风格</SelectItem>
+          </SelectContent>
+        </Select>
+        {fallbackToBalanced ? (
+          <p className="text-[11px] text-amber-700">
+            当前项目缺少 style sample，已自动回落为“均衡”模式。
+          </p>
+        ) : null}
+
         {/* What-if with optional input */}
         <div className="space-y-2">
           <Input
@@ -275,6 +348,18 @@ export function MusePanel({
           </div>
         )}
       </ScrollArea>
+
+      {recovery.error ? (
+        <div className="border-t px-4 py-2">
+          <RecoveryActionBar
+            error={recovery.error}
+            onRetry={recovery.handleRetry}
+            onSwitchModel={recovery.handleSwitchModel}
+            onDismiss={recovery.clearError}
+            isRetrying={recovery.isRetrying}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

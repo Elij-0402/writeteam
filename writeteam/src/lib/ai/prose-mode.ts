@@ -26,13 +26,18 @@ export function buildProseModeGuidanceWithOverride(
     return ""
   }
 
-  const mode = (overrideMode || bible.prose_mode || "balanced") as ProseMode
-  const base = PROSE_MODE_GUIDANCE[mode] || PROSE_MODE_GUIDANCE.balanced
+  const requestedMode = (overrideMode || bible.prose_mode || "balanced") as ProseMode
+  const fallbackToBalanced = requestedMode === "match-style" && !bible.style_sample
+  const effectiveMode: ProseMode = fallbackToBalanced ? "balanced" : requestedMode
+  const base = PROSE_MODE_GUIDANCE[effectiveMode] || PROSE_MODE_GUIDANCE.balanced
   const style = bible.style ? `Style intent: ${bible.style}.` : ""
   const sample =
-    mode === "match-style" && bible.style_sample
+    effectiveMode === "match-style" && bible.style_sample
       ? `Style sample:\n${bible.style_sample.slice(0, 1800)}`
       : ""
+  const fallbackReason = fallbackToBalanced
+    ? "Style mode fallback: match-style requested but no style sample found; using balanced mode."
+    : ""
 
-  return [base, style, sample].filter(Boolean).join("\n")
+  return [base, style, sample, fallbackReason].filter(Boolean).join("\n")
 }

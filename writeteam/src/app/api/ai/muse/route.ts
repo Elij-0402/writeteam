@@ -6,6 +6,16 @@ import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-conte
 
 type MuseMode = "what-if" | "random-prompt" | "suggest"
 
+interface MuseRequestBody {
+  [key: string]: unknown
+  mode?: unknown
+  projectId?: unknown
+  documentId?: unknown
+  context?: unknown
+  input?: unknown
+  proseMode?: unknown
+}
+
 const MUSE_SYSTEM_PROMPTS: Record<MuseMode, string> = {
   "what-if": `You are a wildly creative fiction muse. Your role is to generate fascinating "what if" scenarios that could take the story in unexpected, thrilling directions. Think beyond the obvious — surprise the author with bold, imaginative possibilities that still feel organic to the story world. Present 3-5 "what if" scenarios, each as a short, evocative paragraph. Number them clearly. Write in the language that matches the story context (default to 简体中文 if unclear).`,
 
@@ -27,23 +37,40 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "未登录" }, { status: 401 })
   }
 
-  const aiConfig = resolveAIConfig(request)
-  if (!aiConfig) {
-    return Response.json({ error: "AI 服务未配置" }, { status: 400 })
+  let body: MuseRequestBody
+  try {
+    body = await request.json()
+  } catch {
+    return Response.json({ error: "请求参数格式错误，请刷新后重试" }, { status: 400 })
   }
 
-  const body = await request.json()
-  const { mode, projectId, documentId, context, input } = body
+  const { mode, projectId, documentId, context, input, proseMode } = body
+  const projectIdValue = typeof projectId === "string" ? projectId.trim() : ""
+  const documentIdValue =
+    typeof documentId === "string" && documentId.trim().length > 0 ? documentId.trim() : null
+  const contextValue = typeof context === "string" ? context : ""
+  const inputValue = typeof input === "string" ? input : ""
+  const proseModeValue = typeof proseMode === "string" ? proseMode : null
 
-  if (!mode || !["what-if", "random-prompt", "suggest"].includes(mode)) {
+  const aiConfig = resolveAIConfig(request)
+  if (!aiConfig) {
+    return Response.json({ error: "AI 服务未配置，请先在设置中配置模型后重试" }, { status: 400 })
+  }
+
+  if (!projectIdValue) {
+    return Response.json({ error: "缺少项目ID，请返回项目后重试" }, { status: 400 })
+  }
+
+  if (typeof mode !== "string" || !["what-if", "random-prompt", "suggest"].includes(mode)) {
     return Response.json({ error: "无效的灵感模式" }, { status: 400 })
   }
 
   const museMode = mode as MuseMode
 
-  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
+  const storyCtx = await fetchStoryContext(supabase, projectIdValue, user.id)
   const { fullContext: storyContext } = buildStoryPromptContext(storyCtx, {
     feature: "muse",
+    proseMode: proseModeValue,
   })
 
   let systemPrompt = MUSE_SYSTEM_PROMPTS[museMode]
@@ -54,17 +81,17 @@ export async function POST(request: NextRequest) {
   let userPrompt = ""
   switch (museMode) {
     case "what-if":
-      userPrompt = input
-        ? `Based on this story context and the author's specific question, generate "what if" scenarios.\n\nAuthor's question: ${input}\n\nRecent story text:\n${context || "(no text provided)"}`
-        : `Based on the story context, generate surprising "what if" scenarios that could take the story in new directions.\n\nRecent story text:\n${context || "(no text provided)"}`
+      userPrompt = inputValue
+        ? `Based on this story context and the author's specific question, generate "what if" scenarios.\n\nAuthor's question: ${inputValue}\n\nRecent story text:\n${contextValue || "(no text provided)"}`
+        : `Based on the story context, generate surprising "what if" scenarios that could take the story in new directions.\n\nRecent story text:\n${contextValue || "(no text provided)"}`
       break
     case "random-prompt":
-      userPrompt = context
-        ? `Generate creative writing prompts inspired by this story world and its characters.\n\nRecent story text:\n${context}`
+      userPrompt = contextValue
+        ? `Generate creative writing prompts inspired by this story world and its characters.\n\nRecent story text:\n${contextValue}`
         : `Generate vivid, evocative creative writing prompts for fiction writing.`
       break
     case "suggest":
-      userPrompt = `Analyze this text and suggest concrete next directions for the story.\n\nCurrent text:\n${context || "(no text provided)"}`
+      userPrompt = `Analyze this text and suggest concrete next directions for the story.\n\nCurrent text:\n${contextValue || "(no text provided)"}`
       break
   }
 
@@ -82,14 +109,22 @@ export async function POST(request: NextRequest) {
       {
         supabase,
         userId: user.id,
-        projectId,
-        documentId: documentId || null,
+        projectId: projectIdValue,
+        documentId: documentIdValue,
         feature: "muse",
         promptLog: `[Muse: ${museMode}] ${userPrompt.slice(0, 400)}`,
         ...extractRetryMeta(body),
       }
     )
   } catch {
-    return Response.json({ error: "服务器内部错误" }, { status: 500 })
+    return Response.json(
+      {
+        error: "灵感生成失败，请重试或切换模型后继续",
+        errorType: "server_error",
+        retriable: true,
+        suggestedActions: ["retry", "switch_model"],
+      },
+      { status: 500 }
+    )
   }
 }

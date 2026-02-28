@@ -518,15 +518,20 @@ export function EditorShell({
         return (
           <AIChatPanel
             projectId={project.id}
+            documentId={activeDocument?.id || null}
             documentContent={activeDocument?.content_text || ""}
+            onInsertToEditor={(text) => handleInsertText(text)}
+            hasStyleSample={Boolean(initialStoryBible?.style_sample)}
           />
         )
       case "muse":
         return (
           <MusePanel
             projectId={project.id}
+            documentId={activeDocument?.id || null}
             documentContent={activeDocument?.content_text || ""}
             onUseAsDirection={(text) => handleInsertText(text)}
+            hasStyleSample={Boolean(initialStoryBible?.style_sample)}
           />
         )
       case "visualize":
