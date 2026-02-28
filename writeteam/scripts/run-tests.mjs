@@ -17,6 +17,7 @@ const vitestTargets = [
   "src/app/api/ai/quick-edit/route.test.ts",
   "src/app/api/ai/continuity-check/route.test.ts",
   "src/app/api/ai/feedback/route.test.ts",
+  "src/app/api/ai/failure-analysis/route.test.ts",
   "src/app/api/ai/collab-routes.contract.test.ts",
   "src/components/ai/recovery-action-bar.test.tsx",
   "src/components/ai/ai-toolbar.quick-edit.test.tsx",
@@ -24,6 +25,7 @@ const vitestTargets = [
   "src/components/ai/ai-toolbar.feedback.test.tsx",
   "src/components/ai/ai-chat-panel.test.tsx",
   "src/components/ai/muse-panel.test.tsx",
+  "src/components/settings/failure-analysis-panel.test.tsx",
   "src/components/canvas/node-detail-panel.test.tsx",
   "src/components/canvas/canvas-editor.test.tsx",
 ]

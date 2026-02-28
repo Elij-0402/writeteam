@@ -4,6 +4,7 @@ import Link from "next/link"
 import { PenLine, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AIProviderForm } from "@/components/settings/ai-provider-form"
+import { FailureAnalysisPanel } from "@/components/settings/failure-analysis-panel"
 
 export function SettingsContent() {
   return (
@@ -23,13 +24,16 @@ export function SettingsContent() {
         </div>
       </header>
 
-      <main className="container mx-auto max-w-2xl px-5 py-10">
+      <main className="container mx-auto max-w-5xl px-5 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">设置</h1>
           <p className="mt-1 text-muted-foreground">管理你的 AI 服务配置</p>
         </div>
 
-        <AIProviderForm />
+        <div className="space-y-6">
+          <AIProviderForm />
+          <FailureAnalysisPanel />
+        </div>
       </main>
     </div>
   )

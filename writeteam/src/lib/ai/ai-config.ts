@@ -27,6 +27,32 @@ export const PROVIDER_PRESETS = [
   { name: "硅基流动", baseUrl: "https://api.siliconflow.cn/v1" },
 ] as const
 
+function normalizeBaseUrl(baseUrl: string): string | null {
+  try {
+    const parsed = new URL(baseUrl)
+    const portPart = parsed.port ? `:${parsed.port}` : ""
+    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${portPart}`
+  } catch {
+    return null
+  }
+}
+
+export function resolveProviderNameByBaseUrl(baseUrl: string): string {
+  const normalizedTarget = normalizeBaseUrl(baseUrl)
+  if (!normalizedTarget) {
+    return "未知 Provider"
+  }
+
+  for (const preset of PROVIDER_PRESETS) {
+    const normalizedPreset = normalizeBaseUrl(preset.baseUrl)
+    if (normalizedPreset && normalizedPreset === normalizedTarget) {
+      return preset.name
+    }
+  }
+
+  return "未知 Provider"
+}
+
 /**
  * Create a temporary AI config override for recovery model switching.
  * Only replaces modelId (and optionally baseUrl). Does NOT modify localStorage.

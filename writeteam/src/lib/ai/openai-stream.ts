@@ -1,5 +1,6 @@
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
 import { classifyAIError } from "@/lib/ai/error-classification"
+import { resolveProviderNameByBaseUrl } from "@/lib/ai/ai-config"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 interface OpenAIStreamOptions {
@@ -44,6 +45,7 @@ export async function createOpenAIStreamResponse(
   telemetry: TelemetryOptions
 ): Promise<Response> {
   const startedAt = Date.now()
+  const provider = resolveProviderNameByBaseUrl(options.baseUrl)
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -76,6 +78,7 @@ export async function createOpenAIStreamResponse(
       user_id: telemetry.userId,
       project_id: telemetry.projectId,
       document_id: telemetry.documentId,
+      provider,
       feature: telemetry.feature,
       prompt: telemetry.promptLog,
       result: "",
@@ -108,6 +111,7 @@ export async function createOpenAIStreamResponse(
       user_id: telemetry.userId,
       project_id: telemetry.projectId,
       document_id: telemetry.documentId,
+      provider,
       feature: telemetry.feature,
       prompt: telemetry.promptLog,
       result: "",
@@ -197,6 +201,7 @@ export async function createOpenAIStreamResponse(
           user_id: telemetry.userId,
           project_id: telemetry.projectId,
           document_id: telemetry.documentId,
+          provider,
           feature: telemetry.feature,
           prompt: telemetry.promptLog,
           result: fullText,

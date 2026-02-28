@@ -247,6 +247,7 @@ export interface Database {
           user_id: string
           project_id: string
           document_id: string | null
+          provider: string | null
           feature: string
           prompt: string
           result: string
@@ -269,6 +270,7 @@ export interface Database {
           user_id: string
           project_id: string
           document_id?: string | null
+          provider?: string | null
           feature: string
           prompt: string
           result: string
@@ -291,6 +293,7 @@ export interface Database {
           user_id?: string
           project_id?: string
           document_id?: string | null
+          provider?: string | null
           feature?: string
           prompt?: string
           result?: string

@@ -74,6 +74,6 @@ development_status:
 
   epic-6: in-progress
   6-1-ai-结果正负反馈闭环: done
-  6-2-失败类型定位与影响范围分析: backlog
+  6-2-失败类型定位与影响范围分析: done
   6-3-支持排障建议与恢复-runbook: backlog
   epic-6-retrospective: optional
