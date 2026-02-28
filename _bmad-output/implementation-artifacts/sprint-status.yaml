@@ -54,25 +54,25 @@ development_status:
   2-4-文档导入与导出: done
   epic-2-retrospective: optional
 
-  epic-3: in-progress
+  epic-3: done
   3-1-故事圣经核心字段管理: done
   3-2-角色资料管理与写作复用: done
   3-3-可见性控制与系列共享设定: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-上下文写作能力-续写-改写-扩写-缩写: done
   4-2-选区快速编辑: done
   4-3-连续性检查与修正建议: done
   4-4-构思协作与风格控制: done
   epic-4-retrospective: optional
 
-  epic-5: in-progress
+  epic-5: done
   5-1-canvas-节点与连接管理: done
   5-2-ai-规划生成与正文上下文往返: done
   epic-5-retrospective: optional
 
-  epic-6: in-progress
+  epic-6: done
   6-1-ai-结果正负反馈闭环: done
   6-2-失败类型定位与影响范围分析: done
   6-3-支持排障建议与恢复-runbook: done
