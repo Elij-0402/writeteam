@@ -5,6 +5,7 @@ import { PenLine, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AIProviderForm } from "@/components/settings/ai-provider-form"
 import { FailureAnalysisPanel } from "@/components/settings/failure-analysis-panel"
+import { SupportRunbookPanel } from "@/components/settings/support-runbook-panel"
 
 export function SettingsContent() {
   return (
@@ -33,6 +34,7 @@ export function SettingsContent() {
         <div className="space-y-6">
           <AIProviderForm />
           <FailureAnalysisPanel />
+          <SupportRunbookPanel />
         </div>
       </main>
     </div>
