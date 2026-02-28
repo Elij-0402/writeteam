@@ -447,14 +447,44 @@ export function AIToolbar({
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "提交反馈失败")
+        let errorMessage = "提交反馈失败"
+        let errorCode = ""
+        let existingRating: 1 | -1 | null = null
+
+        const data = (await response.json().catch(() => null)) as
+          | null
+          | { error?: string; existingRating?: unknown }
+          | { error?: { code?: string; message?: string }; existingRating?: unknown }
+
+        if (data && typeof data === "object") {
+          if ("existingRating" in data && (data.existingRating === 1 || data.existingRating === -1)) {
+            existingRating = data.existingRating
+          }
+
+          if ("error" in data && typeof data.error === "string") {
+            errorMessage = data.error
+          } else if ("error" in data && data.error && typeof data.error === "object") {
+            errorCode = typeof data.error.code === "string" ? data.error.code : ""
+            if (typeof data.error.message === "string" && data.error.message) {
+              errorMessage = data.error.message
+            }
+          }
+        }
+
+        if (errorCode === "ALREADY_RATED") {
+          setFeedbackGiven(existingRating ?? rating)
+          toast.success("该结果已反馈过")
+          return
+        }
+
+        throw new Error(errorMessage)
       }
 
       setFeedbackGiven(rating)
       toast.success(rating === 1 ? "已标记为有帮助" : "已标记为无帮助")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提交反馈失败")
+      const message = error instanceof Error ? error.message : "提交反馈失败"
+      toast.error(`${message}，请重试或稍后再试`)
     } finally {
       setFeedbackLoading(false)
     }
@@ -1199,6 +1229,7 @@ export function AIToolbar({
                 <Button
                   size="sm"
                   variant={feedbackGiven === 1 ? "default" : "outline"}
+                  aria-label="反馈有帮助"
                   onClick={() => submitFeedback(1)}
                   disabled={feedbackLoading || feedbackGiven !== 0 || !responseFingerprint}
                 >
@@ -1207,6 +1238,7 @@ export function AIToolbar({
                 <Button
                   size="sm"
                   variant={feedbackGiven === -1 ? "default" : "outline"}
+                  aria-label="反馈无帮助"
                   onClick={() => submitFeedback(-1)}
                   disabled={feedbackLoading || feedbackGiven !== 0 || !responseFingerprint}
                 >
