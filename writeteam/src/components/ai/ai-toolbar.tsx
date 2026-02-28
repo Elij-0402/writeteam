@@ -51,6 +51,7 @@ import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import { useAIRecovery } from "@/hooks/use-ai-recovery"
 import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
 import { readAIStream } from "@/lib/ai/read-ai-stream"
+import { AI_TTFB_MS } from "@/lib/ai/timing"
 import type { Plugin } from "@/types/database"
 
 interface AIToolbarProps {
@@ -244,7 +245,8 @@ export function AIToolbar({
       })
 
       const ttfbController = new AbortController()
-      const ttfbTimer = setTimeout(() => ttfbController.abort(), 3000)
+      const ttfbTimer = setTimeout(() => ttfbController.abort(), AI_TTFB_MS)
+      let firstChunkReceived = false
 
       let response: Response
       try {
@@ -254,22 +256,34 @@ export function AIToolbar({
           body: JSON.stringify(body),
           signal: ttfbController.signal,
         })
-      } finally {
+      } catch (error) {
         clearTimeout(ttfbTimer)
+        throw error
       }
 
       if (!response.ok) {
+        clearTimeout(ttfbTimer)
         await recovery.handleResponseError(response)
         return
       }
 
       const reader = response.body?.getReader()
       if (reader) {
-        const fullText = await readAIStream(reader, setResult)
+        const fullText = await readAIStream(reader, setResult, {
+          onFirstChunk: () => {
+            if (!firstChunkReceived) {
+              firstChunkReceived = true
+              clearTimeout(ttfbTimer)
+            }
+          },
+        })
+        clearTimeout(ttfbTimer)
         if (fullText) {
           const fingerprint = await hashText(fullText)
           setResponseFingerprint(fingerprint)
         }
+      } else {
+        clearTimeout(ttfbTimer)
       }
     } catch (error) {
       recovery.handleFetchError(error)

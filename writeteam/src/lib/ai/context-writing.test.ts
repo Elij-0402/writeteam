@@ -354,6 +354,35 @@ describe("readAIStream", () => {
     expect(result).toBe("")
     expect(received).toEqual([])
   })
+
+  it("calls onFirstChunk exactly once", async () => {
+    const { readAIStream } = await import("./read-ai-stream")
+
+    const chunks = [
+      new TextEncoder().encode("A"),
+      new TextEncoder().encode("B"),
+      new TextEncoder().encode("C"),
+    ]
+    let chunkIndex = 0
+    const mockReader = {
+      read: async () => {
+        if (chunkIndex < chunks.length) {
+          return { done: false, value: chunks[chunkIndex++] }
+        }
+        return { done: true, value: undefined }
+      },
+    } as ReadableStreamDefaultReader<Uint8Array>
+
+    let firstChunkCalls = 0
+    const result = await readAIStream(
+      mockReader,
+      () => undefined,
+      { onFirstChunk: () => { firstChunkCalls += 1 } }
+    )
+
+    expect(result).toBe("ABC")
+    expect(firstChunkCalls).toBe(1)
+  })
 })
 
 // ---------------------------------------------------------------------------
