@@ -76,6 +76,13 @@ interface EditorShellProps {
   storyBible: StoryBible | null
   characters: Character[]
   plugins?: Plugin[]
+  entryContext?: {
+    source: "canvas"
+    nodeId: string
+    nodeLabel: string
+    nodeType: string
+    nodeSummary: string
+  } | null
 }
 
 type RightPanelType = "none" | "bible" | "chat" | "muse" | "visualize"
@@ -102,6 +109,7 @@ export function EditorShell({
   storyBible: initialStoryBible,
   characters: initialCharacters,
   plugins: initialPlugins = [],
+  entryContext = null,
 }: EditorShellProps) {
   const [documents, setDocuments] = useState(initialDocuments)
   const [activeDocId, setActiveDocId] = useState<string | null>(
@@ -122,9 +130,17 @@ export function EditorShell({
   const [renameDocId, setRenameDocId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState("")
   const [renameSubmitting, setRenameSubmitting] = useState(false)
+  const [showEntryHint, setShowEntryHint] = useState(true)
   const saliencyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const activeDocument = documents.find((d) => d.id === activeDocId) || null
+  const hasCanvasEntry =
+    showEntryHint &&
+    entryContext?.source === "canvas" &&
+    entryContext.nodeId.trim().length > 0
+  const canvasBackHref = hasCanvasEntry
+    ? `/canvas/${project.id}?focusNodeId=${encodeURIComponent(entryContext.nodeId)}`
+    : `/canvas/${project.id}`
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const getActionErrorMessage = useCallback((error: unknown, fallbackMessage: string) => {
@@ -463,6 +479,40 @@ export function EditorShell({
 
   const renderEditorArea = () => (
     <div className="flex h-full flex-col">
+      {hasCanvasEntry && (
+        <div className="border-b bg-blue-50/80 px-3 py-2 text-xs text-blue-900">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>
+              来自画布节点：
+              <strong className="px-1">{entryContext.nodeLabel || "未命名节点"}</strong>
+              （{entryContext.nodeType || "beat"}）
+            </span>
+            {entryContext.nodeSummary && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setEditorContent(entryContext.nodeSummary)}
+              >
+                插入节点摘要
+              </Button>
+            )}
+            <Link href={canvasBackHref}>
+              <Button variant="outline" size="sm" className="h-7 text-xs">
+                返回画布
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowEntryHint(false)}
+            >
+              隐藏提示
+            </Button>
+          </div>
+        </div>
+      )}
       {activeDocument && (
         <>
           <AIToolbar

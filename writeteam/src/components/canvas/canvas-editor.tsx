@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useMemo } from "react"
+import { useState, useCallback, useRef, useMemo, useEffect } from "react"
 import {
   ReactFlow,
   Background,
@@ -40,6 +40,31 @@ interface CanvasEditorProps {
   initialNodes: CanvasNodeType[]
   initialEdges: CanvasEdgeType[]
   initialEdgesWarning?: string | null
+  initialFocusNodeId?: string | null
+}
+
+interface GeneratedBeatPreview {
+  label: string
+  content: string
+  type: string
+}
+
+const ALLOWED_CANVAS_NODE_TYPES = new Set(["beat", "scene", "character", "location", "note"])
+
+function normalizeGeneratedBeat(value: unknown): GeneratedBeatPreview | null {
+  if (!value || typeof value !== "object") return null
+  const beat = value as { label?: unknown; content?: unknown; type?: unknown }
+  const label = typeof beat.label === "string" ? beat.label.trim() : ""
+  const content = typeof beat.content === "string" ? beat.content.trim() : ""
+  const rawType = typeof beat.type === "string" ? beat.type.trim() : ""
+  const type = rawType && ALLOWED_CANVAS_NODE_TYPES.has(rawType) ? rawType : "beat"
+
+  if (!label || !content) return null
+  return {
+    label: label.slice(0, 60),
+    content: content.slice(0, 500),
+    type,
+  }
 }
 
 function toFlowNode(n: CanvasNodeType): Node {
@@ -70,18 +95,31 @@ function toFlowEdge(e: CanvasEdgeType): Edge {
   }
 }
 
-export function CanvasEditor({ projectId, initialNodes, initialEdges, initialEdgesWarning }: CanvasEditorProps) {
+export function CanvasEditor({ projectId, initialNodes, initialEdges, initialEdgesWarning, initialFocusNodeId }: CanvasEditorProps) {
   const { getHeaders } = useAIConfigContext()
   const nodeTypes: NodeTypes = useMemo(() => ({ canvasNode: CanvasNode }), [])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes.map(toFlowNode))
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges.map(toFlowEdge))
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(initialFocusNodeId ?? null)
   const [generating, setGenerating] = useState(false)
+  const [aiPreviewBeats, setAiPreviewBeats] = useState<GeneratedBeatPreview[]>([])
+  const [aiRecovery, setAiRecovery] = useState<{ message: string; outline: string } | null>(null)
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [saveMessage, setSaveMessage] = useState("")
   const [pendingRetry, setPendingRetry] = useState<(() => Promise<void>) | null>(null)
   const [edgesWarning, setEdgesWarning] = useState(initialEdgesWarning ?? "")
+
+  useEffect(() => {
+    if (!initialFocusNodeId) {
+      return
+    }
+
+    const exists = nodes.some((node) => node.id === initialFocusNodeId)
+    if (exists) {
+      setSelectedNodeId(initialFocusNodeId)
+    }
+  }, [initialFocusNodeId, nodes])
 
   // Track node counter for initial positioning of new nodes
   const nodeCountRef = useRef(initialNodes.length)
@@ -241,61 +279,134 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialEdg
           throw new Error(data.error || "AI 生成失败")
         }
 
-        const { beats } = await response.json()
+        const data = await response.json() as { beats?: unknown }
+        const normalizedBeats = Array.isArray(data.beats)
+          ? data.beats.map(normalizeGeneratedBeat).filter((beat): beat is GeneratedBeatPreview => beat !== null)
+          : []
 
-        if (!Array.isArray(beats) || beats.length === 0) {
-          toast.error("AI 未生成任何节拍")
-          return
+        if (normalizedBeats.length === 0) {
+          throw new Error("AI 未生成可采纳的节拍，请重试或调整大纲")
         }
 
-        // Create nodes in sequence to avoid race conditions, auto-layout in grid
-        const newNodes: Node[] = []
-        for (let i = 0; i < beats.length; i++) {
-          const beat = beats[i]
-          const col = i % 4
-          const row = Math.floor(i / 4)
-          const posX = 100 + col * 280
-          const posY = 100 + row * 200
-
-          const result = await createCanvasNode(projectId, {
-            node_type: beat.type || "beat",
-            label: beat.label,
-            content: beat.content || null,
-            position_x: posX,
-            position_y: posY,
-          })
-
-          if (result.data) {
-            nodeCountRef.current += 1
-            newNodes.push(toFlowNode(result.data))
-          }
-        }
-
-        setNodes((nds) => [...nds, ...newNodes])
-
-        // Auto-connect beats sequentially
-        for (let i = 0; i < newNodes.length - 1; i++) {
-          const result = await createCanvasEdge(projectId, {
-            source_node_id: newNodes[i].id,
-            target_node_id: newNodes[i + 1].id,
-          })
-          if (result.data) {
-            setEdges((eds) => [
-              ...eds,
-              toFlowEdge(result.data!),
-            ])
-          }
-        }
-
-        toast.success(`已生成 ${newNodes.length} 个节拍节点`)
+        setAiPreviewBeats(normalizedBeats)
+        setAiRecovery(null)
+        toast.success(`已生成 ${normalizedBeats.length} 个节拍预览，请确认后采纳`)
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "AI 生成失败")
+        const message = error instanceof Error ? error.message : "AI 生成失败"
+        setAiRecovery({ message, outline })
+        toast.error(`${message}，可重试或切换模型后继续`) 
       } finally {
         setGenerating(false)
       }
     },
-    [projectId, setNodes, setEdges, getHeaders]
+    [projectId, getHeaders]
   )
+
+  const handleApplyPreview = useCallback(async () => {
+    if (aiPreviewBeats.length === 0) {
+      return
+    }
+
+    setGenerating(true)
+    const createdNodeIds: string[] = []
+    const createdEdgeIds: string[] = []
+    try {
+      const newNodes: Node[] = []
+      for (let i = 0; i < aiPreviewBeats.length; i++) {
+        const beat = aiPreviewBeats[i]
+        const col = i % 4
+        const row = Math.floor(i / 4)
+        const posX = 100 + col * 280
+        const posY = 100 + row * 200
+
+        const result = await createCanvasNode(projectId, {
+          node_type: beat.type,
+          label: beat.label,
+          content: beat.content,
+          position_x: posX,
+          position_y: posY,
+        })
+
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        if (result.data) {
+          nodeCountRef.current += 1
+          createdNodeIds.push(result.data.id)
+          newNodes.push(toFlowNode(result.data))
+        }
+      }
+
+      setNodes((nds) => [...nds, ...newNodes])
+
+      const newEdges: Edge[] = []
+      for (let i = 0; i < newNodes.length - 1; i++) {
+        const result = await createCanvasEdge(projectId, {
+          source_node_id: newNodes[i].id,
+          target_node_id: newNodes[i + 1].id,
+        })
+
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        if (result.data) {
+          createdEdgeIds.push(result.data.id)
+          newEdges.push(toFlowEdge(result.data))
+        }
+      }
+
+      if (newEdges.length > 0) {
+        setEdges((eds) => {
+          const existingIds = new Set(eds.map((edge) => edge.id))
+          const append = newEdges.filter((edge) => !existingIds.has(edge.id))
+          return [...eds, ...append]
+        })
+      }
+
+      setAiPreviewBeats([])
+      setAiRecovery(null)
+      toast.success(`已采纳 ${newNodes.length} 个节拍节点`)
+    } catch (error) {
+      for (const edgeId of createdEdgeIds) {
+        await deleteCanvasEdge(projectId, edgeId)
+      }
+
+      for (const nodeId of createdNodeIds) {
+        await deleteCanvasNode(projectId, nodeId)
+      }
+
+      if (createdNodeIds.length > 0) {
+        setNodes((nds) => nds.filter((node) => !createdNodeIds.includes(node.id)))
+      }
+
+      if (createdEdgeIds.length > 0) {
+        setEdges((eds) => eds.filter((edge) => !createdEdgeIds.includes(edge.id)))
+      }
+
+      const message = error instanceof Error ? error.message : "采纳预览失败"
+      setAiRecovery({ message, outline: "" })
+      toast.error(`${message}，可重试采纳或继续手动编辑`)
+    } finally {
+      setGenerating(false)
+    }
+  }, [aiPreviewBeats, projectId, setNodes, setEdges])
+
+  const handleGoToEditor = useCallback((node: { id: string; label: string; content: string | null; nodeType: string }) => {
+    const params = new URLSearchParams({
+      from: "canvas",
+      canvasNodeId: node.id,
+      canvasNodeLabel: node.label,
+      canvasNodeType: node.nodeType,
+    })
+
+    if (node.content) {
+      params.set("canvasNodeSummary", node.content)
+    }
+
+    window.location.assign(`/editor/${projectId}?${params.toString()}`)
+  }, [projectId])
 
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id)
@@ -499,8 +610,60 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialEdg
       <CanvasToolbar
         onAddNode={handleAddNode}
         onAIGenerate={handleAIGenerate}
+        onApplyPreview={handleApplyPreview}
+        onDiscardPreview={() => setAiPreviewBeats([])}
         generating={generating}
+        hasPreview={aiPreviewBeats.length > 0}
+        previewCount={aiPreviewBeats.length}
       />
+
+      {aiPreviewBeats.length > 0 && (
+        <div className="absolute top-14 right-3 z-10 max-w-[min(92vw,460px)] rounded-md border border-blue-200 bg-blue-50/95 p-3 text-xs text-blue-900 shadow-sm backdrop-blur-sm">
+          <p className="font-medium">AI 已生成 {aiPreviewBeats.length} 个节拍预览，确认后才会写入画布。</p>
+          <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
+            {aiPreviewBeats.map((beat, index) => (
+              <li key={`${beat.label}-${index}`} className="rounded border border-blue-100 bg-white/70 px-2 py-1">
+                <span className="font-medium">{index + 1}. {beat.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {aiRecovery && (
+        <div className="absolute top-14 left-3 z-10 flex max-w-[min(92vw,560px)] flex-wrap items-center gap-2 rounded-md border border-rose-300 bg-rose-50/95 px-3 py-2 text-xs text-rose-900 shadow-sm backdrop-blur-sm">
+          <span>AI 生成失败：{aiRecovery.message}</span>
+          <button
+            type="button"
+            className="rounded border border-rose-400 px-2 py-0.5 hover:bg-rose-100"
+            onClick={() => {
+              if (aiRecovery.outline) {
+                void handleAIGenerate(aiRecovery.outline)
+              } else {
+                void handleApplyPreview()
+              }
+            }}
+          >
+            重试
+          </button>
+          <button
+            type="button"
+            className="rounded border border-rose-400 px-2 py-0.5 hover:bg-rose-100"
+            onClick={() => {
+              window.location.assign("/settings")
+            }}
+          >
+            切换模型
+          </button>
+          <button
+            type="button"
+            className="rounded border border-rose-400 px-2 py-0.5 hover:bg-rose-100"
+            onClick={() => setAiRecovery(null)}
+          >
+            继续手动编辑
+          </button>
+        </div>
+      )}
 
       {edgesWarning && (
         <div className="absolute top-14 left-3 z-10 flex max-w-[min(90vw,520px)] items-center gap-2 rounded-md border border-amber-300 bg-amber-50/95 px-3 py-2 text-xs text-amber-900 shadow-sm backdrop-blur-sm">
@@ -593,6 +756,7 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialEdg
           }}
           onUpdate={handleUpdateNode}
           onDelete={handleDeleteNode}
+          onGoToEditor={handleGoToEditor}
           onClose={() => setSelectedNodeId(null)}
         />
       )}

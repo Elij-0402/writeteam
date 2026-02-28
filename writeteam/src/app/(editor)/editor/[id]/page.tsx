@@ -4,10 +4,19 @@ import { EditorShell } from "@/components/editor/editor-shell"
 
 export default async function EditorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{
+    from?: string
+    canvasNodeId?: string
+    canvasNodeLabel?: string
+    canvasNodeType?: string
+    canvasNodeSummary?: string
+  }>
 }) {
   const { id: projectId } = await params
+  const entrySearch = await searchParams
   const supabase = await createClient()
 
   const {
@@ -65,6 +74,15 @@ export default async function EditorPage({
       storyBible={storyBible}
       characters={characters || []}
       plugins={plugins || []}
+      entryContext={entrySearch.from === "canvas"
+        ? {
+            source: "canvas",
+            nodeId: typeof entrySearch.canvasNodeId === "string" ? entrySearch.canvasNodeId : "",
+            nodeLabel: typeof entrySearch.canvasNodeLabel === "string" ? entrySearch.canvasNodeLabel : "",
+            nodeType: typeof entrySearch.canvasNodeType === "string" ? entrySearch.canvasNodeType : "",
+            nodeSummary: typeof entrySearch.canvasNodeSummary === "string" ? entrySearch.canvasNodeSummary : "",
+          }
+        : null}
     />
   )
 }

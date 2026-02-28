@@ -29,7 +29,11 @@ import {
 interface CanvasToolbarProps {
   onAddNode: (type: string) => void
   onAIGenerate: (outline: string) => Promise<void>
+  onApplyPreview: () => Promise<void>
+  onDiscardPreview: () => void
   generating: boolean
+  hasPreview: boolean
+  previewCount: number
 }
 
 const NODE_TYPE_BUTTONS = [
@@ -40,7 +44,15 @@ const NODE_TYPE_BUTTONS = [
   { type: "note", label: "备注", icon: StickyNote },
 ]
 
-export function CanvasToolbar({ onAddNode, onAIGenerate, generating }: CanvasToolbarProps) {
+export function CanvasToolbar({
+  onAddNode,
+  onAIGenerate,
+  onApplyPreview,
+  onDiscardPreview,
+  generating,
+  hasPreview,
+  previewCount,
+}: CanvasToolbarProps) {
   const [aiDialogOpen, setAiDialogOpen] = useState(false)
   const [outline, setOutline] = useState("")
 
@@ -130,6 +142,31 @@ export function CanvasToolbar({ onAddNode, onAIGenerate, generating }: CanvasToo
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {hasPreview && (
+        <>
+          <div className="mx-1 h-5 w-px bg-border" />
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            disabled={generating}
+            onClick={() => {
+              void onApplyPreview()
+            }}
+          >
+            采纳预览（{previewCount}）
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={onDiscardPreview}
+          >
+            丢弃
+          </Button>
+        </>
+      )}
     </div>
   )
 }

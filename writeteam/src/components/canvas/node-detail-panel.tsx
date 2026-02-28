@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { X, Save, Trash2, Loader2 } from "lucide-react"
+import { X, Save, Trash2, Loader2, PenLine } from "lucide-react"
 
 const NODE_TYPE_OPTIONS = [
   { value: "beat", label: "节拍" },
@@ -46,9 +46,10 @@ interface NodeDetailPanelProps {
   onUpdate: (id: string, data: Record<string, unknown>) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onClose: () => void
+  onGoToEditor?: (node: NodeData) => void
 }
 
-export function NodeDetailPanel({ node, onUpdate, onDelete, onClose }: NodeDetailPanelProps) {
+export function NodeDetailPanel({ node, onUpdate, onDelete, onClose, onGoToEditor }: NodeDetailPanelProps) {
   const [label, setLabel] = useState(node.label)
   const [content, setContent] = useState(node.content || "")
   const [nodeType, setNodeType] = useState(node.nodeType)
@@ -148,6 +149,17 @@ export function NodeDetailPanel({ node, onUpdate, onDelete, onClose }: NodeDetai
       </div>
 
       <div className="border-t px-4 py-3 space-y-2">
+        {onGoToEditor && (
+          <Button
+            variant="outline"
+            className="w-full gap-1.5"
+            size="sm"
+            onClick={() => onGoToEditor(node)}
+          >
+            <PenLine className="h-3.5 w-3.5" />
+            去写作
+          </Button>
+        )}
         <Button
           className="w-full gap-1.5"
           size="sm"

@@ -24,19 +24,74 @@ vi.mock("@/components/canvas/canvas-node", () => ({
 }))
 
 vi.mock("@/components/canvas/node-detail-panel", () => ({
-  NodeDetailPanel: () => null,
+  NodeDetailPanel: ({
+    node,
+    onGoToEditor,
+  }: {
+    node: { id: string; label: string; nodeType: string; content: string | null }
+    onGoToEditor?: (node: { id: string; label: string; nodeType: string; content: string | null }) => void
+  }) => (
+    <div>
+      <div>详情:{node.id}:{node.label}</div>
+      {onGoToEditor && (
+        <button
+          type="button"
+          onClick={() => onGoToEditor(node)}
+        >
+          去写作
+        </button>
+      )}
+    </div>
+  ),
 }))
 
 vi.mock("@/components/canvas/canvas-toolbar", () => ({
-  CanvasToolbar: ({ onAddNode }: { onAddNode: (type: string) => void }) => (
-    <button type="button" onClick={() => onAddNode("beat")}>
-      添加节点
-    </button>
+  CanvasToolbar: ({
+    onAddNode,
+    onAIGenerate,
+    onApplyPreview,
+    onDiscardPreview,
+    hasPreview,
+    previewCount,
+  }: {
+    onAddNode: (type: string) => void
+    onAIGenerate: (outline: string) => Promise<void>
+    onApplyPreview: () => Promise<void>
+    onDiscardPreview: () => void
+    hasPreview: boolean
+    previewCount: number
+  }) => (
+    <div>
+      <button type="button" onClick={() => onAddNode("beat")}>
+        添加节点
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void onAIGenerate("这是一个足够长的大纲内容，包含冲突与转折。")
+        }}
+      >
+        触发AI生成
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void onApplyPreview()
+        }}
+      >
+        采纳预览
+      </button>
+      <button type="button" onClick={onDiscardPreview}>
+        丢弃预览
+      </button>
+      <span>预览数:{hasPreview ? previewCount : 0}</span>
+    </div>
   ),
 }))
 
 const mockCreateCanvasNode = vi.fn()
 const mockCreateCanvasEdge = vi.fn()
+const mockDeleteCanvasNode = vi.fn()
 const mockUpdateCanvasEdge = vi.fn()
 const mockDeleteCanvasEdge = vi.fn()
 const mockUpdateNodePositions = vi.fn()
@@ -45,7 +100,7 @@ const mockCleanupDanglingCanvasEdges = vi.fn()
 vi.mock("@/app/actions/canvas", () => ({
   createCanvasNode: (...args: unknown[]) => mockCreateCanvasNode(...args),
   updateCanvasNode: vi.fn(async () => ({ success: true })),
-  deleteCanvasNode: vi.fn(async () => ({ success: true })),
+  deleteCanvasNode: (...args: unknown[]) => mockDeleteCanvasNode(...args),
   createCanvasEdge: (...args: unknown[]) => mockCreateCanvasEdge(...args),
   updateCanvasEdge: (...args: unknown[]) => mockUpdateCanvasEdge(...args),
   deleteCanvasEdge: (...args: unknown[]) => mockDeleteCanvasEdge(...args),
@@ -158,12 +213,26 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubGlobal("fetch", vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      beats: [
+        { label: "开场", content: "主角收到神秘来信", type: "beat" },
+        { label: "冲突", content: "主角被迫做出选择", type: "beat" },
+      ],
+    }),
+  })))
   mockCreateCanvasNode.mockResolvedValue({ data: { ...initialNodes[0], id: "node-new" } })
   mockCreateCanvasEdge.mockResolvedValue({ data: { id: "edge-1" } })
+  mockDeleteCanvasNode.mockResolvedValue({ success: true })
   mockUpdateCanvasEdge.mockResolvedValue({ success: true })
   mockDeleteCanvasEdge.mockResolvedValue({ success: true })
   mockUpdateNodePositions.mockResolvedValue({ success: true })
   mockCleanupDanglingCanvasEdges.mockResolvedValue({ deleted: 1 })
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe("CanvasEditor", () => {
@@ -223,4 +292,113 @@ describe("CanvasEditor", () => {
     expect(mockCleanupDanglingCanvasEdges).toHaveBeenCalledWith("project-1")
     expect(screen.getByText("已清理 1 条失效连接")).toBeTruthy()
   })
+
+  it("keeps AI beats in preview before applying", async () => {
+    const user = userEvent.setup()
+    mockCreateCanvasNode
+      .mockResolvedValueOnce({ data: { ...initialNodes[0], id: "node-ai-1" } })
+      .mockResolvedValueOnce({ data: { ...initialNodes[1], id: "node-ai-2" } })
+
+    render(
+      <CanvasEditor
+        projectId="project-1"
+        initialNodes={initialNodes}
+        initialEdges={[]}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "触发AI生成" }))
+    expect(screen.getByText("预览数:2")).toBeTruthy()
+    expect(mockCreateCanvasNode).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole("button", { name: "采纳预览" }))
+
+    expect(mockCreateCanvasNode).toHaveBeenCalledTimes(2)
+    expect(mockCreateCanvasEdge).toHaveBeenCalledWith("project-1", {
+      source_node_id: "node-ai-1",
+      target_node_id: "node-ai-2",
+    })
+  })
+
+  it("falls back unsupported AI node type to beat", async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        beats: [{ label: "异常类型", content: "测试内容", type: "unsupported" }],
+      }),
+    })))
+
+    render(
+      <CanvasEditor
+        projectId="project-1"
+        initialNodes={initialNodes}
+        initialEdges={[]}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "触发AI生成" }))
+    await user.click(screen.getByRole("button", { name: "采纳预览" }))
+
+    expect(mockCreateCanvasNode).toHaveBeenCalledWith(
+      "project-1",
+      expect.objectContaining({ node_type: "beat" })
+    )
+  })
+
+  it("rolls back created nodes when apply preview fails midway", async () => {
+    const user = userEvent.setup()
+    mockCreateCanvasNode
+      .mockResolvedValueOnce({ data: { ...initialNodes[0], id: "node-ai-1" } })
+      .mockRejectedValueOnce(new Error("落库失败"))
+
+    render(
+      <CanvasEditor
+        projectId="project-1"
+        initialNodes={initialNodes}
+        initialEdges={[]}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "触发AI生成" }))
+    await user.click(screen.getByRole("button", { name: "采纳预览" }))
+
+    expect(mockDeleteCanvasNode).toHaveBeenCalledWith("project-1", "node-ai-1")
+  })
+
+  it("shows recovery actions when AI generation fails", async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: false,
+      json: async () => ({ error: "AI 服务暂时不可用" }),
+    })))
+
+    render(
+      <CanvasEditor
+        projectId="project-1"
+        initialNodes={initialNodes}
+        initialEdges={[]}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "触发AI生成" }))
+    expect(screen.getByText(/AI 生成失败：AI 服务暂时不可用/)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "重试" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "切换模型" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "继续手动编辑" })).toBeTruthy()
+  })
+
+  it("restores focused node from canvas-editor context", () => {
+    render(
+      <CanvasEditor
+        projectId="project-1"
+        initialNodes={initialNodes}
+        initialEdges={[]}
+        initialFocusNodeId="node-2"
+      />
+    )
+
+    expect(screen.getByText("详情:node-2:节点2")).toBeTruthy()
+  })
+
 })

@@ -69,7 +69,7 @@ development_status:
 
   epic-5: in-progress
   5-1-canvas-节点与连接管理: done
-  5-2-ai-规划生成与正文上下文往返: backlog
+  5-2-ai-规划生成与正文上下文往返: done
   epic-5-retrospective: optional
 
   epic-6: backlog

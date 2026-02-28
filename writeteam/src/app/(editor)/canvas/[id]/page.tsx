@@ -1,14 +1,18 @@
 import { createClient } from "@/lib/supabase/server"
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { CanvasEditor } from "@/components/canvas/canvas-editor"
 import { getCanvasNodes, getCanvasEdges } from "@/app/actions/canvas"
 
 export default async function CanvasPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ focusNodeId?: string }>
 }) {
   const { id: projectId } = await params
+  const { focusNodeId } = await searchParams
   const supabase = await createClient()
 
   const {
@@ -38,12 +42,12 @@ export default async function CanvasPage({
     <div className="flex h-screen flex-col">
       <div className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-3">
-          <a
+          <Link
             href={`/editor/${projectId}`}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             &larr; 返回编辑器
-          </a>
+          </Link>
           <span className="text-sm text-muted-foreground">/</span>
           <h1 className="text-sm font-semibold">{project.title} - 故事画布</h1>
         </div>
@@ -59,6 +63,7 @@ export default async function CanvasPage({
           initialNodes={nodes || []}
           initialEdges={edges || []}
           initialEdgesWarning={edgesWarning || null}
+          initialFocusNodeId={typeof focusNodeId === "string" ? focusNodeId : null}
         />
       </div>
     </div>
