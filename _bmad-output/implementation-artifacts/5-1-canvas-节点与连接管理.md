@@ -1,6 +1,6 @@
 # Story 5.1: Canvas 节点与连接管理
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -47,7 +47,7 @@ so that 我能在动笔前可视化剧情结构。
 - [x] [AI-Review][High] 移动端关键连线交互触点过小（10px handle），与 NFR9 可达性目标不一致，需提升触控可达性并加验证。已调整为移动端 44px 触控范围。 [`writeteam/src/components/canvas/canvas-node.tsx`:47]
 - [x] [AI-Review][Medium] `getCanvasEdges` 在读取路径中执行悬挂边删除且未处理删除失败，需改为显式修复流程或补全错误处理与反馈。已改为只读过滤并新增显式修复 Action + UI 入口。 [`writeteam/src/app/actions/canvas.ts`:275]
 - [x] [AI-Review][Medium] 新增 Canvas 测试未并入默认 `npm run test` 脚本，需接入门禁以避免回归漏检。已纳入默认测试脚本。 [`writeteam/package.json`:10]
-- [x] [AI-Review][Low] 故事文档状态字段与状态说明不一致，需统一为同一生命周期状态。已统一为 `review`。 [`_bmad-output/implementation-artifacts/5-1-canvas-节点与连接管理.md`:3]
+- [x] [AI-Review][Low] 故事文档状态字段与状态说明不一致，需统一为同一生命周期状态。已统一为 `done`。 [`_bmad-output/implementation-artifacts/5-1-canvas-节点与连接管理.md`:3]
 
 ## Dev Notes
 
@@ -119,7 +119,7 @@ so that 我能在动笔前可视化剧情结构。
 
 ## Story Completion Status
 
-- Story status 设置为：`review`
+- Story status 设置为：`done`
 - Completion note：Code review follow-ups 已全部修复并通过测试、Lint、Build 验证
 
 ## Dev Agent Record
@@ -153,11 +153,12 @@ openai/gpt-5.3-codex
 - 2026-02-28: 完成 Story 5.1 开发实现，交付节点/边 CRUD + 持久化一致性 + 失败恢复，并通过测试与构建验证；故事状态更新为 `review`。
 - 2026-02-28: 执行 BMAD `code-review`，发现 3 High / 2 Medium / 1 Low 问题；已新增 `Review Follow-ups (AI)` 并将故事状态调整为 `in-progress`。
 - 2026-02-28: 执行“自动修复”，已完成全部 Review Follow-ups（含回滚补偿、显式失效连接修复、移动端触控可达性与测试门禁补齐），故事状态恢复为 `review`。
+- 2026-02-28: 按 BMAD `code-review` Step 5 状态规则复核：High/Medium 已清零且 AC 全部满足，故事状态更新为 `done`。
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/5-1-canvas-节点与连接管理.md`（新增）
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`（更新：`5-1-canvas-节点与连接管理` -> `in-progress` -> `review`）
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`（更新：`5-1-canvas-节点与连接管理` -> `in-progress` -> `review` -> `done`）
 - `writeteam/src/app/actions/canvas.ts`（更新：节点/边 Action 鉴权、参数校验、项目隔离、去重与重连支持）
 - `writeteam/src/app/(editor)/canvas/[id]/page.tsx`（更新：初始加载错误提示）
 - `writeteam/src/components/canvas/canvas-editor.tsx`（更新：保存状态反馈、失败重试、边重连与无效连接清理）
