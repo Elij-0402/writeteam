@@ -248,6 +248,8 @@ test("test-connection uses shared error classification module", async () => {
     route.includes('from "@/lib/ai/error-classification"'),
     "must import from shared error-classification module"
   )
+  // test-connection still uses legacy wrappers (classifyHttpError/classifyNetworkError);
+  // update these assertions when route migrates to unified classifyAIError
   assert.ok(
     route.includes("classifyHttpError") && route.includes("classifyNetworkError"),
     "must use both classifyHttpError and classifyNetworkError"
@@ -310,6 +312,8 @@ test("models endpoint uses shared error classification module", async () => {
     route.includes('from "@/lib/ai/error-classification"'),
     "must import from shared error-classification module"
   )
+  // models route still uses legacy wrappers (classifyHttpError/classifyNetworkError);
+  // update these assertions when route migrates to unified classifyAIError
   assert.ok(
     route.includes("classifyHttpError") && route.includes("classifyNetworkError"),
     "must use both classifyHttpError and classifyNetworkError"
@@ -394,16 +398,20 @@ test("openai-stream telemetry does NOT record API Key", async () => {
 test("openai-stream error path uses classified errors (no raw provider text leak)", async () => {
   const stream = await read("src/lib/ai/openai-stream.ts")
   assert.ok(
-    stream.includes("classifyHttpError"),
-    "openai-stream must use classifyHttpError for error responses"
+    /classifyAIError\s*\(/.test(stream),
+    "openai-stream must call classifyAIError for error responses"
+  )
+  assert.ok(
+    !stream.includes("classifyHttpError"),
+    "openai-stream must not use legacy classifyHttpError (use classifyAIError instead)"
   )
   assert.ok(
     !stream.includes("response.text()"),
     "openai-stream must NOT read raw response text for error messages"
   )
   assert.ok(
-    stream.includes('"ai-stream"'),
-    "openai-stream must pass ai-stream context to classifyHttpError"
+    /classifyAIError\([^)]*"ai-stream"/.test(stream),
+    "openai-stream must pass ai-stream context to classifyAIError"
   )
 })
 
