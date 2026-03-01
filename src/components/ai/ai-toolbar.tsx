@@ -1112,22 +1112,6 @@ export function AIToolbar({
             <TooltipContent>管理插件</TooltipContent>
           </Tooltip>
         )}
-
-        {/* Settings Link */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              onClick={() => window.open("/settings", "_blank")}
-            >
-              <Settings className="h-3.5 w-3.5" />
-              {isConfigured ? (config?.modelName || config?.modelId || "已配置") : "未配置"}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{isConfigured ? "AI 设置" : "点击前往配置 AI 服务"}</TooltipContent>
-        </Tooltip>
       </div>
 
       {/* Result Panel */}

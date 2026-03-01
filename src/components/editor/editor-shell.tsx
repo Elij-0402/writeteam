@@ -34,6 +34,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -61,9 +75,15 @@ import {
   Lightbulb,
   Image as ImageIcon,
   LayoutGrid,
+  Settings,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { AIProviderForm } from "@/components/settings/ai-provider-form"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import type { AIProviderConfig } from "@/lib/ai/ai-config"
 import { exportAsText, exportAsDocx, exportProjectAsDocx } from "@/lib/export"
 import { parseImportedFile } from "@/lib/import"
 import { computeSaliency } from "@/lib/ai/saliency"
@@ -131,7 +151,59 @@ export function EditorShell({
   const [renameTitle, setRenameTitle] = useState("")
   const [renameSubmitting, setRenameSubmitting] = useState(false)
   const [showEntryHint, setShowEntryHint] = useState(true)
+  const [aiConfigOpen, setAiConfigOpen] = useState(false)
+  const [switcherModels, setSwitcherModels] = useState<Array<{ id: string; name: string }>>([])
+  const [switcherLoading, setSwitcherLoading] = useState(false)
+  const [switcherSearch, setSwitcherSearch] = useState("")
   const saliencyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const switcherAbortRef = useRef<AbortController | null>(null)
+  const { config: aiConfig, isConfigured: aiConfigured, updateConfig } = useAIConfigContext()
+
+  const handleSwitcherOpen = useCallback(async (open: boolean) => {
+    setAiConfigOpen(open)
+    if (!open || !aiConfigured || !aiConfig) {
+      switcherAbortRef.current?.abort()
+      return
+    }
+    switcherAbortRef.current?.abort()
+    const controller = new AbortController()
+    switcherAbortRef.current = controller
+    setSwitcherLoading(true)
+    setSwitcherSearch("")
+    try {
+      const response = await fetch("/api/ai/models", {
+        headers: {
+          "X-AI-Base-URL": aiConfig.baseUrl,
+          "X-AI-API-Key": aiConfig.apiKey,
+          "X-AI-Model-ID": aiConfig.modelId,
+        },
+        signal: controller.signal,
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSwitcherModels(data.models || [])
+      }
+    } catch {
+      // silent — includes AbortError when popover closes quickly
+    } finally {
+      if (!controller.signal.aborted) {
+        setSwitcherLoading(false)
+      }
+    }
+  }, [aiConfigured, aiConfig])
+
+  const handleModelSwitch = useCallback((modelId: string, modelName: string) => {
+    if (!aiConfig) return
+    const updated: AIProviderConfig = {
+      ...aiConfig,
+      modelId,
+      modelName: modelName || modelId,
+      configuredAt: Date.now(),
+    }
+    updateConfig(updated)
+    setAiConfigOpen(false)
+    toast.success(`已切换到 ${modelName || modelId}`)
+  }, [aiConfig, updateConfig])
 
   const activeDocument = documents.find((d) => d.id === activeDocId) || null
   const hasCanvasEntry =
@@ -633,6 +705,94 @@ export function EditorShell({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* AI Config Quick Access */}
+          <Popover open={aiConfigOpen} onOpenChange={handleSwitcherOpen}>
+            <PopoverTrigger asChild>
+              {aiConfigured && aiConfig ? (
+                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
+                  <Badge variant="secondary" className="h-5 px-1.5 text-xs font-normal">
+                    {aiConfig.modelName || aiConfig.modelId}
+                  </Badge>
+                  <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
+                  <Settings className="h-3.5 w-3.5" />
+                  配置 AI
+                </Button>
+              )}
+            </PopoverTrigger>
+            <PopoverContent className="w-80 max-h-[70vh] overflow-y-auto p-0" align="end">
+              {aiConfigured && aiConfig ? (
+                <Command>
+                  <CommandInput
+                    placeholder="搜索模型..."
+                    value={switcherSearch}
+                    onValueChange={setSwitcherSearch}
+                  />
+                  <CommandList>
+                    {switcherLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <>
+                        <CommandEmpty>
+                          {switcherSearch.trim() ? (
+                            <button
+                              type="button"
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-accent"
+                              onClick={() => handleModelSwitch(switcherSearch.trim(), switcherSearch.trim())}
+                            >
+                              使用 &quot;{switcherSearch.trim()}&quot;
+                            </button>
+                          ) : (
+                            <p className="py-2 text-sm text-muted-foreground">无可用模型</p>
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {switcherModels.map((model) => (
+                            <CommandItem
+                              key={model.id}
+                              value={model.id}
+                              onSelect={() => handleModelSwitch(model.id, model.name)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  aiConfig.modelId === model.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="text-sm">{model.name || model.id}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+                  </CommandList>
+                  <div className="border-t px-2 py-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-xs text-muted-foreground"
+                      onClick={() => {
+                        setAiConfigOpen(false)
+                        window.location.href = "/settings"
+                      }}
+                    >
+                      <Settings className="mr-1.5 h-3 w-3" />
+                      AI 设置
+                    </Button>
+                  </div>
+                </Command>
+              ) : (
+                <div className="p-3">
+                  <AIProviderForm variant="compact" />
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+          <Separator orientation="vertical" className="h-6" />
           <span className="text-xs text-muted-foreground">
             {totalWordCount.toLocaleString()} 字
           </span>

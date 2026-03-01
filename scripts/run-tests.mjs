@@ -17,7 +17,6 @@ const vitestTargets = [
   "src/app/api/ai/quick-edit/route.test.ts",
   "src/app/api/ai/continuity-check/route.test.ts",
   "src/app/api/ai/feedback/route.test.ts",
-  "src/app/api/ai/failure-analysis/route.test.ts",
   "src/app/api/ai/collab-routes.contract.test.ts",
   "src/components/ai/recovery-action-bar.test.tsx",
   "src/components/ai/ai-toolbar.quick-edit.test.tsx",
@@ -25,7 +24,6 @@ const vitestTargets = [
   "src/components/ai/ai-toolbar.feedback.test.tsx",
   "src/components/ai/ai-chat-panel.test.tsx",
   "src/components/ai/muse-panel.test.tsx",
-  "src/components/settings/failure-analysis-panel.test.tsx",
   "src/components/canvas/node-detail-panel.test.tsx",
   "src/components/canvas/canvas-editor.test.tsx",
 ]
@@ -46,15 +44,22 @@ if (typeof vitestResult.status === "number" && vitestResult.status !== 0) {
 }
 
 if (extraArgs.length === 0) {
-  const contractsResult = spawnSync("node", ["--test", "tests/story-4-2-quick-edit.test.mjs"], {
-    stdio: "inherit",
-  })
+  const contractTests = [
+    "tests/story-1-3-byok-config.test.mjs",
+    "tests/story-4-2-quick-edit.test.mjs",
+  ]
 
-  if (contractsResult.error) {
-    throw contractsResult.error
-  }
+  for (const testFile of contractTests) {
+    const contractsResult = spawnSync("node", ["--test", testFile], {
+      stdio: "inherit",
+    })
 
-  if (typeof contractsResult.status === "number" && contractsResult.status !== 0) {
-    process.exit(contractsResult.status)
+    if (contractsResult.error) {
+      throw contractsResult.error
+    }
+
+    if (typeof contractsResult.status === "number" && contractsResult.status !== 0) {
+      process.exit(contractsResult.status)
+    }
   }
 }

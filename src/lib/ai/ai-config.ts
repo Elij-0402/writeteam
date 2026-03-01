@@ -79,3 +79,37 @@ export function buildConfigHeaders(config: AIProviderConfig): Record<string, str
     [AI_CONFIG_HEADERS.MODEL_ID]: config.modelId,
   }
 }
+
+/**
+ * Format a raw Base URL input: add protocol, remove trailing slashes, append /v1.
+ * Uses http:// for localhost/127.0.0.1, https:// for everything else.
+ * Distinct from the private normalizeBaseUrl() which extracts protocol+hostname+port.
+ */
+export function formatBaseUrl(raw: string): string {
+  let url = raw.trim()
+  if (!url) return url
+  if (!/^https?:\/\//i.test(url)) {
+    const isLocal = /^(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url)
+    url = `${isLocal ? "http" : "https"}://${url}`
+  }
+  url = url.replace(/\/+$/, "")
+  if (!/\/v\d+(\/|$)/.test(url)) {
+    url = `${url}/v1`
+  }
+  return url
+}
+
+/**
+ * Suggest matching provider Base URLs based on user input prefix.
+ * Matches against preset name (case-insensitive) and baseUrl substring.
+ */
+export function suggestBaseUrl(input: string): string[] {
+  const trimmed = input.trim().toLowerCase()
+  if (!trimmed) return []
+  return PROVIDER_PRESETS
+    .filter((preset) =>
+      preset.name.toLowerCase().includes(trimmed) ||
+      preset.baseUrl.toLowerCase().includes(trimmed)
+    )
+    .map((preset) => preset.baseUrl)
+}

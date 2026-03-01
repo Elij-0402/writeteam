@@ -86,22 +86,27 @@ test("AI_CONFIG_HEADERS defines X-AI-* custom headers", async () => {
   assert.ok(config.includes('"X-AI-Model-ID"'), "must define X-AI-Model-ID header")
 })
 
-test("normalizeBaseUrl adds https:// and /v1 suffix", async () => {
-  const form = await read("src/components/settings/ai-provider-form.tsx")
+test("formatBaseUrl adds https:// and /v1 suffix", async () => {
+  const config = await read("src/lib/ai/ai-config.ts")
   // Must add https:// for URLs without protocol
   assert.ok(
-    form.includes("https://"),
-    "normalizeBaseUrl must add https:// prefix"
+    config.includes("https://"),
+    "formatBaseUrl must add https:// prefix"
   )
   // Must append /v1 if no version suffix
   assert.ok(
-    form.includes("/v1"),
-    "normalizeBaseUrl must append /v1 suffix"
+    config.includes("/v1"),
+    "formatBaseUrl must append /v1 suffix"
   )
   // Must remove trailing slashes
   assert.ok(
-    form.includes("replace(/\\/+$/, \"\")"),
-    "normalizeBaseUrl must remove trailing slashes"
+    config.includes("replace(/\\/+$/, \"\")"),
+    "formatBaseUrl must remove trailing slashes"
+  )
+  // Must be exported
+  assert.ok(
+    config.includes("export function formatBaseUrl"),
+    "formatBaseUrl must be exported from ai-config.ts"
   )
 })
 
@@ -137,32 +142,32 @@ test("useAIConfig provides clearConfig that removes localStorage entry", async (
   )
 })
 
-test("Config summary displays Base URL, model name, and configured time", async () => {
+test("Config summary displays model name and provider name in full variant", async () => {
   const form = await read("src/components/settings/ai-provider-form.tsx")
-  assert.ok(form.includes("config.baseUrl"), "summary must display Base URL")
   assert.ok(
     form.includes("config.modelName") || form.includes("config.modelId"),
     "summary must display model name/ID"
   )
   assert.ok(
-    form.includes("config.configuredAt"),
-    "summary must display configured time"
-  )
-  assert.ok(
-    form.includes('toLocaleString("zh-CN")'),
-    "configured time must be formatted in Chinese locale"
+    form.includes("resolveProviderNameByBaseUrl(config.baseUrl)"),
+    "summary must display resolved provider name"
   )
 })
 
-test("Settings form includes provider preset buttons", async () => {
-  const form = await read("src/components/settings/ai-provider-form.tsx")
+test("Settings form includes smart URL suggestions via suggestBaseUrl", async () => {
+  const config = await read("src/lib/ai/ai-config.ts")
   assert.ok(
-    form.includes("PROVIDER_PRESETS.map"),
-    "form must render provider preset buttons from PROVIDER_PRESETS array"
+    config.includes("export function suggestBaseUrl"),
+    "ai-config.ts must export suggestBaseUrl function"
   )
   assert.ok(
-    form.includes("handlePresetClick"),
-    "preset buttons must trigger handlePresetClick"
+    config.includes("PROVIDER_PRESETS"),
+    "suggestBaseUrl must match against PROVIDER_PRESETS"
+  )
+  const form = await read("src/components/settings/ai-provider-form.tsx")
+  assert.ok(
+    form.includes("suggestBaseUrl"),
+    "form must use suggestBaseUrl for URL suggestions"
   )
 })
 
@@ -343,13 +348,13 @@ test("model combobox supports search and manual input fallback", async () => {
   const form = await read("src/components/settings/ai-provider-form.tsx")
   assert.ok(form.includes("CommandInput"), "must include search input in model combobox")
   assert.ok(
-    form.includes("搜索或手动输入模型"),
+    form.includes("搜索或输入模型"),
     "search placeholder must indicate manual input support"
   )
   // Manual input fallback when no models loaded
   assert.ok(
-    form.includes("models.length === 0"),
-    "must show manual input when no models available"
+    form.includes("models.length > 0"),
+    "must conditionally show combobox when models available"
   )
   assert.ok(
     form.includes("手动输入模型 ID"),
@@ -362,10 +367,6 @@ test("empty model list shows Chinese guidance", async () => {
   assert.ok(
     form.includes("未找到匹配模型"),
     "combobox empty state must show Chinese guidance message"
-  )
-  assert.ok(
-    form.includes("未获取到任何模型") || form.includes("未找到"),
-    "must show Chinese toast when no models fetched"
   )
 })
 

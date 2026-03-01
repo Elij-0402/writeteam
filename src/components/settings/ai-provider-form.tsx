@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,7 +24,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Badge } from "@/components/ui/badge"
 import {
   Loader2,
   Eye,
@@ -32,13 +31,17 @@ import {
   Check,
   ChevronsUpDown,
   Trash2,
-  Zap,
   Server,
+  AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
-import { PROVIDER_PRESETS } from "@/lib/ai/ai-config"
+import {
+  formatBaseUrl,
+  suggestBaseUrl,
+  resolveProviderNameByBaseUrl,
+} from "@/lib/ai/ai-config"
 import type { AIProviderConfig } from "@/lib/ai/ai-config"
 
 interface ModelOption {
@@ -47,22 +50,11 @@ interface ModelOption {
   owned_by: string
 }
 
-function normalizeBaseUrl(raw: string): string {
-  let url = raw.trim()
-  if (!url) return url
-  if (!/^https?:\/\//i.test(url)) {
-    url = `https://${url}`
-  }
-  // Remove trailing slash
-  url = url.replace(/\/+$/, "")
-  // Append /v1 if not present
-  if (!/\/v\d+$/.test(url)) {
-    url = `${url}/v1`
-  }
-  return url
+interface AIProviderFormProps {
+  variant?: "full" | "compact"
 }
 
-export function AIProviderForm() {
+export function AIProviderForm({ variant = "full" }: AIProviderFormProps) {
   const { config, isConfigured, updateConfig, clearConfig } = useAIConfigContext()
 
   const [baseUrl, setBaseUrl] = useState(config?.baseUrl || "")
@@ -74,102 +66,109 @@ export function AIProviderForm() {
   const [models, setModels] = useState<ModelOption[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
-  const [testLoading, setTestLoading] = useState(false)
-  const [testResult, setTestResult] = useState<{ success: boolean; model?: string; latency_ms?: number; error?: string } | null>(null)
-  const [previewUrl, setPreviewUrl] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [connectionWarning, setConnectionWarning] = useState(false)
+  const [urlSuggestions, setUrlSuggestions] = useState<string[]>([])
+  const [modelSearchValue, setModelSearchValue] = useState("")
+  const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const mountedRef = useRef(true)
 
-  function handleBaseUrlBlur() {
-    const normalized = normalizeBaseUrl(baseUrl)
-    setBaseUrl(normalized)
-    setPreviewUrl(normalized)
-  }
+  useEffect(() => {
+    return () => { mountedRef.current = false }
+  }, [])
 
-  function handlePresetClick(presetUrl: string) {
-    setBaseUrl(presetUrl)
-    setPreviewUrl(presetUrl)
-  }
-
-  async function handleFetchModels() {
-    if (!baseUrl) {
-      toast.error("请先输入 Base URL")
-      return
+  const fetchModels = useCallback(async (url: string, key: string) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
     }
 
-    setModelsLoading(true)
-    setModels([])
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
+    setModelsLoading(true)
     try {
       const response = await fetch("/api/ai/models", {
         headers: {
-          "X-AI-Base-URL": normalizeBaseUrl(baseUrl),
-          "X-AI-API-Key": apiKey,
-          "X-AI-Model-ID": modelId || "placeholder",
+          "X-AI-Base-URL": url,
+          "X-AI-API-Key": key,
+          "X-AI-Model-ID": "placeholder",
         },
+        signal: controller.signal,
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "获取模型列表失败")
+        setModels([])
+        return
       }
 
       const data = await response.json()
       setModels(data.models || [])
-
-      if (data.models?.length > 0) {
-        toast.success(`获取到 ${data.models.length} 个模型`)
-      } else {
-        toast.error("未获取到任何模型")
+    } catch {
+      // Silent fallback — user can manually input model ID
+      if (!controller.signal.aborted) {
+        setModels([])
       }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "获取模型列表失败")
     } finally {
-      setModelsLoading(false)
+      if (!controller.signal.aborted) {
+        setModelsLoading(false)
+      }
     }
-  }
+  }, [])
 
-  async function handleTestConnection() {
-    if (!baseUrl || !modelId) {
-      toast.error("请先填写 Base URL 并选择模型")
+  // Auto-fetch models when baseUrl changes (500ms debounce)
+  useEffect(() => {
+    if (fetchDebounceRef.current) {
+      clearTimeout(fetchDebounceRef.current)
+    }
+
+    const formatted = baseUrl.trim() ? formatBaseUrl(baseUrl) : ""
+    if (!formatted) {
+      setModels([])
       return
     }
 
-    setTestLoading(true)
-    setTestResult(null)
+    fetchDebounceRef.current = setTimeout(() => {
+      fetchModels(formatted, apiKey)
+    }, 500)
 
-    try {
-      const response = await fetch("/api/ai/test-connection", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-AI-Base-URL": normalizeBaseUrl(baseUrl),
-          "X-AI-API-Key": apiKey,
-          "X-AI-Model-ID": modelId,
-        },
-      })
-
-      const data = await response.json()
-      setTestResult(data)
-
-      if (data.success) {
-        toast.success(`连接成功！延迟 ${data.latency_ms}ms`)
-      } else {
-        toast.error(data.error || "连接测试失败")
+    return () => {
+      if (fetchDebounceRef.current) {
+        clearTimeout(fetchDebounceRef.current)
       }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "连接测试失败")
-    } finally {
-      setTestLoading(false)
+      abortControllerRef.current?.abort()
     }
+  }, [baseUrl, apiKey, fetchModels])
+
+  function handleBaseUrlChange(value: string) {
+    setBaseUrl(value)
+    setUrlSuggestions(suggestBaseUrl(value))
   }
 
-  function handleSave() {
+  function handleSuggestionClick(url: string) {
+    setBaseUrl(url)
+    setUrlSuggestions([])
+  }
+
+  function handleBaseUrlBlur() {
+    const formatted = formatBaseUrl(baseUrl)
+    if (formatted !== baseUrl) {
+      setBaseUrl(formatted)
+    }
+    setUrlSuggestions([])
+  }
+
+  async function handleSave() {
     if (!baseUrl || !modelId) {
       toast.error("请填写 Base URL 并选择模型")
       return
     }
 
+    setSaving(true)
+    const formattedUrl = formatBaseUrl(baseUrl)
+
     const newConfig: AIProviderConfig = {
-      baseUrl: normalizeBaseUrl(baseUrl),
+      baseUrl: formattedUrl,
       apiKey,
       modelId,
       modelName: modelName || modelId,
@@ -177,7 +176,38 @@ export function AIProviderForm() {
     }
 
     updateConfig(newConfig)
-    toast.success("AI 配置已保存")
+
+    // Auto test connection
+    try {
+      const response = await fetch("/api/ai/test-connection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-AI-Base-URL": formattedUrl,
+          "X-AI-API-Key": apiKey,
+          "X-AI-Model-ID": modelId,
+        },
+      })
+
+      if (!mountedRef.current) return
+      const data = await response.json()
+
+      if (data.success) {
+        setConnectionWarning(false)
+        toast.success("配置已保存")
+      } else {
+        setConnectionWarning(true)
+        toast.error(data.error || "连接测试失败，配置已保存但连接未验证")
+      }
+    } catch {
+      if (!mountedRef.current) return
+      setConnectionWarning(true)
+      toast.error("连接测试失败，配置已保存但连接未验证")
+    } finally {
+      if (mountedRef.current) {
+        setSaving(false)
+      }
+    }
   }
 
   function handleClear() {
@@ -187,116 +217,77 @@ export function AIProviderForm() {
     setModelId("")
     setModelName("")
     setModels([])
-    setTestResult(null)
-    setPreviewUrl("")
+    setConnectionWarning(false)
+    setUrlSuggestions([])
     toast.success("AI 配置已清除")
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Server className="h-5 w-5 text-primary" />
-            <CardTitle>AI 模型配置</CardTitle>
-          </div>
-          {isConfigured ? (
-            <Badge variant="default" className="gap-1">
-              <Check className="h-3 w-3" />
-              已配置
-            </Badge>
-          ) : (
-            <Badge variant="secondary">未配置</Badge>
-          )}
-        </div>
-        <CardDescription>
-          配置你自己的 AI 服务（支持 DeepSeek、OpenAI、Ollama、中转站等 OpenAI 兼容接口）
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Provider Presets */}
-        <div className="space-y-2">
-          <Label className="text-xs font-medium">常用服务商</Label>
-          <div className="flex flex-wrap gap-2">
-            {PROVIDER_PRESETS.map((preset) => (
-              <Button
-                key={preset.name}
-                variant={baseUrl === preset.baseUrl ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => handlePresetClick(preset.baseUrl)}
+  const isCompact = variant === "compact"
+  const spacingClass = isCompact ? "space-y-3" : "space-y-6"
+
+  const formContent = (
+    <div className={spacingClass}>
+      {/* Base URL */}
+      <div className="space-y-2">
+        <Label htmlFor="base-url">Base URL</Label>
+        <Input
+          id="base-url"
+          placeholder="https://api.deepseek.com/v1"
+          value={baseUrl}
+          onChange={(e) => handleBaseUrlChange(e.target.value)}
+          onBlur={handleBaseUrlBlur}
+        />
+        {urlSuggestions.length > 0 && (
+          <div className="rounded-md border bg-popover text-popover-foreground shadow-sm">
+            {urlSuggestions.map((url) => (
+              <button
+                key={url}
+                type="button"
+                className="flex w-full items-center px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => handleSuggestionClick(url)}
               >
-                {preset.name}
-              </Button>
+                {url}
+              </button>
             ))}
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Base URL */}
-        <div className="space-y-2">
-          <Label htmlFor="base-url">Base URL</Label>
+      {/* API Key */}
+      <div className="space-y-2">
+        <Label htmlFor="api-key">API Key</Label>
+        <div className="relative">
           <Input
-            id="base-url"
-            placeholder="https://api.deepseek.com/v1"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            onBlur={handleBaseUrlBlur}
+            id="api-key"
+            type={showApiKey ? "text" : "password"}
+            placeholder="sk-... (Ollama 可留空)"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            className="pr-10"
           />
-          {previewUrl && previewUrl !== baseUrl && (
-            <p className="text-xs text-muted-foreground">
-              将使用: {previewUrl}
-            </p>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+            onClick={() => setShowApiKey(!showApiKey)}
+          >
+            {showApiKey ? (
+              <EyeOff className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Model */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Label>模型</Label>
+          {modelsLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
 
-        {/* API Key */}
-        <div className="space-y-2">
-          <Label htmlFor="api-key">API Key</Label>
-          <div className="relative">
-            <Input
-              id="api-key"
-              type={showApiKey ? "text" : "password"}
-              placeholder="sk-... (Ollama 可留空)"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="pr-10"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-              onClick={() => setShowApiKey(!showApiKey)}
-            >
-              {showApiKey ? (
-                <EyeOff className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Eye className="h-4 w-4 text-muted-foreground" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Fetch Models */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>模型</Label>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 gap-1 text-xs"
-              onClick={handleFetchModels}
-              disabled={modelsLoading || !baseUrl}
-            >
-              {modelsLoading ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Server className="h-3 w-3" />
-              )}
-              获取模型列表
-            </Button>
-          </div>
-
-          {/* Model Combobox */}
+        {models.length > 0 ? (
           <Popover open={modelOpen} onOpenChange={setModelOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -308,7 +299,7 @@ export function AIProviderForm() {
                 {modelId ? (
                   <span>{modelName || modelId}</span>
                 ) : (
-                  <span className="text-muted-foreground">选择模型或手动输入...</span>
+                  <span className="text-muted-foreground">选择模型...</span>
                 )}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -316,19 +307,30 @@ export function AIProviderForm() {
             <PopoverContent className="w-full p-0" align="start">
               <Command>
                 <CommandInput
-                  placeholder="搜索或手动输入模型 ID..."
-                  onValueChange={(value) => {
-                    if (value && !models.find((m) => m.id === value)) {
-                      setModelId(value)
-                      setModelName(value)
-                    }
-                  }}
+                  placeholder="搜索或输入模型 ID..."
+                  value={modelSearchValue}
+                  onValueChange={setModelSearchValue}
                 />
                 <CommandList>
                   <CommandEmpty>
-                    <p className="py-2 text-sm text-muted-foreground">
-                      未找到匹配模型，可直接在搜索框输入模型 ID
-                    </p>
+                    {modelSearchValue.trim() ? (
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => {
+                          setModelId(modelSearchValue.trim())
+                          setModelName(modelSearchValue.trim())
+                          setModelSearchValue("")
+                          setModelOpen(false)
+                        }}
+                      >
+                        使用 &quot;{modelSearchValue.trim()}&quot;
+                      </button>
+                    ) : (
+                      <p className="py-2 text-sm text-muted-foreground">
+                        未找到匹配模型，可直接在搜索框输入模型 ID
+                      </p>
+                    )}
                   </CommandEmpty>
                   <CommandGroup>
                     {models.map((model) => (
@@ -338,6 +340,7 @@ export function AIProviderForm() {
                         onSelect={() => {
                           setModelId(model.id)
                           setModelName(model.name)
+                          setModelSearchValue("")
                           setModelOpen(false)
                         }}
                       >
@@ -360,78 +363,73 @@ export function AIProviderForm() {
               </Command>
             </PopoverContent>
           </Popover>
-
-          {/* Manual model ID input */}
-          {models.length === 0 && (
-            <Input
-              placeholder="手动输入模型 ID，如 deepseek-chat"
-              value={modelId}
-              onChange={(e) => {
-                setModelId(e.target.value)
-                setModelName(e.target.value)
-              }}
-            />
-          )}
-        </div>
-
-        {/* Test Connection */}
-        <div className="space-y-2">
-          <Button
-            variant="outline"
-            className="w-full gap-1.5"
-            onClick={handleTestConnection}
-            disabled={testLoading || !baseUrl || !modelId}
-          >
-            {testLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4" />
-            )}
-            测试连接
-          </Button>
-
-          {testResult && (
-            <div
-              className={cn(
-                "rounded-md border p-3 text-sm",
-                testResult.success
-                  ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
-                  : "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-              )}
-            >
-              {testResult.success ? (
-                <span>连接成功 — 模型: {testResult.model}，延迟: {testResult.latency_ms}ms</span>
-              ) : (
-                <span>{testResult.error}</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <Button
-            className="flex-1"
-            onClick={handleSave}
-            disabled={!baseUrl || !modelId}
-          >
-            保存配置
-          </Button>
-          {isConfigured && (
-            <Button variant="destructive" size="icon" onClick={handleClear}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-
-        {/* Current Config Summary */}
-        {isConfigured && config && (
-          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-            <p><span className="text-muted-foreground">Base URL:</span> {config.baseUrl}</p>
-            <p><span className="text-muted-foreground">模型:</span> {config.modelName || config.modelId}</p>
-            <p><span className="text-muted-foreground">配置时间:</span> {new Date(config.configuredAt).toLocaleString("zh-CN")}</p>
-          </div>
+        ) : (
+          <Input
+            placeholder="手动输入模型 ID，如 deepseek-chat"
+            value={modelId}
+            onChange={(e) => {
+              setModelId(e.target.value)
+              setModelName(e.target.value)
+            }}
+          />
         )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <Button
+          className="flex-1"
+          onClick={handleSave}
+          disabled={!baseUrl || !modelId || saving}
+        >
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          保存配置
+        </Button>
+        {isConfigured && (
+          <Button variant="destructive" size="icon" onClick={handleClear}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Config Summary (full variant only) */}
+      {variant === "full" && isConfigured && config && (
+        <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs">
+          <Server className="h-3.5 w-3.5 text-muted-foreground" />
+          <span>{config.modelName || config.modelId}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">{resolveProviderNameByBaseUrl(config.baseUrl)}</span>
+          {connectionWarning && (
+            <>
+              <span className="text-muted-foreground">·</span>
+              <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+                <AlertTriangle className="h-3 w-3" />
+                连接未验证
+              </span>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  if (isCompact) {
+    return formContent
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Server className="h-5 w-5 text-primary" />
+          <CardTitle>AI 模型配置</CardTitle>
+        </div>
+        <CardDescription>
+          配置你自己的 AI 服务（支持 DeepSeek、OpenAI、Ollama、中转站等 OpenAI 兼容接口）
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {formContent}
       </CardContent>
     </Card>
   )
