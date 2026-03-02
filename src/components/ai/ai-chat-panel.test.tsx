@@ -102,7 +102,7 @@ describe("AIChatPanel", () => {
 
     await user.selectOptions(screen.getByTestId("prose-mode-select"), "match-style")
 
-    await user.type(screen.getByPlaceholderText("问问你的故事..."), "下一章怎么写？")
+    await user.type(screen.getByPlaceholderText("问问你的故事... 输入 / 查看命令，@ 引用角色"), "下一章怎么写？")
     await user.click(screen.getByRole("button", { name: "发送" }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
@@ -130,7 +130,7 @@ describe("AIChatPanel", () => {
       />
     )
 
-    await user.type(screen.getByPlaceholderText("问问你的故事..."), "给我一个反转")
+    await user.type(screen.getByPlaceholderText("问问你的故事... 输入 / 查看命令，@ 引用角色"), "给我一个反转")
     await user.click(screen.getByRole("button", { name: "发送" }))
 
     const insertButton = await screen.findByRole("button", { name: "插入正文" })
@@ -157,7 +157,7 @@ describe("AIChatPanel", () => {
       />
     )
 
-    await user.type(screen.getByPlaceholderText("问问你的故事..."), "继续写下去")
+    await user.type(screen.getByPlaceholderText("问问你的故事... 输入 / 查看命令，@ 引用角色"), "继续写下去")
     await user.click(screen.getByRole("button", { name: "发送" }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())

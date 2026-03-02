@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { EditorShell } from "@/components/editor/editor-shell"
+import { EditorPageClient } from "./editor-page-client"
 
 export default async function EditorPage({
   params,
@@ -8,6 +8,7 @@ export default async function EditorPage({
 }: {
   params: Promise<{ id: string }>
   searchParams: Promise<{
+    doc?: string
     from?: string
     canvasNodeId?: string
     canvasNodeLabel?: string
@@ -67,22 +68,38 @@ export default async function EditorPage({
     .or(`project_id.eq.${projectId},project_id.is.null`)
     .order("sort_order", { ascending: true })
 
+  const entryContext =
+    entrySearch.from === "canvas"
+      ? {
+          source: "canvas" as const,
+          nodeId:
+            typeof entrySearch.canvasNodeId === "string"
+              ? entrySearch.canvasNodeId
+              : "",
+          nodeLabel:
+            typeof entrySearch.canvasNodeLabel === "string"
+              ? entrySearch.canvasNodeLabel
+              : "",
+          nodeType:
+            typeof entrySearch.canvasNodeType === "string"
+              ? entrySearch.canvasNodeType
+              : "",
+          nodeSummary:
+            typeof entrySearch.canvasNodeSummary === "string"
+              ? entrySearch.canvasNodeSummary
+              : "",
+        }
+      : null
+
   return (
-    <EditorShell
+    <EditorPageClient
       project={project}
       documents={documents || []}
+      initialDocumentId={entrySearch.doc}
       storyBible={storyBible}
       characters={characters || []}
       plugins={plugins || []}
-      entryContext={entrySearch.from === "canvas"
-        ? {
-            source: "canvas",
-            nodeId: typeof entrySearch.canvasNodeId === "string" ? entrySearch.canvasNodeId : "",
-            nodeLabel: typeof entrySearch.canvasNodeLabel === "string" ? entrySearch.canvasNodeLabel : "",
-            nodeType: typeof entrySearch.canvasNodeType === "string" ? entrySearch.canvasNodeType : "",
-            nodeSummary: typeof entrySearch.canvasNodeSummary === "string" ? entrySearch.canvasNodeSummary : "",
-          }
-        : null}
+      entryContext={entryContext}
     />
   )
 }

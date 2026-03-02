@@ -714,6 +714,7 @@ export function EditorShell({
             documentContent={activeDocument?.content_text || ""}
             onInsertToEditor={(text) => handleInsertText(text)}
             hasStyleSample={Boolean(initialStoryBible?.style_sample)}
+            characters={initialCharacters}
           />
         )
       case "muse":

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
 import { SeriesListContent } from "@/components/series/series-list-content"
 
 export default async function SeriesPage() {
@@ -8,9 +7,9 @@ export default async function SeriesPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect("/login")
-  }
+  // Auth is already enforced by the (app) layout, but we need
+  // the user ID to fetch series data. If somehow null, return empty.
+  if (!user) return null
 
   const { data: seriesList } = await supabase
     .from("series")
