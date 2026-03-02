@@ -32,6 +32,7 @@ import { computeSaliency } from "@/lib/ai/saliency"
 import type { SaliencyMap } from "@/lib/ai/saliency"
 import { countDocumentWords } from "@/lib/text-stats"
 import type { AutosaveStatus } from "@/components/editor/autosave-status"
+import { useEditorContext } from "@/components/editor/editor-context"
 
 function buildTiptapDocFromText(text: string): Json {
   const normalized = text.replace(/\r\n/g, "\n")
@@ -91,11 +92,6 @@ export interface EditorContentProps {
     nodeType: string
     nodeSummary: string
   } | null
-  // Callbacks to communicate state up to AppShell
-  onWordCountChange?: (count: number) => void
-  onActiveDocumentChange?: (docId: string, docTitle: string) => void
-  onContentChange?: (content: string) => void
-  onInsertTextRef?: React.MutableRefObject<((text: string) => void) | null>
 }
 
 export const EditorContent = forwardRef<EditorContentHandle, EditorContentProps>(function EditorContent({
@@ -106,11 +102,8 @@ export const EditorContent = forwardRef<EditorContentHandle, EditorContentProps>
   characters: initialCharacters,
   plugins: initialPlugins = [],
   entryContext = null,
-  onWordCountChange,
-  onActiveDocumentChange,
-  onContentChange,
-  onInsertTextRef,
 }: EditorContentProps, ref) {
+  const editorCtx = useEditorContext()
   const [documents, setDocuments] = useState(initialDocuments)
   const [activeDocId, setActiveDocId] = useState<string | null>(
     initialDocumentId || initialDocuments[0]?.id || null
@@ -145,25 +138,34 @@ export const EditorContent = forwardRef<EditorContentHandle, EditorContentProps>
     ? `/canvas/${project.id}?focusNodeId=${encodeURIComponent(entryContext.nodeId)}`
     : `/canvas/${project.id}`
 
-  // Notify parent about word count changes
   const totalWordCount = documents.reduce((sum, d) => sum + (d.word_count || 0), 0)
-  useEffect(() => {
-    onWordCountChange?.(totalWordCount)
-  }, [totalWordCount, onWordCountChange])
 
-  // Notify parent about active document changes
+  // Sync project info to EditorContext
+  useEffect(() => {
+    editorCtx?.setActiveProject(project.id, project.title)
+    editorCtx?.setHasStyleSample(!!initialStoryBible?.style_sample)
+  }, [project.id, project.title, initialStoryBible?.style_sample, editorCtx])
+
+  // Sync active document info to EditorContext
   useEffect(() => {
     if (activeDocument) {
-      onActiveDocumentChange?.(activeDocument.id, activeDocument.title)
+      editorCtx?.setActiveDocument(activeDocument.id, activeDocument.title)
+    } else {
+      editorCtx?.setActiveDocument(null, null)
     }
-  }, [activeDocument, onActiveDocumentChange])
+  }, [activeDocument, editorCtx])
 
-  // Notify parent about content changes
+  // Sync word count to EditorContext
+  useEffect(() => {
+    editorCtx?.setWordCount(totalWordCount)
+  }, [totalWordCount, editorCtx])
+
+  // Sync document content to EditorContext
   useEffect(() => {
     if (activeDocument?.content_text !== undefined) {
-      onContentChange?.(activeDocument.content_text || "")
+      editorCtx?.setDocumentContent(activeDocument.content_text || "")
     }
-  }, [activeDocument?.content_text, onContentChange])
+  }, [activeDocument?.content_text, editorCtx])
 
   // Compute saliency debounced whenever document content changes
   useEffect(() => {
@@ -495,17 +497,17 @@ export const EditorContent = forwardRef<EditorContentHandle, EditorContentProps>
     setAutosaveRetryRequestId((current) => current + 1)
   }, [])
 
-  // Expose insertText function to parent via ref
+  // Expose insertText function via EditorContext ref
   useEffect(() => {
-    if (onInsertTextRef) {
-      onInsertTextRef.current = handleInsertText
+    if (editorCtx?.insertTextRef) {
+      editorCtx.insertTextRef.current = handleInsertText
     }
     return () => {
-      if (onInsertTextRef) {
-        onInsertTextRef.current = null
+      if (editorCtx?.insertTextRef) {
+        editorCtx.insertTextRef.current = null
       }
     }
-  }, [onInsertTextRef, handleInsertText])
+  }, [editorCtx, handleInsertText])
 
   // Expose imperative handle for parent components (Task 9 wiring)
   useImperativeHandle(ref, () => ({

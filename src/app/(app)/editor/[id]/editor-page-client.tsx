@@ -1,6 +1,5 @@
 "use client"
 
-import { useRef } from "react"
 import type { Project, Document, StoryBible, Character, Plugin } from "@/types/database"
 import { EditorContent } from "@/components/editor/editor-content"
 
@@ -29,8 +28,6 @@ export function EditorPageClient({
   plugins,
   entryContext,
 }: EditorPageClientProps) {
-  const insertTextRef = useRef<((text: string) => void) | null>(null)
-
   return (
     <EditorContent
       project={project}
@@ -40,7 +37,6 @@ export function EditorPageClient({
       characters={characters}
       plugins={plugins}
       entryContext={entryContext}
-      onInsertTextRef={insertTextRef}
     />
   )
 }

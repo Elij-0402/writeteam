@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { AppShell } from "@/components/layout/app-shell"
+import { EditorProvider } from "@/components/editor/editor-context"
 import type { Document } from "@/types/database"
 
 export default async function AppLayout({
@@ -46,15 +47,17 @@ export default async function AppLayout({
   }
 
   return (
-    <AppShell
-      projects={projects || []}
-      documentsByProject={documentsByProject}
-      userDisplayName={
-        profile?.full_name || user.email?.split("@")[0] || "用户"
-      }
-      userEmail={user.email || ""}
-    >
-      {children}
-    </AppShell>
+    <EditorProvider>
+      <AppShell
+        projects={projects || []}
+        documentsByProject={documentsByProject}
+        userDisplayName={
+          profile?.full_name || user.email?.split("@")[0] || "用户"
+        }
+        userEmail={user.email || ""}
+      >
+        {children}
+      </AppShell>
+    </EditorProvider>
   )
 }

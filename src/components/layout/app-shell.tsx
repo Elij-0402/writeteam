@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { SiteHeader } from "./site-header"
 import { AISidebar } from "./ai-sidebar"
+import { useEditorContext } from "@/components/editor/editor-context"
 
 export interface AppShellProps {
   projects: Project[]
@@ -14,15 +15,6 @@ export interface AppShellProps {
   userDisplayName: string
   userEmail: string
   children: React.ReactNode
-  // Editor-specific props (passed when in editor context)
-  activeProjectId?: string
-  activeDocumentId?: string
-  activeProjectTitle?: string
-  activeDocumentTitle?: string
-  wordCount?: number
-  documentContent?: string
-  hasStyleSample?: boolean
-  onInsertToEditor?: (text: string) => void
 }
 
 export function AppShell({
@@ -31,22 +23,28 @@ export function AppShell({
   userDisplayName,
   userEmail,
   children,
-  activeProjectId,
-  activeDocumentId,
-  activeProjectTitle,
-  activeDocumentTitle,
-  wordCount,
-  documentContent,
-  hasStyleSample,
-  onInsertToEditor,
 }: AppShellProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const editorCtx = useEditorContext()
 
   const [focusMode, setFocusMode] = useState(false)
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false)
 
   const isEditorPage = pathname?.startsWith("/editor/") ?? false
+
+  // Read editor state from context
+  const activeProjectId = editorCtx?.activeProjectId ?? undefined
+  const activeProjectTitle = editorCtx?.activeProjectTitle ?? undefined
+  const activeDocumentId = editorCtx?.activeDocumentId ?? undefined
+  const activeDocumentTitle = editorCtx?.activeDocumentTitle ?? undefined
+  const wordCount = editorCtx?.wordCount
+  const documentContent = editorCtx?.documentContent ?? ""
+  const hasStyleSample = editorCtx?.hasStyleSample ?? false
+
+  const handleInsertToEditor = useCallback((text: string) => {
+    editorCtx?.insertTextRef.current?.(text)
+  }, [editorCtx])
 
   const handleSelectDocument = useCallback(
     (projectId: string, documentId: string) => {
@@ -112,7 +110,7 @@ export function AppShell({
           projectId={activeProjectId}
           documentId={activeDocumentId ?? null}
           documentContent={documentContent ?? ""}
-          onInsertToEditor={onInsertToEditor ?? (() => {})}
+          onInsertToEditor={handleInsertToEditor}
           hasStyleSample={hasStyleSample ?? false}
         />
       )}
