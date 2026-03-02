@@ -39,9 +39,13 @@ function makeSupabase(userId: string | null = "u-1") {
   return { client }
 }
 
-function makeRequest(body: Record<string, unknown>) {
+function makeRequest(body: Record<string, unknown>, options?: { rejectJson?: boolean }) {
   return {
-    json: vi.fn(async () => body),
+    json: options?.rejectJson
+      ? vi.fn(async () => {
+          throw new Error("invalid json")
+        })
+      : vi.fn(async () => body),
     headers: new Headers(),
   } as unknown as Request
 }
@@ -78,6 +82,33 @@ describe("write route", () => {
 
     expect(res.status).toBe(400)
     expect(data).toEqual({ error: "AI 服务未配置" })
+  })
+
+  it("returns 400 when request body is malformed JSON", async () => {
+    const { client } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+
+    const res = await POST(makeRequest({}, { rejectJson: true }) as never)
+    const data = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(data).toEqual({ error: "请求参数格式错误，请刷新后重试" })
+  })
+
+  it("returns 500 when stream helper rejects", async () => {
+    const { client } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+    vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+    vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "ctx" })
+    vi.mocked(createOpenAIStreamResponse).mockRejectedValue(new Error("upstream failure") as never)
+
+    const res = await POST(makeRequest({ context: "上一段文本", projectId: "p-1" }) as never)
+    const data = await res.json()
+
+    expect(res.status).toBe(500)
+    expect(data).toEqual({ error: "服务器内部错误" })
   })
 
   it("returns 409 when preflight finds high-severity conflict", async () => {

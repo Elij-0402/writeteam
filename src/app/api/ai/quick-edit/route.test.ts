@@ -41,9 +41,13 @@ function makeSupabase(userId: string | null = "u-1") {
   return { client, insert, from }
 }
 
-function makeRequest(body: Record<string, unknown>) {
+function makeRequest(body: Record<string, unknown>, options?: { rejectJson?: boolean }) {
   return {
-    json: vi.fn(async () => body),
+    json: options?.rejectJson
+      ? vi.fn(async () => {
+          throw new Error("invalid json")
+        })
+      : vi.fn(async () => body),
     headers: new Headers(),
   } as unknown as Request
 }
@@ -163,6 +167,32 @@ describe("quick-edit route", () => {
     expect(res.status).toBe(409)
     expect(data.error).toBe("检测到高风险设定冲突，请先修正后再试")
     expect(createOpenAIStreamResponse).not.toHaveBeenCalled()
+    expect(insert).toHaveBeenCalledTimes(1)
+  })
+
+  it("returns 400 when request body is malformed JSON", async () => {
+    const { client, insert } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+
+    const res = await POST(makeRequest({}, { rejectJson: true }) as never)
+    const data = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(data).toEqual({ error: "请求参数格式错误，请刷新后重试" })
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it("still returns primary response when telemetry insert fails", async () => {
+    const { client, insert } = makeSupabase()
+    insert.mockRejectedValueOnce(new Error("telemetry write failed"))
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue(null)
+
+    const res = await POST(makeRequest({ text: "x", instruction: "y", projectId: "p-1" }) as never)
+    const data = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(data).toEqual({ error: "AI 服务未配置，请先在设置中配置模型后重试" })
     expect(insert).toHaveBeenCalledTimes(1)
   })
 
