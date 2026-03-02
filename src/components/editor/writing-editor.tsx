@@ -127,8 +127,8 @@ export const WritingEditor = memo(function WritingEditor({
 
     latestSaveRequestRef.current += 1
     latestDraftRef.current = null
-    updateAutosaveState({ status: "idle" })
-  }, [document.id, updateAutosaveState])
+    onAutosaveStatusChange?.("idle")
+  }, [document.id, onAutosaveStatusChange])
 
   const handleRetrySave = useCallback(() => {
     if (!latestDraftRef.current) {
