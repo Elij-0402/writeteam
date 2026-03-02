@@ -34,6 +34,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { countDocumentWords } from "@/lib/text-stats"
+import type { AutosaveStatus } from "./autosave-status"
 
 interface WritingEditorProps {
   document: Document
@@ -46,12 +47,14 @@ interface WritingEditorProps {
   insertContent?: string
   replaceContent?: string
   saliencyData?: { activeCharacters: string[]; activeLocations: string[]; activePlotlines: string[] } | null
+  onAutosaveStatusChange?: (status: AutosaveStatus) => void
 }
 
 type AutosaveState =
   | { status: "idle" }
   | { status: "saving"; docId: string }
   | { status: "saved"; docId: string; savedAt: string }
+  | { status: "retrying"; docId: string }
   | { status: "error"; docId: string; message: string }
 
 export const WritingEditor = memo(function WritingEditor({
@@ -62,19 +65,29 @@ export const WritingEditor = memo(function WritingEditor({
   insertContent,
   replaceContent,
   saliencyData,
+  onAutosaveStatusChange,
 }: WritingEditorProps) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const currentDocumentIdRef = useRef(document.id)
   const lastInsertRef = useRef<string>("")
   const latestDraftRef = useRef<{ content: Json | null; content_text: string; word_count: number } | null>(null)
   const latestSaveRequestRef = useRef(0)
   const [autosaveState, setAutosaveState] = useState<AutosaveState>({ status: "idle" })
+
+  const updateAutosaveState = useCallback(
+    (nextState: AutosaveState) => {
+      setAutosaveState(nextState)
+      onAutosaveStatusChange?.(nextState.status)
+    },
+    [onAutosaveStatusChange]
+  )
 
   const persistDraft = useCallback(
     async (draft: { content: Json | null; content_text: string; word_count: number }) => {
       latestDraftRef.current = draft
       const requestId = latestSaveRequestRef.current + 1
       latestSaveRequestRef.current = requestId
-      setAutosaveState({ status: "saving", docId: document.id })
+      updateAutosaveState({ status: "saving", docId: document.id })
 
       let result: { success?: boolean; error?: string }
       try {
@@ -88,20 +101,22 @@ export const WritingEditor = memo(function WritingEditor({
       }
 
       if (result.error) {
-        setAutosaveState({ status: "error", docId: document.id, message: result.error })
+        updateAutosaveState({ status: "error", docId: document.id, message: result.error })
         return
       }
 
-      setAutosaveState({
+      updateAutosaveState({
         status: "saved",
         docId: document.id,
         savedAt: new Date().toLocaleTimeString("zh-CN"),
       })
     },
-    [document.id, onUpdate]
+    [document.id, onUpdate, updateAutosaveState]
   )
 
   useEffect(() => {
+    currentDocumentIdRef.current = document.id
+
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -109,15 +124,17 @@ export const WritingEditor = memo(function WritingEditor({
 
     latestSaveRequestRef.current += 1
     latestDraftRef.current = null
-  }, [document.id])
+    updateAutosaveState({ status: "idle" })
+  }, [document.id, updateAutosaveState])
 
   const handleRetrySave = useCallback(() => {
     if (!latestDraftRef.current) {
       return
     }
 
+    updateAutosaveState({ status: "retrying", docId: document.id })
     void persistDraft(latestDraftRef.current)
-  }, [persistDraft])
+  }, [document.id, persistDraft, updateAutosaveState])
 
   const editor = useEditor(
     {
@@ -224,6 +241,15 @@ export const WritingEditor = memo(function WritingEditor({
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
           <Loader2 className="h-3 w-3 animate-spin" />
           正在自动保存...
+        </span>
+      )
+    }
+
+    if (autosaveState.status === "retrying") {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          正在重试保存...
         </span>
       )
     }
