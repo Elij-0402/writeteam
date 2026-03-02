@@ -74,6 +74,7 @@ export const WritingEditor = memo(function WritingEditor({
   const lastInsertRef = useRef<string>("")
   const latestDraftRef = useRef<{ content: Json | null; content_text: string; word_count: number } | null>(null)
   const latestSaveRequestRef = useRef(0)
+  const activeDocumentIdRef = useRef(document.id)
   const [autosaveState, setAutosaveState] = useState<AutosaveState>({ status: "idle" })
 
   const updateAutosaveState = useCallback(
@@ -117,6 +118,8 @@ export const WritingEditor = memo(function WritingEditor({
   )
 
   useEffect(() => {
+    activeDocumentIdRef.current = document.id
+
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -125,7 +128,7 @@ export const WritingEditor = memo(function WritingEditor({
     latestSaveRequestRef.current += 1
     latestDraftRef.current = null
     updateAutosaveState({ status: "idle" })
-  }, [updateAutosaveState])
+  }, [document.id, updateAutosaveState])
 
   const handleRetrySave = useCallback(() => {
     if (!latestDraftRef.current) {

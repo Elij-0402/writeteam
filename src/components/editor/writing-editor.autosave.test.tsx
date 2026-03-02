@@ -112,9 +112,9 @@ vi.mock("@/components/ui/separator", () => ({
   Separator: () => <div />,
 }))
 
-function createDocument(): Document {
+function createDocument(id = "doc-1"): Document {
   return {
-    id: "doc-1",
+    id,
     project_id: "project-1",
     user_id: "user-1",
     title: "第 1 章",
@@ -137,6 +137,7 @@ function createDeferred<T>() {
 }
 
 function renderEditor(options?: {
+  document?: Document
   onUpdate?: (docId: string, updates: { content?: unknown; content_text?: string; word_count?: number }) => Promise<{
     success?: boolean
     error?: string
@@ -145,7 +146,7 @@ function renderEditor(options?: {
 }) {
   return render(
     <WritingEditor
-      document={createDocument()}
+      document={options?.document ?? createDocument()}
       projectId="project-1"
       onUpdate={
         options?.onUpdate ??
@@ -272,5 +273,43 @@ describe("WritingEditor autosave status", () => {
     expect(onAutosaveStatusChange.mock.calls.map(([status]) => status)).toEqual(["idle", "saving", "error"])
     expect(screen.getByText("保存文档失败，请检查网络后重试")).not.toBeNull()
     expect(screen.getByRole("button", { name: "立即重试" })).not.toBeNull()
+  })
+
+  it("resets autosave state and invalidates pending save when switching documents", async () => {
+    const onAutosaveStatusChange = vi.fn<(status: AutosaveStatus) => void>()
+    const firstSave = createDeferred<{ success?: boolean; error?: string }>()
+    const onUpdate = vi
+      .fn<(docId: string, updates: { content?: unknown; content_text?: string; word_count?: number }) => Promise<{
+        success?: boolean
+        error?: string
+      }>>()
+      .mockImplementationOnce(() => firstSave.promise)
+
+    const view = renderEditor({
+      document: createDocument("doc-1"),
+      onUpdate,
+      onAutosaveStatusChange,
+    })
+    await flushAsyncWork()
+
+    await triggerAutosave()
+
+    view.rerender(
+      <WritingEditor
+        document={createDocument("doc-2")}
+        projectId="project-1"
+        onUpdate={onUpdate}
+        onSelectionChange={() => {}}
+        onAutosaveStatusChange={onAutosaveStatusChange}
+      />
+    )
+    await flushAsyncWork()
+
+    await act(async () => {
+      firstSave.resolve({ success: true })
+      await Promise.resolve()
+    })
+
+    expect(onAutosaveStatusChange.mock.calls.map(([status]) => status)).toEqual(["idle", "saving", "idle"])
   })
 })
