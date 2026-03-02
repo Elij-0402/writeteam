@@ -92,6 +92,26 @@ import type { SaliencyMap } from "@/lib/ai/saliency"
 import { countDocumentWords } from "@/lib/text-stats"
 import { readEditorSessionState, writeEditorSessionState } from "@/components/editor/editor-session-state"
 import type { AutosaveStatus } from "@/components/editor/autosave-status"
+import {
+  getDocumentProgressTag,
+  isDocumentRecentlyEdited,
+  type DocumentProgressTag,
+} from "@/lib/editor/document-progress"
+
+const documentProgressTagMeta: Record<DocumentProgressTag, { label: string; className: string }> = {
+  unfinished: {
+    label: "未完成",
+    className: "text-amber-700",
+  },
+  drafting: {
+    label: "草稿中",
+    className: "text-blue-700",
+  },
+  stable: {
+    label: "已成稿",
+    className: "text-emerald-700",
+  },
+}
 
 interface EditorShellProps {
   project: Project
@@ -945,79 +965,105 @@ export function EditorShell({
                 <ScrollArea className="flex-1 px-2">
                   <div className="space-y-1 pb-4">
                     {documents.map((doc, index) => (
-                      <div
-                        key={doc.id}
-                        className={cn(
-                          "group flex cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
-                          activeDocId === doc.id
-                            ? "bg-accent text-accent-foreground"
-                            : "hover:bg-accent/50"
-                        )}
-                        onClick={() => setActiveDocId(doc.id)}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{doc.title}</span>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreVertical className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openRenameDialog(doc)
-                              }}
-                              disabled={renameSubmitting || deletingDocId === doc.id || reorderingDocId === doc.id}
-                            >
-                              重命名
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleReorderDocument(doc.id, "up")
-                              }}
-                              disabled={index === 0 || deletingDocId === doc.id || reorderingDocId !== null}
-                            >
-                              <ArrowUp className="mr-2 h-4 w-4" />
-                              上移
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleReorderDocument(doc.id, "down")
-                              }}
-                              disabled={
-                                index === documents.length - 1 ||
-                                deletingDocId === doc.id ||
-                                reorderingDocId !== null
-                              }
-                            >
-                              <ArrowDown className="mr-2 h-4 w-4" />
-                              下移
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteDocument(doc.id)
-                              }}
-                              disabled={deletingDocId === doc.id || reorderingDocId === doc.id || renameSubmitting}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              删除
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                      (() => {
+                        const progressTag = getDocumentProgressTag(doc)
+                        const progressMeta = documentProgressTagMeta[progressTag]
+                        const showRecentMarker = activeDocId === doc.id || isDocumentRecentlyEdited(doc)
+
+                        return (
+                          <div
+                            key={doc.id}
+                            className={cn(
+                              "group rounded-md px-2 py-2 text-sm transition-colors",
+                              activeDocId === doc.id
+                                ? "bg-accent text-accent-foreground"
+                                : "hover:bg-accent/50"
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <button
+                                type="button"
+                                className="min-w-0 flex-1 text-left"
+                                onClick={() => setActiveDocId(doc.id)}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                  <span className="truncate">{doc.title}</span>
+                                </div>
+                                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                  <span>{(doc.word_count || 0).toLocaleString()} 字</span>
+                                  <Badge variant="secondary" className={cn("h-5 px-1.5 text-[10px] font-normal", progressMeta.className)}>
+                                    {progressMeta.label}
+                                  </Badge>
+                                  {showRecentMarker ? (
+                                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                                      最近编辑
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                              </button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <MoreVertical className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openRenameDialog(doc)
+                                    }}
+                                    disabled={renameSubmitting || deletingDocId === doc.id || reorderingDocId === doc.id}
+                                  >
+                                    重命名
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleReorderDocument(doc.id, "up")
+                                    }}
+                                    disabled={index === 0 || deletingDocId === doc.id || reorderingDocId !== null}
+                                  >
+                                    <ArrowUp className="mr-2 h-4 w-4" />
+                                    上移
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleReorderDocument(doc.id, "down")
+                                    }}
+                                    disabled={
+                                      index === documents.length - 1 ||
+                                      deletingDocId === doc.id ||
+                                      reorderingDocId !== null
+                                    }
+                                  >
+                                    <ArrowDown className="mr-2 h-4 w-4" />
+                                    下移
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDeleteDocument(doc.id)
+                                    }}
+                                    disabled={deletingDocId === doc.id || reorderingDocId === doc.id || renameSubmitting}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    删除
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        )
+                      })()
                     ))}
                   </div>
                 </ScrollArea>
