@@ -60,6 +60,7 @@ import {
   getLastQuickEditInstruction,
   saveLastQuickEditInstruction,
 } from "@/components/ai/ai-last-action"
+import { isEditorQuickEditReuseEnabled } from "@/lib/editor/editor-experience-flags"
 
 interface AIToolbarProps {
   selectedText: string
@@ -140,6 +141,7 @@ export function AIToolbar({
   onOpenPluginManager,
   saliencyData,
 }: AIToolbarProps) {
+  const quickEditReuseEnabled = isEditorQuickEditReuseEnabled()
   const { isConfigured, getHeaders, config } = useAIConfigContext()
   const recovery = useAIRecovery({ config, getHeaders })
   const [loading, setLoading] = useState(false)
@@ -245,7 +247,7 @@ export function AIToolbar({
           break
       }
 
-      if (feature === "quick-edit" && typeof body.instruction === "string") {
+      if (quickEditReuseEnabled && feature === "quick-edit" && typeof body.instruction === "string") {
         saveLastQuickEditInstruction(projectId, body.instruction)
       }
 
@@ -502,6 +504,10 @@ export function AIToolbar({
   }
 
   function handleReuseLastQuickEdit() {
+    if (!quickEditReuseEnabled) {
+      return
+    }
+
     const lastInstruction = getLastQuickEditInstruction(projectId)
     if (!lastInstruction) {
       toast.message("暂无可复用的快编指令")
@@ -796,15 +802,17 @@ export function AIToolbar({
               )}
               执行编辑
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full"
-              onClick={handleReuseLastQuickEdit}
-              disabled={loading || !selectedText}
-            >
-              复用上次快编
-            </Button>
+            {quickEditReuseEnabled ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={handleReuseLastQuickEdit}
+                disabled={loading || !selectedText}
+              >
+                复用上次快编
+              </Button>
+            ) : null}
           </div>
         </PopoverContent>
       </Popover>

@@ -97,6 +97,7 @@ import {
   isDocumentRecentlyEdited,
   type DocumentProgressTag,
 } from "@/lib/editor/document-progress"
+import { isEditorFocusEnhancementEnabled } from "@/lib/editor/editor-experience-flags"
 
 const documentProgressTagMeta: Record<DocumentProgressTag, { label: string; className: string }> = {
   unfinished: {
@@ -154,6 +155,7 @@ export function EditorShell({
   plugins: initialPlugins = [],
   entryContext = null,
 }: EditorShellProps) {
+  const focusEnhancementEnabled = isEditorFocusEnhancementEnabled()
   const [documents, setDocuments] = useState(initialDocuments)
   const [activeDocId, setActiveDocId] = useState<string | null>(
     initialDocuments[0]?.id || null
@@ -254,8 +256,20 @@ export function EditorShell({
       return
     }
 
+    if (!focusEnhancementEnabled) {
+      return
+    }
+
     writeEditorSessionState(project.id, { focusMode })
-  }, [focusMode, project.id, sessionHydrated])
+  }, [focusEnhancementEnabled, focusMode, project.id, sessionHydrated])
+
+  useEffect(() => {
+    if (focusEnhancementEnabled) {
+      return
+    }
+
+    setFocusMode(false)
+  }, [focusEnhancementEnabled])
 
   const getActionErrorMessage = useCallback((error: unknown, fallbackMessage: string) => {
     if (typeof error === "object" && error && "message" in error) {
@@ -853,18 +867,22 @@ export function EditorShell({
             {totalWordCount.toLocaleString()} 字
           </span>
           <Separator orientation="vertical" className="h-6" />
-          <Button
-            variant={focusMode ? "secondary" : "ghost"}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={toggleFocusMode}
-          >
-            专注模式
-          </Button>
-          <span data-testid="editor-focus-mode" data-active={focusMode ? "true" : "false"} className="sr-only">
-            {focusMode ? "开启" : "关闭"}
-          </span>
-          <Separator orientation="vertical" className="h-6" />
+          {focusEnhancementEnabled ? (
+            <>
+              <Button
+                variant={focusMode ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={toggleFocusMode}
+              >
+                专注模式
+              </Button>
+              <span data-testid="editor-focus-mode" data-active={focusMode ? "true" : "false"} className="sr-only">
+                {focusMode ? "开启" : "关闭"}
+              </span>
+              <Separator orientation="vertical" className="h-6" />
+            </>
+          ) : null}
           {/* Canvas Link */}
           <Tooltip>
             <TooltipTrigger asChild>
