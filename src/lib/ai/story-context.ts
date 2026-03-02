@@ -1,5 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
+import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
+import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +67,7 @@ export interface CharacterData {
 export interface StoryContext {
   bible: StoryBibleData | null
   characters: CharacterData[]
+  consistencyState: ConsistencyState
 }
 
 export interface StoryPromptOptions {
@@ -262,9 +265,7 @@ export async function fetchStoryContext(
       visibility: normalizeVisibility(null),
     }
 
-    return {
-      bible: seriesFallbackBible,
-      characters: (charsResult.data ?? []).map((c: Record<string, unknown>) => ({
+    const characters = (charsResult.data ?? []).map((c: Record<string, unknown>) => ({
         name: c.name as string,
         role: (c.role as string | null) ?? null,
         description: (c.description as string | null) ?? null,
@@ -274,7 +275,15 @@ export async function fetchStoryContext(
         goals: (c.goals as string | null) ?? null,
         relationships: (c.relationships as string | null) ?? null,
         notes: (c.notes as string | null) ?? null,
-      })),
+      }))
+
+    return {
+      bible: seriesFallbackBible,
+      characters,
+      consistencyState: extractConsistencyState({
+        bible: seriesFallbackBible,
+        characters,
+      }),
     }
   }
 
@@ -292,7 +301,14 @@ export async function fetchStoryContext(
     })
   )
 
-  return { bible, characters }
+  return {
+    bible,
+    characters,
+    consistencyState: extractConsistencyState({
+      bible,
+      characters,
+    }),
+  }
 }
 
 // ---------------------------------------------------------------------------
