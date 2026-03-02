@@ -74,4 +74,60 @@ describe("buildStructuredContext", () => {
     expect(result.indexOf("必须保持第一人称")).toBeLessThan(result.indexOf("禁止角色瞬移"))
     expect(result.indexOf("阿青")).toBeLessThan(result.indexOf("林晚"))
   })
+
+  it("includes planning and continuity-check sections by feature group", () => {
+    const consistencyState = {
+      canonFacts: [
+        {
+          fact: "城门午夜关闭",
+          source: "human" as const,
+          confidence: 0.9,
+          updated_at: "2026-03-02T10:00:00.000Z",
+        },
+      ],
+      timelineEvents: [
+        {
+          event: "午夜封城",
+          timeAnchor: "第三章",
+          participants: ["林晚"],
+          stateChanges: [],
+          source: "ai" as const,
+          confidence: 0.8,
+          updated_at: "2026-03-03T10:00:00.000Z",
+        },
+      ],
+      characterArcStates: [
+        {
+          characterName: "林晚",
+          motivation: "寻找真相",
+          relationshipStatus: "与沈舟互相试探",
+          secretProgress: "尚未坦白",
+          source: "human" as const,
+          confidence: 0.9,
+          updated_at: "2026-03-03T09:00:00.000Z",
+        },
+      ],
+      constraintRules: [
+        {
+          rule: "必须保持第一人称",
+          category: "required" as const,
+          source: "human" as const,
+          confidence: 1,
+          updated_at: "2026-03-03T12:00:00.000Z",
+        },
+      ],
+    }
+
+    const planning = buildStructuredContext(consistencyState, "scene-plan")
+    expect(planning).toContain("Character arc states")
+    expect(planning).toContain("Timeline events")
+    expect(planning).not.toContain("Constraint rules")
+    expect(planning).not.toContain("Canon facts")
+
+    const continuityCheck = buildStructuredContext(consistencyState, "continuity-check")
+    expect(continuityCheck).toContain("Constraint rules")
+    expect(continuityCheck).toContain("Character arc states")
+    expect(continuityCheck).toContain("Timeline events")
+    expect(continuityCheck).toContain("Canon facts")
+  })
 })

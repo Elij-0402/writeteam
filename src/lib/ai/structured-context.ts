@@ -1,4 +1,8 @@
-import type { AIFeature } from "@/lib/ai/story-context"
+import {
+  isPlanningFeature,
+  isWritingFeature,
+} from "@/lib/ai/feature-groups"
+import type { AIFeature } from "@/lib/ai/feature-groups"
 import type {
   CanonFact,
   CharacterArcState,
@@ -6,20 +10,6 @@ import type {
   ConstraintRule,
   TimelineEvent,
 } from "@/lib/story-bible/consistency-types"
-
-const WRITING_FEATURES: AIFeature[] = [
-  "write",
-  "rewrite",
-  "expand",
-  "first-draft",
-  "describe",
-  "shrink",
-  "tone-shift",
-  "quick-edit",
-  "plugin",
-]
-
-const PLANNING_FEATURES: AIFeature[] = ["scene-plan", "brainstorm", "twist", "muse"]
 
 const RULE_CATEGORY_PRIORITY: Record<ConstraintRule["category"], number> = {
   required: 0,
@@ -119,14 +109,6 @@ function buildTimelineLines(events: TimelineEvent[]): string[] {
       }
       return `- ${details.join(" | ")}`
     })
-}
-
-function isWritingFeature(feature: AIFeature): boolean {
-  return WRITING_FEATURES.includes(feature)
-}
-
-function isPlanningFeature(feature: AIFeature): boolean {
-  return PLANNING_FEATURES.includes(feature)
 }
 
 export function buildStructuredContext(

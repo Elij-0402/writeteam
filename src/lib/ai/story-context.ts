@@ -1,32 +1,20 @@
 import { SupabaseClient } from "@supabase/supabase-js"
+import {
+  isCheckFeature,
+  isPlanningFeature,
+  isWritingFeature,
+} from "@/lib/ai/feature-groups"
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
 import { buildStructuredContext } from "@/lib/ai/structured-context"
 import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
+import type { AIFeature } from "@/lib/ai/feature-groups"
 import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type AIFeature =
-  | "write"
-  | "rewrite"
-  | "expand"
-  | "describe"
-  | "brainstorm"
-  | "first-draft"
-  | "scene-plan"
-  | "continuity-check"
-  | "chat"
-  | "shrink"
-  | "twist"
-  | "tone-shift"
-  | "quick-edit"
-  | "plugin"
-  | "muse"
-  | "saliency"
-  | "canvas-generate"
-  | "visualize"
+export type { AIFeature } from "@/lib/ai/feature-groups"
 
 export interface StoryBibleData {
   genre: string | null
@@ -129,36 +117,6 @@ function normalizeVisibility(input: unknown): VisibilityMap {
 }
 
 // ---------------------------------------------------------------------------
-// Feature-group helpers
-// ---------------------------------------------------------------------------
-
-const WRITING_FEATURES: AIFeature[] = [
-  "write",
-  "rewrite",
-  "expand",
-  "first-draft",
-  "describe",
-  "shrink",
-  "tone-shift",
-  "quick-edit",
-  "plugin",
-]
-const PLANNING_FEATURES: AIFeature[] = ["scene-plan", "brainstorm", "twist", "muse"]
-const CHECK_FEATURES: AIFeature[] = ["continuity-check"]
-
-function isWritingFeature(f: AIFeature): boolean {
-  return WRITING_FEATURES.includes(f)
-}
-
-function isPlanningFeature(f: AIFeature): boolean {
-  return PLANNING_FEATURES.includes(f)
-}
-
-function isCheckFeature(f: AIFeature): boolean {
-  return CHECK_FEATURES.includes(f)
-}
-
-// ---------------------------------------------------------------------------
 // Data fetching
 // ---------------------------------------------------------------------------
 
@@ -167,34 +125,39 @@ export async function fetchStoryContext(
   projectId: string,
   userId?: string
 ): Promise<StoryContext> {
-  const withUserScope = <T>(query: T): T => {
-    if (!userId) {
-      return query
-    }
-
-    return (query as { eq: (column: string, value: string) => T }).eq("user_id", userId)
+  interface UserScopedQuery {
+    eq: (column: string, value: string) => unknown
   }
+
+  const withUserScope = (query: UserScopedQuery): void => {
+    if (userId) {
+      query.eq("user_id", userId)
+    }
+  }
+
+  const bibleQuery = supabase
+    .from("story_bibles")
+    .select("*")
+    .eq("project_id", projectId)
+  withUserScope(bibleQuery)
+
+  const charactersQuery = supabase
+    .from("characters")
+    .select("*")
+    .eq("project_id", projectId)
+  withUserScope(charactersQuery)
+
+  const projectQuery = supabase
+    .from("projects")
+    .select("series_id")
+    .eq("id", projectId)
+  withUserScope(projectQuery)
 
   // Fetch project-level data
   const [bibleResult, charsResult, projectResult] = await Promise.all([
-    withUserScope(
-      supabase
-        .from("story_bibles")
-        .select("*")
-        .eq("project_id", projectId)
-    ).single(),
-    withUserScope(
-      supabase
-        .from("characters")
-        .select("*")
-        .eq("project_id", projectId)
-    ).limit(15),
-    withUserScope(
-      supabase
-        .from("projects")
-        .select("series_id")
-        .eq("id", projectId)
-    ).single(),
+    bibleQuery.single(),
+    charactersQuery.limit(15),
+    projectQuery.single(),
   ])
 
   if (bibleResult.error && bibleResult.error.code !== "PGRST116") {
@@ -208,12 +171,13 @@ export async function fetchStoryContext(
   let seriesBibleData: Record<string, unknown> | null = null
   const seriesId = projectResult.data?.series_id
   if (seriesId) {
-    const { data: sb } = await withUserScope(
-      supabase
-        .from("series_bibles")
-        .select("*")
-        .eq("series_id", seriesId)
-    ).single()
+    const seriesBibleQuery = supabase
+      .from("series_bibles")
+      .select("*")
+      .eq("series_id", seriesId)
+    withUserScope(seriesBibleQuery)
+
+    const { data: sb } = await seriesBibleQuery.single()
     seriesBibleData = sb
   }
 
@@ -320,10 +284,6 @@ export function buildStoryPromptContext(
   ctx: StoryContext,
   options: StoryPromptOptions
 ): StoryPromptContext {
-  if (!ctx.bible && ctx.characters.length === 0 && !ctx.consistencyState) {
-    return { fullContext: "" }
-  }
-
   const { feature, proseMode, saliencyMap } = options
   const bible = ctx.bible
   const vis = normalizeVisibility(bible?.visibility)
@@ -640,7 +600,8 @@ function buildProseModeSection(
   bible: StoryBibleData | null,
   proseMode: string | null
 ): string {
-  const result = buildProseModeGuidanceWithOverride(bible, proseMode)
+  const proseSource = bible ?? (proseMode ? { style: null, prose_mode: null, style_sample: null } : null)
+  const result = buildProseModeGuidanceWithOverride(proseSource, proseMode)
   if (!result) return ""
   return `PROSE STYLE GUIDANCE:\n${result}`
 }

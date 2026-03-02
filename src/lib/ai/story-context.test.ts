@@ -2,6 +2,42 @@ import { describe, expect, it, vi } from "vitest"
 import { buildStoryPromptContext, fetchStoryContext } from "./story-context"
 
 describe("buildStoryPromptContext", () => {
+  it("keeps saliency-only context when story data is empty", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: null,
+        characters: [],
+      },
+      {
+        feature: "write",
+        saliencyMap: {
+          activeCharacters: ["林晚"],
+          activeLocations: [],
+          activePlotlines: [],
+        },
+      }
+    )
+
+    expect(result.fullContext).toContain("SCENE SALIENCY")
+    expect(result.fullContext).toContain("Active characters in scene: 林晚")
+  })
+
+  it("keeps prose override guidance when story data is empty", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: null,
+        characters: [],
+      },
+      {
+        feature: "write",
+        proseMode: "cinematic",
+      }
+    )
+
+    expect(result.fullContext).toContain("PROSE STYLE GUIDANCE")
+    expect(result.fullContext).toContain("Use visual, momentum-driven prose")
+  })
+
   it("respects visibility.characters switch", () => {
     const result = buildStoryPromptContext(
       {
