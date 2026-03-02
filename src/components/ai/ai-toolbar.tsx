@@ -56,6 +56,10 @@ import { AI_TTFB_MS } from "@/lib/ai/timing"
 import { parseContinuityResult, type ContinuityIssue, type ContinuityResult } from "@/lib/ai/continuity-result"
 import type { ErrorClassification } from "@/lib/ai/error-classification"
 import type { Plugin } from "@/types/database"
+import {
+  getLastQuickEditInstruction,
+  saveLastQuickEditInstruction,
+} from "@/components/ai/ai-last-action"
 
 interface AIToolbarProps {
   selectedText: string
@@ -234,8 +238,15 @@ export function AIToolbar({
           break
         case "quick-edit":
           body.text = selectedText
-          body.instruction = quickEditInstruction
+          body.instruction =
+            typeof body.instruction === "string" && body.instruction.trim().length > 0
+              ? body.instruction
+              : quickEditInstruction
           break
+      }
+
+      if (feature === "quick-edit" && typeof body.instruction === "string") {
+        saveLastQuickEditInstruction(projectId, body.instruction)
       }
 
       const endpoint = feature === "plugin" ? "/api/ai/plugin" : `/api/ai/${feature}`
@@ -488,6 +499,17 @@ export function AIToolbar({
     } finally {
       setFeedbackLoading(false)
     }
+  }
+
+  function handleReuseLastQuickEdit() {
+    const lastInstruction = getLastQuickEditInstruction(projectId)
+    if (!lastInstruction) {
+      toast.message("暂无可复用的快编指令")
+      return
+    }
+
+    setQuickEditInstruction(lastInstruction)
+    void callAI("quick-edit", { instruction: lastInstruction })
   }
 
   return (
@@ -773,6 +795,15 @@ export function AIToolbar({
                 <Zap className="mr-2 h-3.5 w-3.5" />
               )}
               执行编辑
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={handleReuseLastQuickEdit}
+              disabled={loading || !selectedText}
+            >
+              复用上次快编
             </Button>
           </div>
         </PopoverContent>
