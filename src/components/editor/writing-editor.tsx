@@ -24,7 +24,6 @@ import {
   Undo,
   Redo,
   Minus,
-  Loader2,
 } from "lucide-react"
 import {
   Tooltip,
@@ -34,6 +33,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { countDocumentWords } from "@/lib/text-stats"
+import type { AutosaveStatus } from "./autosave-status"
 
 interface WritingEditorProps {
   document: Document
@@ -45,14 +45,20 @@ interface WritingEditorProps {
   onSelectionChange: (text: string) => void
   insertContent?: string
   replaceContent?: string
+  retryRequestId?: number
   saliencyData?: { activeCharacters: string[]; activeLocations: string[]; activePlotlines: string[] } | null
+  onAutosaveStatusChange?: (status: AutosaveStatus) => void
 }
 
-type AutosaveState =
-  | { status: "idle" }
-  | { status: "saving"; docId: string }
-  | { status: "saved"; docId: string; savedAt: string }
-  | { status: "error"; docId: string; message: string }
+type AutosaveState = {
+  [Status in AutosaveStatus]: Status extends "idle"
+    ? { status: Status }
+    : Status extends "saved"
+      ? { status: Status; docId: string; savedAt: string }
+      : Status extends "error"
+        ? { status: Status; docId: string; message: string }
+        : { status: Status; docId: string }
+}[AutosaveStatus]
 
 export const WritingEditor = memo(function WritingEditor({
   document,
@@ -61,20 +67,31 @@ export const WritingEditor = memo(function WritingEditor({
   onSelectionChange,
   insertContent,
   replaceContent,
+  retryRequestId,
   saliencyData,
+  onAutosaveStatusChange,
 }: WritingEditorProps) {
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastInsertRef = useRef<string>("")
   const latestDraftRef = useRef<{ content: Json | null; content_text: string; word_count: number } | null>(null)
   const latestSaveRequestRef = useRef(0)
+  const activeDocumentIdRef = useRef(document.id)
   const [autosaveState, setAutosaveState] = useState<AutosaveState>({ status: "idle" })
+
+  const updateAutosaveState = useCallback(
+    (nextState: AutosaveState) => {
+      setAutosaveState(nextState)
+      onAutosaveStatusChange?.(nextState.status)
+    },
+    [onAutosaveStatusChange]
+  )
 
   const persistDraft = useCallback(
     async (draft: { content: Json | null; content_text: string; word_count: number }) => {
       latestDraftRef.current = draft
       const requestId = latestSaveRequestRef.current + 1
       latestSaveRequestRef.current = requestId
-      setAutosaveState({ status: "saving", docId: document.id })
+      updateAutosaveState({ status: "saving", docId: document.id })
 
       let result: { success?: boolean; error?: string }
       try {
@@ -88,20 +105,22 @@ export const WritingEditor = memo(function WritingEditor({
       }
 
       if (result.error) {
-        setAutosaveState({ status: "error", docId: document.id, message: result.error })
+        updateAutosaveState({ status: "error", docId: document.id, message: result.error })
         return
       }
 
-      setAutosaveState({
+      updateAutosaveState({
         status: "saved",
         docId: document.id,
         savedAt: new Date().toLocaleTimeString("zh-CN"),
       })
     },
-    [document.id, onUpdate]
+    [document.id, onUpdate, updateAutosaveState]
   )
 
   useEffect(() => {
+    activeDocumentIdRef.current = document.id
+
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -109,15 +128,39 @@ export const WritingEditor = memo(function WritingEditor({
 
     latestSaveRequestRef.current += 1
     latestDraftRef.current = null
-  }, [document.id])
+    onAutosaveStatusChange?.("idle")
+  }, [document.id, onAutosaveStatusChange])
+
+  const lastRetryRequestIdRef = useRef(retryRequestId ?? 0)
 
   const handleRetrySave = useCallback(() => {
-    if (!latestDraftRef.current) {
+    if (
+      autosaveState.status !== "error" ||
+      autosaveState.docId !== document.id ||
+      !latestDraftRef.current
+    ) {
       return
     }
 
+    updateAutosaveState({ status: "retrying", docId: document.id })
     void persistDraft(latestDraftRef.current)
-  }, [persistDraft])
+  }, [autosaveState, document.id, persistDraft, updateAutosaveState])
+
+  useEffect(() => {
+    const nextRetryRequestId = retryRequestId ?? 0
+    if (nextRetryRequestId === lastRetryRequestIdRef.current) {
+      return
+    }
+
+    lastRetryRequestIdRef.current = nextRetryRequestId
+    const retryTimer = setTimeout(() => {
+      handleRetrySave()
+    }, 0)
+
+    return () => {
+      clearTimeout(retryTimer)
+    }
+  }, [handleRetrySave, retryRequestId])
 
   const editor = useEditor(
     {
@@ -207,45 +250,6 @@ export const WritingEditor = memo(function WritingEditor({
 
   const wordCount = countDocumentWords(editor.getText())
 
-  const renderAutosaveStatus = () => {
-    const stateMatchesCurrentDoc =
-      autosaveState.status === "idle" || autosaveState.docId === document.id
-
-    if (!stateMatchesCurrentDoc) {
-      return <span className="text-xs text-muted-foreground">自动保存已启用（1 秒）</span>
-    }
-
-    if (autosaveState.status === "idle") {
-      return <span className="text-xs text-muted-foreground">自动保存已启用（1 秒）</span>
-    }
-
-    if (autosaveState.status === "saving") {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          正在自动保存...
-        </span>
-      )
-    }
-
-    if (autosaveState.status === "saved") {
-      return (
-        <span className="text-xs text-emerald-600" aria-live="polite">
-          已保存 {autosaveState.savedAt}
-        </span>
-      )
-    }
-
-    return (
-      <span className="inline-flex items-center gap-2 text-xs text-destructive" aria-live="polite">
-        自动保存失败，可继续编辑
-        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={handleRetrySave}>
-          立即重试
-        </Button>
-      </span>
-    )
-  }
-
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Formatting Toolbar */}
@@ -332,12 +336,7 @@ export const WritingEditor = memo(function WritingEditor({
           onClick={() => editor.chain().focus().redo().run()}
         />
         <div className="ml-auto flex items-center gap-3">
-          {autosaveState.status === "error" && autosaveState.docId === document.id ? (
-            <span className="text-xs text-destructive" title={autosaveState.message}>
-              {autosaveState.message}
-            </span>
-          ) : null}
-          {renderAutosaveStatus()}
+          <span className="text-xs text-muted-foreground">自动保存已启用（1 秒）</span>
           <span className="text-xs text-muted-foreground">字数 {wordCount.toLocaleString()}</span>
         </div>
       </div>
