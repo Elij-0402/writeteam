@@ -68,18 +68,6 @@ export default function SignUpPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="fullName">姓名</Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                type="text"
-                placeholder="请输入姓名"
-                required
-                autoComplete="name"
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="email">邮箱</Label>
               <Input
                 id="email"
