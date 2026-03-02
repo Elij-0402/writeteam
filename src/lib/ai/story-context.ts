@@ -67,7 +67,7 @@ export interface CharacterData {
 export interface StoryContext {
   bible: StoryBibleData | null
   characters: CharacterData[]
-  consistencyState: ConsistencyState
+  consistencyState?: ConsistencyState
 }
 
 export interface StoryPromptOptions {

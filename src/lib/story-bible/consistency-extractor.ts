@@ -44,15 +44,80 @@ function withConfidenceMarker(text: string, confidence: number): string {
   return `${PENDING_CONFIRMATION_MARKER} ${text}`
 }
 
+const OUTLINE_COMMON_KEYS = [
+  "title",
+  "chapter",
+  "scene",
+  "summary",
+  "note",
+  "notes",
+  "description",
+  "content",
+  "text",
+  "beat",
+  "beats",
+  "event",
+  "events",
+] as const
+
+function appendOutlineText(lines: string[], seen: Set<string>, text: string): void {
+  for (const line of text.split(/\r?\n/)) {
+    const normalized = line.trim()
+    if (!normalized || seen.has(normalized)) {
+      continue
+    }
+
+    seen.add(normalized)
+    lines.push(normalized)
+  }
+}
+
+function extractStructuredOutlineStrings(
+  value: unknown,
+  lines: string[],
+  seen: Set<string>
+): void {
+  if (typeof value === "string") {
+    appendOutlineText(lines, seen, value)
+    return
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      extractStructuredOutlineStrings(item, lines, seen)
+    }
+    return
+  }
+
+  if (!value || typeof value !== "object") {
+    return
+  }
+
+  const record = value as Record<string, unknown>
+
+  for (const key of OUTLINE_COMMON_KEYS) {
+    if (key in record) {
+      extractStructuredOutlineStrings(record[key], lines, seen)
+    }
+  }
+
+  for (const [key, nestedValue] of Object.entries(record)) {
+    if (OUTLINE_COMMON_KEYS.includes(key as (typeof OUTLINE_COMMON_KEYS)[number])) {
+      continue
+    }
+    extractStructuredOutlineStrings(nestedValue, lines, seen)
+  }
+}
+
 function extractOutlineLines(outline: unknown): string[] {
   if (!outline) {
     return []
   }
 
   if (Array.isArray(outline)) {
-    return outline
-      .map((item) => toNonEmptyString(item))
-      .filter((item): item is string => item !== null)
+    const lines: string[] = []
+    extractStructuredOutlineStrings(outline, lines, new Set<string>())
+    return lines
   }
 
   if (typeof outline === "string") {
@@ -64,7 +129,9 @@ function extractOutlineLines(outline: unknown): string[] {
     if (raw.startsWith("[") || raw.startsWith("{")) {
       try {
         const parsed = JSON.parse(raw)
-        return extractOutlineLines(parsed)
+        const lines: string[] = []
+        extractStructuredOutlineStrings(parsed, lines, new Set<string>())
+        return lines
       } catch {
         // Fallback to plain text line splitting.
       }
@@ -77,8 +144,9 @@ function extractOutlineLines(outline: unknown): string[] {
   }
 
   if (typeof outline === "object") {
-    const serialized = JSON.stringify(outline)
-    return serialized ? [serialized] : []
+    const lines: string[] = []
+    extractStructuredOutlineStrings(outline, lines, new Set<string>())
+    return lines
   }
 
   return []

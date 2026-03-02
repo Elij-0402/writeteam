@@ -68,4 +68,51 @@ describe("extractConsistencyState", () => {
     expect(result.canonFacts[0]?.fact).toContain("[pendingConfirmation]")
     expect(result.canonFacts[0]?.confidence).toBeLessThan(0.5)
   })
+
+  it("extracts useful lines from object outline fields", () => {
+    const result = extractConsistencyState({
+      bible: {
+        outline: {
+          title: "第一章：夜行",
+          summary: "林晚在旧港追踪线索",
+          beats: [
+            { scene: "仓库潜入" },
+            { note: "发现失踪者名单" },
+          ],
+        },
+      },
+      characters: [],
+    })
+
+    const events = result.timelineEvents.map((item) => item.event)
+    expect(events).toContain("第一章：夜行")
+    expect(events).toContain("林晚在旧港追踪线索")
+    expect(events).toContain("仓库潜入")
+    expect(events).toContain("发现失踪者名单")
+  })
+
+  it("extracts useful lines from array-of-object outlines", () => {
+    const result = extractConsistencyState({
+      bible: {
+        outline: [
+          {
+            chapter: "第二章",
+            summary: "沈舟设置陷阱",
+          },
+          {
+            title: "第三章：反制",
+            beats: ["伪造证据", "夜雨对峙"],
+          },
+        ],
+      },
+      characters: [],
+    })
+
+    const events = result.timelineEvents.map((item) => item.event)
+    expect(events).toContain("第二章")
+    expect(events).toContain("沈舟设置陷阱")
+    expect(events).toContain("第三章：反制")
+    expect(events).toContain("伪造证据")
+    expect(events).toContain("夜雨对峙")
+  })
 })
