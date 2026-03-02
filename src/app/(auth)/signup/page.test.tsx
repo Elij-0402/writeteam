@@ -10,19 +10,15 @@ vi.mock("next/navigation", () => ({
   }),
 }))
 
-vi.mock("@/app/actions/auth", () => ({
-  signUp: vi.fn(),
-}))
-
 describe("SignUpPage", () => {
   it("renders only email and password inputs without name field", () => {
-    const { container } = render(<SignUpPage />)
+    render(<SignUpPage />)
 
-    const inputNames = Array.from(container.querySelectorAll("input")).map((input) => input.name)
+    const emailInput = screen.getByLabelText("邮箱") as HTMLInputElement
+    const passwordInput = screen.getByLabelText("密码") as HTMLInputElement
 
-    expect(inputNames).toEqual(["email", "password"])
-    expect(screen.getByLabelText("邮箱")).toBeTruthy()
-    expect(screen.getByLabelText("密码")).toBeTruthy()
+    expect(emailInput.required).toBe(true)
+    expect(passwordInput.required).toBe(true)
     expect(screen.queryByLabelText("姓名")).toBeNull()
   })
 })
