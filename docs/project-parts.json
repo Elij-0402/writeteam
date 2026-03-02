@@ -1,1 +1,0 @@
-{"repository_type":"monolith","parts":[{"part_id":"app","part_name":"WriteTeam App","project_type_id":"web","root_path":"D:\\writeteam","tech_stack":["Next.js 16","React 19","TypeScript","Supabase"],"entry_points":["src/app/layout.tsx","src/app/page.tsx","src/proxy.ts"]}],"integration_points":[]}
