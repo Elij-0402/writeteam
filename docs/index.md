@@ -26,7 +26,7 @@ WriteTeam 是一个 zh-CN AI 创意写作应用，覆盖项目管理、编辑器
 - [Contribution Guide](./contribution-guide.md)
 - [API Contracts](./api-contracts.md)
 - [Data Models](./data-models.md)
-- [Deployment Guide](./deployment-guide.md) _(To be generated)_
+- [Deployment Guide](./deployment-guide.md)
 
 ## Existing Documentation
 

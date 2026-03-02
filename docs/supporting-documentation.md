@@ -11,7 +11,4 @@
 - `data-models.md`
 - `architecture.md`
 - `project-parts.json`
-
-未生成（仓库未发现部署配置）：
-
 - `deployment-guide.md`
