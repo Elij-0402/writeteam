@@ -1,6 +1,7 @@
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
 import { classifyAIError } from "@/lib/ai/error-classification"
 import { resolveProviderNameByBaseUrl } from "@/lib/ai/ai-config"
+import type { ConsistencyTelemetry } from "@/lib/ai/consistency-metrics"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 interface OpenAIStreamOptions {
@@ -22,6 +23,7 @@ interface TelemetryOptions {
   isRetry?: boolean
   attemptedModel?: string
   recoveryType?: "retry" | "switch"
+  consistencyTelemetry?: ConsistencyTelemetry
 }
 
 /**

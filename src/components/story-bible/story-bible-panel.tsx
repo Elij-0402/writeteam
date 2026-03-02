@@ -46,6 +46,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
+import { ConflictWorkbench } from "@/components/story-bible/conflict-workbench"
 
 interface StoryBiblePanelProps {
   projectId: string
@@ -106,6 +107,10 @@ export function StoryBiblePanel({
 
   function markDirty() {
     setHasUnsavedChanges(true)
+  }
+
+  function handleApplyConflict() {
+    window.location.reload()
   }
 
   async function handleSaveBible() {
@@ -230,6 +235,23 @@ export function StoryBiblePanel({
       </div>
 
       <Tabs defaultValue="overview" className="flex flex-1 flex-col">
+        <div className="px-4 pt-3">
+          <ConflictWorkbench
+            conflicts={
+              hasConflict
+                ? [
+                    {
+                      id: "save-conflict",
+                      title: "检测到并发冲突，当前编辑可能覆盖他人修改",
+                      severity: "high",
+                      evidenceSource: "保存校验",
+                    },
+                  ]
+                : []
+            }
+            onApplyConflict={handleApplyConflict}
+          />
+        </div>
         <TabsList className="mx-4 mt-2 grid w-auto grid-cols-4">
           <TabsTrigger value="overview" className="text-xs">
             概览

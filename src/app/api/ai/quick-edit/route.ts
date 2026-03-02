@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
+import { runConsistencyPreflight } from "@/lib/ai/consistency-preflight"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 import type { SaliencyMap } from "@/lib/ai/story-context"
 
@@ -52,27 +53,31 @@ export async function POST(request: NextRequest) {
   const documentIdValue =
     typeof documentId === "string" && documentId.trim().length > 0 ? documentId : null
 
-  const telemetryProjectId =
+  const normalizedProjectId =
     typeof projectId === "string" && projectId.trim().length > 0 ? projectId.trim() : null
 
   const logPrecheckFailure = async (errorType: string, errorMessage: string) => {
-    if (!telemetryProjectId) {
+    if (!normalizedProjectId) {
       return
     }
 
-    await supabase.from("ai_history").insert({
-      user_id: user.id,
-      project_id: telemetryProjectId,
-      document_id: documentIdValue,
-      feature: "quick-edit",
-      prompt: `Quick Edit precheck: ${typeof instruction === "string" ? instruction.slice(0, 200) : ""}`,
-      result: "",
-      model: null,
-      output_chars: 0,
-      error_type: errorType,
-      error_message: errorMessage,
-      recovery_status: "failure",
-    })
+    try {
+      await supabase.from("ai_history").insert({
+        user_id: user.id,
+        project_id: normalizedProjectId,
+        document_id: documentIdValue,
+        feature: "quick-edit",
+        prompt: `Quick Edit precheck: ${typeof instruction === "string" ? instruction.slice(0, 200) : ""}`,
+        result: "",
+        model: null,
+        output_chars: 0,
+        error_type: errorType,
+        error_message: errorMessage,
+        recovery_status: "failure",
+      })
+    } catch {
+      return
+    }
   }
 
   const aiConfig = resolveAIConfig(request)
@@ -91,13 +96,31 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "缺少编辑指令，请输入编辑指令后重试" }, { status: 400 })
   }
 
-  if (typeof projectId !== "string" || projectId.trim().length === 0) {
+  if (!normalizedProjectId) {
     return Response.json({ error: "缺少项目ID，请返回项目后重试" }, { status: 400 })
   }
 
   const contextText = typeof context === "string" ? context : ""
 
-  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
+  const storyCtx = await fetchStoryContext(supabase, normalizedProjectId, user.id)
+  const preflight = runConsistencyPreflight({
+    text: `${text}\n${instruction}\n${contextText.slice(-1200)}`,
+    consistencyState: storyCtx.consistencyState,
+  })
+  if (preflight.shouldBlock) {
+    const firstMessage = preflight.violations[0]?.message ?? "检测到高风险设定冲突"
+    await logPrecheckFailure("consistency_high_risk", firstMessage)
+    return Response.json(
+      {
+        error: "检测到高风险设定冲突，请先修正后再试",
+        errorType: "consistency_high_risk",
+        severity: "high",
+        violations: preflight.violations,
+      },
+      { status: 409 }
+    )
+  }
+
   const { fullContext } = buildStoryPromptContext(storyCtx, {
     feature: "quick-edit",
     proseMode: proseModeValue,
@@ -123,12 +146,12 @@ export async function POST(request: NextRequest) {
         temperature: 0.7,
         ...aiConfig,
       },
-      {
-        supabase,
-        userId: user.id,
-        projectId,
-        documentId: documentIdValue,
-        feature: "quick-edit",
+        {
+          supabase,
+          userId: user.id,
+          projectId: normalizedProjectId,
+          documentId: documentIdValue,
+          feature: "quick-edit",
         promptLog: `Quick Edit: "${instruction}" on "${text.slice(0, 200)}"`,
         ...extractRetryMeta(body),
       }

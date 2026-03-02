@@ -2,6 +2,42 @@ import { describe, expect, it, vi } from "vitest"
 import { buildStoryPromptContext, fetchStoryContext } from "./story-context"
 
 describe("buildStoryPromptContext", () => {
+  it("keeps saliency-only context when story data is empty", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: null,
+        characters: [],
+      },
+      {
+        feature: "write",
+        saliencyMap: {
+          activeCharacters: ["林晚"],
+          activeLocations: [],
+          activePlotlines: [],
+        },
+      }
+    )
+
+    expect(result.fullContext).toContain("SCENE SALIENCY")
+    expect(result.fullContext).toContain("Active characters in scene: 林晚")
+  })
+
+  it("keeps prose override guidance when story data is empty", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: null,
+        characters: [],
+      },
+      {
+        feature: "write",
+        proseMode: "cinematic",
+      }
+    )
+
+    expect(result.fullContext).toContain("PROSE STYLE GUIDANCE")
+    expect(result.fullContext).toContain("Use visual, momentum-driven prose")
+  })
+
   it("respects visibility.characters switch", () => {
     const result = buildStoryPromptContext(
       {
@@ -198,6 +234,108 @@ describe("buildStoryPromptContext", () => {
     expect(planning.fullContext).not.toContain("STORY SYNOPSIS")
     expect(checking.fullContext).not.toContain("STORY SYNOPSIS")
     expect(chatting.fullContext).not.toContain("STORY SYNOPSIS")
+  })
+
+  it("injects minimal structured context for writing features", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: null,
+        characters: [],
+        consistencyState: {
+          canonFacts: [
+            {
+              fact: "魔法需要等价交换",
+              source: "human",
+              confidence: 0.9,
+              updated_at: "2026-03-03T10:00:00.000Z",
+            },
+          ],
+          timelineEvents: [
+            {
+              event: "第三章发生停电",
+              timeAnchor: "第三章",
+              participants: ["林晚"],
+              stateChanges: [],
+              source: "ai",
+              confidence: 0.8,
+              updated_at: "2026-03-03T11:00:00.000Z",
+            },
+          ],
+          characterArcStates: [
+            {
+              characterName: "林晚",
+              motivation: "找到姐姐",
+              relationshipStatus: "与沈舟互相猜忌",
+              secretProgress: "隐瞒身份",
+              source: "human",
+              confidence: 0.9,
+              updated_at: "2026-03-03T12:00:00.000Z",
+            },
+          ],
+          constraintRules: [
+            {
+              rule: "必须保持第一人称",
+              category: "required",
+              source: "human",
+              confidence: 1,
+              updated_at: "2026-03-03T13:00:00.000Z",
+            },
+          ],
+        },
+      },
+      { feature: "write" }
+    )
+
+    expect(result.fullContext).toContain("STRUCTURED CONTEXT")
+    expect(result.fullContext).toContain("Constraint rules")
+    expect(result.fullContext).toContain("Character arc states")
+    expect(result.fullContext).not.toContain("Timeline events")
+  })
+
+  it("hides structured character arc states when characters visibility is false", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: {
+          genre: null,
+          style: null,
+          prose_mode: null,
+          style_sample: null,
+          synopsis: null,
+          themes: null,
+          setting: null,
+          pov: null,
+          tense: null,
+          worldbuilding: null,
+          outline: null,
+          notes: null,
+          braindump: null,
+          tone: null,
+          ai_rules: null,
+          visibility: { characters: false },
+        },
+        characters: [],
+        consistencyState: {
+          canonFacts: [],
+          timelineEvents: [],
+          characterArcStates: [
+            {
+              characterName: "林晚",
+              motivation: "找到姐姐",
+              relationshipStatus: "与沈舟互相猜忌",
+              secretProgress: "隐瞒身份",
+              source: "human",
+              confidence: 0.9,
+              updated_at: "2026-03-03T12:00:00.000Z",
+            },
+          ],
+          constraintRules: [],
+        },
+      },
+      { feature: "write" }
+    )
+
+    expect(result.fullContext).not.toContain("Character arc states")
+    expect(result.fullContext).not.toContain("林晚")
   })
 })
 
@@ -474,5 +612,113 @@ describe("fetchStoryContext", () => {
 
     const userIdScopedCalls = calls.filter(([column, value]) => column === "user_id" && value === "user-1")
     expect(userIdScopedCalls.length).toBe(4)
+  })
+
+  it("does not apply series fallback when story bible query fails generically", async () => {
+    const requestedTables: string[] = []
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        requestedTables.push(table)
+
+        if (table === "story_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: null, error: { code: "XX000" } }),
+              }),
+            }),
+          }
+        }
+        if (table === "characters") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({ data: [], error: null }),
+              }),
+            }),
+          }
+        }
+        if (table === "projects") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { series_id: "series-1" }, error: null }),
+              }),
+            }),
+          }
+        }
+        if (table === "series_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { genre: "奇幻" }, error: null }),
+              }),
+            }),
+          }
+        }
+
+        throw new Error(`unexpected table: ${table}`)
+      }),
+    }
+
+    const result = await fetchStoryContext(supabase as never, "project-1")
+
+    expect(result.bible).toBeNull()
+    expect(requestedTables).not.toContain("series_bibles")
+  })
+
+  it("does not query series bible when project query errors", async () => {
+    const requestedTables: string[] = []
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        requestedTables.push(table)
+
+        if (table === "story_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: null, error: { code: "PGRST116" } }),
+              }),
+            }),
+          }
+        }
+        if (table === "characters") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({ data: [], error: null }),
+              }),
+            }),
+          }
+        }
+        if (table === "projects") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: null, error: { code: "42501" } }),
+              }),
+            }),
+          }
+        }
+        if (table === "series_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { genre: "奇幻" }, error: null }),
+              }),
+            }),
+          }
+        }
+
+        throw new Error(`unexpected table: ${table}`)
+      }),
+    }
+
+    const result = await fetchStoryContext(supabase as never, "project-1")
+
+    expect(result.bible).toBeNull()
+    expect(requestedTables).not.toContain("series_bibles")
   })
 })

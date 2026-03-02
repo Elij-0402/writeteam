@@ -1,29 +1,24 @@
 import { SupabaseClient } from "@supabase/supabase-js"
+import {
+  isCheckFeature,
+  isPlanningFeature,
+  isWritingFeature,
+} from "@/lib/ai/feature-groups"
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
+import { buildStructuredContext } from "@/lib/ai/structured-context"
+import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
+import {
+  getConsistencyFeatureFlags,
+  isStructuredContextEnabled,
+} from "@/lib/story-bible/consistency-flags"
+import type { AIFeature } from "@/lib/ai/feature-groups"
+import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type AIFeature =
-  | "write"
-  | "rewrite"
-  | "expand"
-  | "describe"
-  | "brainstorm"
-  | "first-draft"
-  | "scene-plan"
-  | "continuity-check"
-  | "chat"
-  | "shrink"
-  | "twist"
-  | "tone-shift"
-  | "quick-edit"
-  | "plugin"
-  | "muse"
-  | "saliency"
-  | "canvas-generate"
-  | "visualize"
+export type { AIFeature } from "@/lib/ai/feature-groups"
 
 export interface StoryBibleData {
   genre: string | null
@@ -65,6 +60,7 @@ export interface CharacterData {
 export interface StoryContext {
   bible: StoryBibleData | null
   characters: CharacterData[]
+  consistencyState?: ConsistencyState
 }
 
 export interface StoryPromptOptions {
@@ -93,6 +89,72 @@ const VISIBILITY_FIELDS = [
 
 type VisibilityField = (typeof VISIBILITY_FIELDS)[number]
 type VisibilityMap = Record<VisibilityField, boolean>
+
+function normalizeNullableString(input: unknown): string | null {
+  return typeof input === "string" ? input : null
+}
+
+function normalizeCharacter(input: unknown): CharacterData {
+  const row =
+    input && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : {}
+
+  return {
+    name: typeof row.name === "string" ? row.name : "",
+    role: normalizeNullableString(row.role),
+    description: normalizeNullableString(row.description),
+    personality: normalizeNullableString(row.personality),
+    appearance: normalizeNullableString(row.appearance),
+    backstory: normalizeNullableString(row.backstory),
+    goals: normalizeNullableString(row.goals),
+    relationships: normalizeNullableString(row.relationships),
+    notes: normalizeNullableString(row.notes),
+  }
+}
+
+function mapCharacters(rows: unknown): CharacterData[] {
+  if (!Array.isArray(rows)) {
+    return []
+  }
+
+  return rows.map((row) => normalizeCharacter(row))
+}
+
+function applySeriesFallbackFields(
+  bible: StoryBibleData,
+  seriesBibleData: Record<string, unknown>
+): void {
+  if (bible.genre == null) bible.genre = normalizeNullableString(seriesBibleData.genre)
+  if (bible.style == null) bible.style = normalizeNullableString(seriesBibleData.style)
+  if (bible.themes == null) bible.themes = normalizeNullableString(seriesBibleData.themes)
+  if (bible.setting == null) bible.setting = normalizeNullableString(seriesBibleData.setting)
+  if (bible.worldbuilding == null) {
+    bible.worldbuilding = normalizeNullableString(seriesBibleData.worldbuilding)
+  }
+  if (bible.notes == null) bible.notes = normalizeNullableString(seriesBibleData.notes)
+}
+
+function buildSeriesFallbackBible(seriesBibleData: Record<string, unknown>): StoryBibleData {
+  return {
+    genre: normalizeNullableString(seriesBibleData.genre),
+    style: normalizeNullableString(seriesBibleData.style),
+    prose_mode: null,
+    style_sample: null,
+    synopsis: null,
+    themes: normalizeNullableString(seriesBibleData.themes),
+    setting: normalizeNullableString(seriesBibleData.setting),
+    pov: null,
+    tense: null,
+    worldbuilding: normalizeNullableString(seriesBibleData.worldbuilding),
+    outline: null,
+    notes: normalizeNullableString(seriesBibleData.notes),
+    braindump: null,
+    tone: null,
+    ai_rules: null,
+    visibility: normalizeVisibility(null),
+  }
+}
 
 function normalizeVisibility(input: unknown): VisibilityMap {
   const defaults: VisibilityMap = {
@@ -125,36 +187,6 @@ function normalizeVisibility(input: unknown): VisibilityMap {
 }
 
 // ---------------------------------------------------------------------------
-// Feature-group helpers
-// ---------------------------------------------------------------------------
-
-const WRITING_FEATURES: AIFeature[] = [
-  "write",
-  "rewrite",
-  "expand",
-  "first-draft",
-  "describe",
-  "shrink",
-  "tone-shift",
-  "quick-edit",
-  "plugin",
-]
-const PLANNING_FEATURES: AIFeature[] = ["scene-plan", "brainstorm", "twist", "muse"]
-const CHECK_FEATURES: AIFeature[] = ["continuity-check"]
-
-function isWritingFeature(f: AIFeature): boolean {
-  return WRITING_FEATURES.includes(f)
-}
-
-function isPlanningFeature(f: AIFeature): boolean {
-  return PLANNING_FEATURES.includes(f)
-}
-
-function isCheckFeature(f: AIFeature): boolean {
-  return CHECK_FEATURES.includes(f)
-}
-
-// ---------------------------------------------------------------------------
 // Data fetching
 // ---------------------------------------------------------------------------
 
@@ -163,34 +195,45 @@ export async function fetchStoryContext(
   projectId: string,
   userId?: string
 ): Promise<StoryContext> {
-  const withUserScope = <T>(query: T): T => {
-    if (!userId) {
-      return query
-    }
+  const featureFlags = getConsistencyFeatureFlags()
+  const shouldBuildConsistencyState =
+    featureFlags.consistencyPreflight ||
+    featureFlags.structuredContext ||
+    featureFlags.postCheckEnhanced
 
-    return (query as { eq: (column: string, value: string) => T }).eq("user_id", userId)
+  interface UserScopedQuery {
+    eq: (column: string, value: string) => unknown
   }
+
+  const withUserScope = (query: UserScopedQuery): void => {
+    if (userId) {
+      query.eq("user_id", userId)
+    }
+  }
+
+  const bibleQuery = supabase
+    .from("story_bibles")
+    .select("*")
+    .eq("project_id", projectId)
+  withUserScope(bibleQuery)
+
+  const charactersQuery = supabase
+    .from("characters")
+    .select("*")
+    .eq("project_id", projectId)
+  withUserScope(charactersQuery)
+
+  const projectQuery = supabase
+    .from("projects")
+    .select("series_id")
+    .eq("id", projectId)
+  withUserScope(projectQuery)
 
   // Fetch project-level data
   const [bibleResult, charsResult, projectResult] = await Promise.all([
-    withUserScope(
-      supabase
-        .from("story_bibles")
-        .select("*")
-        .eq("project_id", projectId)
-    ).single(),
-    withUserScope(
-      supabase
-        .from("characters")
-        .select("*")
-        .eq("project_id", projectId)
-    ).limit(15),
-    withUserScope(
-      supabase
-        .from("projects")
-        .select("series_id")
-        .eq("id", projectId)
-    ).single(),
+    bibleQuery.single(),
+    charactersQuery.limit(15),
+    projectQuery.single(),
   ])
 
   if (bibleResult.error && bibleResult.error.code !== "PGRST116") {
@@ -200,17 +243,34 @@ export async function fetchStoryContext(
     console.error("Failed to fetch characters:", charsResult.error)
   }
 
+  const bibleNotFound = bibleResult.error?.code === "PGRST116"
+  if (projectResult.error && projectResult.error.code !== "PGRST116") {
+    console.error("Failed to fetch project series info:", projectResult.error)
+  }
+
   // Optionally fetch series bible if project belongs to a series
   let seriesBibleData: Record<string, unknown> | null = null
-  const seriesId = projectResult.data?.series_id
-  if (seriesId) {
-    const { data: sb } = await withUserScope(
-      supabase
-        .from("series_bibles")
-        .select("*")
-        .eq("series_id", seriesId)
-    ).single()
-    seriesBibleData = sb
+  const shouldTrySeriesFallback =
+    !projectResult.error && (!bibleResult.error || bibleNotFound)
+  const seriesId =
+    projectResult.data && typeof projectResult.data.series_id === "string"
+      ? projectResult.data.series_id
+      : null
+
+  if (shouldTrySeriesFallback && seriesId) {
+    const seriesBibleQuery = supabase
+      .from("series_bibles")
+      .select("*")
+      .eq("series_id", seriesId)
+    withUserScope(seriesBibleQuery)
+
+    const { data: sb, error: seriesError } = await seriesBibleQuery.single()
+    if (seriesError && seriesError.code !== "PGRST116") {
+      console.error("Failed to fetch series bible:", seriesError)
+    }
+    if (!seriesError && sb && typeof sb === "object" && !Array.isArray(sb)) {
+      seriesBibleData = sb
+    }
   }
 
   const bible: StoryBibleData | null = bibleResult.data
@@ -236,63 +296,35 @@ export async function fetchStoryContext(
 
   // Merge series bible data into project bible (series data as fallback)
   if (seriesBibleData && bible) {
-    if (bible.genre == null && seriesBibleData.genre) bible.genre = seriesBibleData.genre as string
-    if (bible.style == null && seriesBibleData.style) bible.style = seriesBibleData.style as string
-    if (bible.themes == null && seriesBibleData.themes) bible.themes = seriesBibleData.themes as string
-    if (bible.setting == null && seriesBibleData.setting) bible.setting = seriesBibleData.setting as string
-    if (bible.worldbuilding == null && seriesBibleData.worldbuilding) bible.worldbuilding = seriesBibleData.worldbuilding as string
-    if (bible.notes == null && seriesBibleData.notes) bible.notes = seriesBibleData.notes as string
+    applySeriesFallbackFields(bible, seriesBibleData)
   } else if (seriesBibleData && !bible) {
-    const seriesFallbackBible: StoryBibleData = {
-      genre: (seriesBibleData.genre as string | undefined) ?? null,
-      style: (seriesBibleData.style as string | undefined) ?? null,
-      prose_mode: null,
-      style_sample: null,
-      synopsis: null,
-      themes: (seriesBibleData.themes as string | undefined) ?? null,
-      setting: (seriesBibleData.setting as string | undefined) ?? null,
-      pov: null,
-      tense: null,
-      worldbuilding: (seriesBibleData.worldbuilding as string | undefined) ?? null,
-      outline: null,
-      notes: (seriesBibleData.notes as string | undefined) ?? null,
-      braindump: null,
-      tone: null,
-      ai_rules: null,
-      visibility: normalizeVisibility(null),
-    }
+    const seriesFallbackBible = buildSeriesFallbackBible(seriesBibleData)
+    const characters = mapCharacters(charsResult.data)
 
     return {
       bible: seriesFallbackBible,
-      characters: (charsResult.data ?? []).map((c: Record<string, unknown>) => ({
-        name: c.name as string,
-        role: (c.role as string | null) ?? null,
-        description: (c.description as string | null) ?? null,
-        personality: (c.personality as string | null) ?? null,
-        appearance: (c.appearance as string | null) ?? null,
-        backstory: (c.backstory as string | null) ?? null,
-        goals: (c.goals as string | null) ?? null,
-        relationships: (c.relationships as string | null) ?? null,
-        notes: (c.notes as string | null) ?? null,
-      })),
+      characters,
+      consistencyState: shouldBuildConsistencyState
+        ? extractConsistencyState({
+            bible: seriesFallbackBible,
+            characters,
+          })
+        : undefined,
     }
   }
 
-  const characters: CharacterData[] = (charsResult.data ?? []).map(
-    (c: Record<string, unknown>) => ({
-      name: c.name as string,
-      role: (c.role as string | null) ?? null,
-      description: (c.description as string | null) ?? null,
-      personality: (c.personality as string | null) ?? null,
-      appearance: (c.appearance as string | null) ?? null,
-      backstory: (c.backstory as string | null) ?? null,
-      goals: (c.goals as string | null) ?? null,
-      relationships: (c.relationships as string | null) ?? null,
-      notes: (c.notes as string | null) ?? null,
-    })
-  )
+  const characters = mapCharacters(charsResult.data)
 
-  return { bible, characters }
+  return {
+    bible,
+    characters,
+    consistencyState: shouldBuildConsistencyState
+      ? extractConsistencyState({
+          bible,
+          characters,
+        })
+      : undefined,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -303,13 +335,10 @@ export function buildStoryPromptContext(
   ctx: StoryContext,
   options: StoryPromptOptions
 ): StoryPromptContext {
-  if (!ctx.bible && ctx.characters.length === 0) {
-    return { fullContext: "" }
-  }
-
   const { feature, proseMode, saliencyMap } = options
   const bible = ctx.bible
   const vis = normalizeVisibility(bible?.visibility)
+  const structuredContextEnabled = isStructuredContextEnabled()
 
   // Helper: check if a field is visible (default true if not set)
   const isVisible = (field: VisibilityField) => vis[field] !== false
@@ -329,6 +358,11 @@ export function buildStoryPromptContext(
     isVisible("characters") ? buildCharacterGuidance(ctx.characters, feature) : "",
     isVisible("characters") ? buildCharacterHealthGuidance(ctx.characters) : buildCharacterVisibilityNotice(),
     buildProseModeSection(bible, proseMode ?? null),
+    structuredContextEnabled
+      ? buildStructuredContext(ctx.consistencyState, feature, {
+          characters: isVisible("characters"),
+        })
+      : "",
     saliencyMap ? buildSaliencyGuidance(saliencyMap) : "",
   ]
 
@@ -622,7 +656,8 @@ function buildProseModeSection(
   bible: StoryBibleData | null,
   proseMode: string | null
 ): string {
-  const result = buildProseModeGuidanceWithOverride(bible, proseMode)
+  const proseSource = bible ?? (proseMode ? { style: null, prose_mode: null, style_sample: null } : null)
+  const result = buildProseModeGuidanceWithOverride(proseSource, proseMode)
   if (!result) return ""
   return `PROSE STYLE GUIDANCE:\n${result}`
 }
