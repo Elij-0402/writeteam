@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react"
+import type { Character } from "@/types/database"
 
 interface EditorContextValue {
   // State from EditorContent -> consumed by SiteHeader
@@ -13,6 +14,7 @@ interface EditorContextValue {
   // State from EditorContent -> consumed by AISidebar
   documentContent: string
   hasStyleSample: boolean
+  characters: Character[]
 
   // Function ref for AISidebar -> EditorContent
   insertTextRef: React.MutableRefObject<((text: string) => void) | null>
@@ -23,6 +25,7 @@ interface EditorContextValue {
   setWordCount: (count: number) => void
   setDocumentContent: (content: string) => void
   setHasStyleSample: (has: boolean) => void
+  setCharacters: (characters: Character[]) => void
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null)
@@ -35,6 +38,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const [wordCount, setWordCount] = useState(0)
   const [documentContent, setDocumentContent] = useState("")
   const [hasStyleSample, setHasStyleSample] = useState(false)
+  const [characters, setCharacters] = useState<Character[]>([])
   const insertTextRef = useRef<((text: string) => void) | null>(null)
 
   const setActiveProject = useCallback((id: string | null, title: string | null) => {
@@ -57,12 +61,14 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         wordCount,
         documentContent,
         hasStyleSample,
+        characters,
         insertTextRef,
         setActiveProject,
         setActiveDocument,
         setWordCount,
         setDocumentContent,
         setHasStyleSample,
+        setCharacters,
       }}
     >
       {children}

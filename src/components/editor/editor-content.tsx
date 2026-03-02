@@ -146,6 +146,11 @@ export const EditorContent = forwardRef<EditorContentHandle, EditorContentProps>
     editorCtx?.setHasStyleSample(!!initialStoryBible?.style_sample)
   }, [project.id, project.title, initialStoryBible?.style_sample, editorCtx])
 
+  // Sync characters to EditorContext
+  useEffect(() => {
+    editorCtx?.setCharacters(initialCharacters)
+  }, [initialCharacters, editorCtx])
+
   // Sync active document info to EditorContext
   useEffect(() => {
     if (activeDocument) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -20,6 +20,9 @@ import { useAIRecovery } from "@/hooks/use-ai-recovery"
 import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
 import { readAIStream } from "@/lib/ai/read-ai-stream"
 import { ChatSlashCommands } from "@/components/ai/chat-slash-commands"
+import { ChatMentions, extractMentionQuery } from "@/components/ai/chat-mentions"
+import type { MentionItem } from "@/components/ai/chat-mentions"
+import type { Character } from "@/types/database"
 
 interface Message {
   role: "user" | "assistant"
@@ -32,6 +35,7 @@ interface AIChatPanelProps {
   documentContent: string
   onInsertToEditor: (text: string) => void
   hasStyleSample: boolean
+  characters?: Character[]
 }
 
 const PROSE_MODES = [
@@ -49,6 +53,7 @@ export function AIChatPanel({
   documentContent,
   onInsertToEditor,
   hasStyleSample,
+  characters = [],
 }: AIChatPanelProps) {
   const { getHeaders, config } = useAIConfigContext()
   const recovery = useAIRecovery({ config, getHeaders })
@@ -68,6 +73,46 @@ export function AIChatPanel({
         : proseModeOverride
 
   const slashMenuVisible = input.startsWith("/") && !loading
+
+  // @-mention tracking
+  const [cursorPosition, setCursorPosition] = useState(0)
+  const mentionQuery = extractMentionQuery(input, cursorPosition)
+  const mentionMenuVisible = mentionQuery !== null && !loading && !slashMenuVisible
+
+  const handleMentionSelect = useCallback((mention: MentionItem) => {
+    // Find the @query portion in the input up to cursor and replace it with @label
+    const textBeforeCursor = input.slice(0, cursorPosition)
+    const match = textBeforeCursor.match(/(?:^|\s)@([^\s]*)$/)
+    if (!match) return
+
+    const atStart = textBeforeCursor.lastIndexOf("@", cursorPosition)
+    const before = input.slice(0, atStart)
+    const after = input.slice(cursorPosition)
+    const newInput = `${before}@${mention.label} ${after}`
+    setInput(newInput)
+
+    // Move cursor to just after the inserted mention + space
+    const newCursorPos = atStart + 1 + mention.label.length + 1
+    setCursorPosition(newCursorPos)
+
+    // Refocus textarea and set cursor position
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus()
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos)
+      }
+    })
+  }, [input, cursorPosition])
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    setCursorPosition(e.target.selectionStart ?? e.target.value.length)
+  }, [])
+
+  const handleInputSelect = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement
+    setCursorPosition(target.selectionStart ?? 0)
+  }, [])
 
   async function handleSlashCommand(command: string) {
     setInput("")
@@ -278,8 +323,8 @@ export function AIChatPanel({
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
-      // Don't send when slash command menu is open — user selects via click
-      if (slashMenuVisible) {
+      // Don't send when slash command menu or mention menu is open
+      if (slashMenuVisible || mentionMenuVisible) {
         e.preventDefault()
         return
       }
@@ -407,12 +452,20 @@ export function AIChatPanel({
           onSelect={handleSlashCommand}
           visible={slashMenuVisible}
         />
+        <ChatMentions
+          input={input}
+          cursorPosition={cursorPosition}
+          characters={characters}
+          onSelect={handleMentionSelect}
+          visible={mentionMenuVisible}
+        />
         <div className="flex gap-2">
           <Textarea
             ref={textareaRef}
-            placeholder="问问你的故事... 输入 / 查看命令"
+            placeholder="问问你的故事... 输入 / 查看命令，@ 引用角色"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
+            onSelect={handleInputSelect}
             onKeyDown={handleKeyDown}
             rows={2}
             className="min-h-[60px] resize-none text-sm"

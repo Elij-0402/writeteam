@@ -6,6 +6,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { AIChatPanel } from "@/components/ai/ai-chat-panel"
+import type { Character } from "@/types/database"
 
 export interface AISidebarProps {
   projectId: string
@@ -13,6 +14,7 @@ export interface AISidebarProps {
   documentContent: string
   onInsertToEditor: (text: string) => void
   hasStyleSample: boolean
+  characters?: Character[]
 }
 
 export function AISidebar({
@@ -21,6 +23,7 @@ export function AISidebar({
   documentContent,
   onInsertToEditor,
   hasStyleSample,
+  characters = [],
 }: AISidebarProps) {
   return (
     <Sidebar side="right" collapsible="offcanvas" className="border-l">
@@ -34,6 +37,7 @@ export function AISidebar({
           documentContent={documentContent}
           onInsertToEditor={onInsertToEditor}
           hasStyleSample={hasStyleSample}
+          characters={characters}
         />
       </SidebarContent>
     </Sidebar>

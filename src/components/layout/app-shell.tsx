@@ -41,6 +41,7 @@ export function AppShell({
   const wordCount = editorCtx?.wordCount
   const documentContent = editorCtx?.documentContent ?? ""
   const hasStyleSample = editorCtx?.hasStyleSample ?? false
+  const characters = editorCtx?.characters ?? []
 
   const handleInsertToEditor = useCallback((text: string) => {
     editorCtx?.insertTextRef.current?.(text)
@@ -112,6 +113,7 @@ export function AppShell({
           documentContent={documentContent ?? ""}
           onInsertToEditor={handleInsertToEditor}
           hasStyleSample={hasStyleSample ?? false}
+          characters={characters}
         />
       )}
     </SidebarProvider>
