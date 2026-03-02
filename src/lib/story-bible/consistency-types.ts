@@ -1,34 +1,50 @@
-export interface CharacterConsistencyEntry {
-  name: string
-  facts: string[]
+export interface CanonFact {
+  fact: string
+  source: "human" | "ai"
+  confidence: number
+  updated_at: string
 }
 
-export interface LocationConsistencyEntry {
-  name: string
-  facts: string[]
+export interface TimelineEvent {
+  event: string
+  timeAnchor: string
+  participants: string[]
+  stateChanges: string[]
+  source: "human" | "ai"
+  confidence: number
+  updated_at: string
 }
 
-export interface ItemConsistencyEntry {
-  name: string
-  facts: string[]
+export interface CharacterArcState {
+  characterName: string
+  motivation: string
+  relationshipStatus: string
+  secretProgress: string
+  source: "human" | "ai"
+  confidence: number
+  updated_at: string
 }
 
-export interface ConsistencyRuleEntry {
+export interface ConstraintRule {
   rule: string
+  category: "forbidden" | "required" | "style"
+  source: "human" | "ai"
+  confidence: number
+  updated_at: string
 }
 
 export interface ConsistencyState {
-  characters: CharacterConsistencyEntry[]
-  locations: LocationConsistencyEntry[]
-  items: ItemConsistencyEntry[]
-  rules: ConsistencyRuleEntry[]
+  canonFacts: CanonFact[]
+  timelineEvents: TimelineEvent[]
+  characterArcStates: CharacterArcState[]
+  constraintRules: ConstraintRule[]
 }
 
 export function createEmptyConsistencyState(): ConsistencyState {
   return {
-    characters: [],
-    locations: [],
-    items: [],
-    rules: [],
+    canonFacts: [],
+    timelineEvents: [],
+    characterArcStates: [],
+    constraintRules: [],
   }
 }
