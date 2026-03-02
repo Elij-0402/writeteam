@@ -158,6 +158,7 @@ export function EditorShell({
   const [showEntryHint, setShowEntryHint] = useState(true)
   const [aiConfigOpen, setAiConfigOpen] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle")
+  const [autosaveRetryRequestId, setAutosaveRetryRequestId] = useState(0)
   const [switcherModels, setSwitcherModels] = useState<Array<{ id: string; name: string }>>([])
   const [switcherLoading, setSwitcherLoading] = useState(false)
   const [switcherSearch, setSwitcherSearch] = useState("")
@@ -575,16 +576,7 @@ export function EditorShell({
   const totalWordCount = documents.reduce((sum, d) => sum + (d.word_count || 0), 0)
 
   const handleRetryAutosave = useCallback(() => {
-    const retryButton = Array.from(document.querySelectorAll("button")).find(
-      (button) => button.textContent?.trim() === "立即重试"
-    )
-
-    if (retryButton) {
-      retryButton.click()
-      return
-    }
-
-    toast.message("请继续编辑，系统会自动重试保存")
+    setAutosaveRetryRequestId((current) => current + 1)
   }, [])
 
   const renderEditorArea = () => (
@@ -651,6 +643,7 @@ export function EditorShell({
             replaceContent={replaceContent}
             saliencyData={saliencyMap}
             onAutosaveStatusChange={setAutosaveStatus}
+            retryRequestId={autosaveRetryRequestId}
           />
           <SaliencyIndicator
             saliencyMap={saliencyMap}

@@ -2,10 +2,16 @@
 
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useEffect, useRef } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { readEditorSessionState } from "./editor-session-state"
 import { EditorShell } from "./editor-shell"
+import type { AutosaveStatus } from "./autosave-status"
 import type { Character, Document, Project } from "@/types/database"
+
+const writingEditorMock = vi.hoisted(() => ({
+  retryRequestCount: 0,
+}))
 
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -78,7 +84,32 @@ vi.mock("@/lib/ai/saliency", () => ({
 }))
 
 vi.mock("@/components/editor/writing-editor", () => ({
-  WritingEditor: () => <div data-testid="writing-editor" />,
+  WritingEditor: ({
+    retryRequestId,
+    onAutosaveStatusChange,
+  }: {
+    retryRequestId?: number
+    onAutosaveStatusChange?: (status: AutosaveStatus) => void
+  }) => {
+    const retryRequestIdRef = useRef(retryRequestId ?? 0)
+
+    useEffect(() => {
+      onAutosaveStatusChange?.("error")
+    }, [onAutosaveStatusChange])
+
+    useEffect(() => {
+      const nextRetryRequestId = retryRequestId ?? 0
+      if (nextRetryRequestId === retryRequestIdRef.current) {
+        return
+      }
+
+      retryRequestIdRef.current = nextRetryRequestId
+      writingEditorMock.retryRequestCount += 1
+      onAutosaveStatusChange?.("retrying")
+    }, [onAutosaveStatusChange, retryRequestId])
+
+    return <div data-testid="writing-editor" />
+  },
 }))
 
 vi.mock("@/components/story-bible/story-bible-panel", () => ({
@@ -237,6 +268,8 @@ function renderEditorShell() {
 
 describe("EditorShell focus mode", () => {
   beforeEach(() => {
+    writingEditorMock.retryRequestCount = 0
+
     const storageData: Record<string, string> = {}
     const localStorageMock: Storage = {
       length: 0,
@@ -301,5 +334,17 @@ describe("EditorShell focus mode", () => {
 
     expect(screen.getByTestId("editor-focus-mode").getAttribute("data-active")).toBe("true")
     expect(screen.queryByText("文档")).toBeNull()
+  })
+
+  it("wires top banner retry to editor retry path once", async () => {
+    const user = userEvent.setup()
+
+    renderEditorShell()
+
+    await user.click(screen.getByRole("button", { name: "立即重试" }))
+
+    expect(screen.getByText("正在重试保存...")).not.toBeNull()
+    expect(screen.queryByRole("button", { name: "立即重试" })).toBeNull()
+    expect(writingEditorMock.retryRequestCount).toBe(1)
   })
 })

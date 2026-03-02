@@ -46,6 +46,7 @@ interface WritingEditorProps {
   onSelectionChange: (text: string) => void
   insertContent?: string
   replaceContent?: string
+  retryRequestId?: number
   saliencyData?: { activeCharacters: string[]; activeLocations: string[]; activePlotlines: string[] } | null
   onAutosaveStatusChange?: (status: AutosaveStatus) => void
 }
@@ -67,6 +68,7 @@ export const WritingEditor = memo(function WritingEditor({
   onSelectionChange,
   insertContent,
   replaceContent,
+  retryRequestId,
   saliencyData,
   onAutosaveStatusChange,
 }: WritingEditorProps) {
@@ -130,14 +132,30 @@ export const WritingEditor = memo(function WritingEditor({
     onAutosaveStatusChange?.("idle")
   }, [document.id, onAutosaveStatusChange])
 
+  const lastRetryRequestIdRef = useRef(retryRequestId ?? 0)
+
   const handleRetrySave = useCallback(() => {
-    if (!latestDraftRef.current) {
+    if (
+      autosaveState.status !== "error" ||
+      autosaveState.docId !== document.id ||
+      !latestDraftRef.current
+    ) {
       return
     }
 
     updateAutosaveState({ status: "retrying", docId: document.id })
     void persistDraft(latestDraftRef.current)
-  }, [document.id, persistDraft, updateAutosaveState])
+  }, [autosaveState, document.id, persistDraft, updateAutosaveState])
+
+  useEffect(() => {
+    const nextRetryRequestId = retryRequestId ?? 0
+    if (nextRetryRequestId === lastRetryRequestIdRef.current) {
+      return
+    }
+
+    lastRetryRequestIdRef.current = nextRetryRequestId
+    handleRetrySave()
+  }, [handleRetrySave, retryRequestId])
 
   const editor = useEditor(
     {
