@@ -613,4 +613,112 @@ describe("fetchStoryContext", () => {
     const userIdScopedCalls = calls.filter(([column, value]) => column === "user_id" && value === "user-1")
     expect(userIdScopedCalls.length).toBe(4)
   })
+
+  it("does not apply series fallback when story bible query fails generically", async () => {
+    const requestedTables: string[] = []
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        requestedTables.push(table)
+
+        if (table === "story_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: null, error: { code: "XX000" } }),
+              }),
+            }),
+          }
+        }
+        if (table === "characters") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({ data: [], error: null }),
+              }),
+            }),
+          }
+        }
+        if (table === "projects") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { series_id: "series-1" }, error: null }),
+              }),
+            }),
+          }
+        }
+        if (table === "series_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { genre: "奇幻" }, error: null }),
+              }),
+            }),
+          }
+        }
+
+        throw new Error(`unexpected table: ${table}`)
+      }),
+    }
+
+    const result = await fetchStoryContext(supabase as never, "project-1")
+
+    expect(result.bible).toBeNull()
+    expect(requestedTables).not.toContain("series_bibles")
+  })
+
+  it("does not query series bible when project query errors", async () => {
+    const requestedTables: string[] = []
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        requestedTables.push(table)
+
+        if (table === "story_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: null, error: { code: "PGRST116" } }),
+              }),
+            }),
+          }
+        }
+        if (table === "characters") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({ data: [], error: null }),
+              }),
+            }),
+          }
+        }
+        if (table === "projects") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: null, error: { code: "42501" } }),
+              }),
+            }),
+          }
+        }
+        if (table === "series_bibles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: async () => ({ data: { genre: "奇幻" }, error: null }),
+              }),
+            }),
+          }
+        }
+
+        throw new Error(`unexpected table: ${table}`)
+      }),
+    }
+
+    const result = await fetchStoryContext(supabase as never, "project-1")
+
+    expect(result.bible).toBeNull()
+    expect(requestedTables).not.toContain("series_bibles")
+  })
 })

@@ -90,6 +90,72 @@ const VISIBILITY_FIELDS = [
 type VisibilityField = (typeof VISIBILITY_FIELDS)[number]
 type VisibilityMap = Record<VisibilityField, boolean>
 
+function normalizeNullableString(input: unknown): string | null {
+  return typeof input === "string" ? input : null
+}
+
+function normalizeCharacter(input: unknown): CharacterData {
+  const row =
+    input && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : {}
+
+  return {
+    name: typeof row.name === "string" ? row.name : "",
+    role: normalizeNullableString(row.role),
+    description: normalizeNullableString(row.description),
+    personality: normalizeNullableString(row.personality),
+    appearance: normalizeNullableString(row.appearance),
+    backstory: normalizeNullableString(row.backstory),
+    goals: normalizeNullableString(row.goals),
+    relationships: normalizeNullableString(row.relationships),
+    notes: normalizeNullableString(row.notes),
+  }
+}
+
+function mapCharacters(rows: unknown): CharacterData[] {
+  if (!Array.isArray(rows)) {
+    return []
+  }
+
+  return rows.map((row) => normalizeCharacter(row))
+}
+
+function applySeriesFallbackFields(
+  bible: StoryBibleData,
+  seriesBibleData: Record<string, unknown>
+): void {
+  if (bible.genre == null) bible.genre = normalizeNullableString(seriesBibleData.genre)
+  if (bible.style == null) bible.style = normalizeNullableString(seriesBibleData.style)
+  if (bible.themes == null) bible.themes = normalizeNullableString(seriesBibleData.themes)
+  if (bible.setting == null) bible.setting = normalizeNullableString(seriesBibleData.setting)
+  if (bible.worldbuilding == null) {
+    bible.worldbuilding = normalizeNullableString(seriesBibleData.worldbuilding)
+  }
+  if (bible.notes == null) bible.notes = normalizeNullableString(seriesBibleData.notes)
+}
+
+function buildSeriesFallbackBible(seriesBibleData: Record<string, unknown>): StoryBibleData {
+  return {
+    genre: normalizeNullableString(seriesBibleData.genre),
+    style: normalizeNullableString(seriesBibleData.style),
+    prose_mode: null,
+    style_sample: null,
+    synopsis: null,
+    themes: normalizeNullableString(seriesBibleData.themes),
+    setting: normalizeNullableString(seriesBibleData.setting),
+    pov: null,
+    tense: null,
+    worldbuilding: normalizeNullableString(seriesBibleData.worldbuilding),
+    outline: null,
+    notes: normalizeNullableString(seriesBibleData.notes),
+    braindump: null,
+    tone: null,
+    ai_rules: null,
+    visibility: normalizeVisibility(null),
+  }
+}
+
 function normalizeVisibility(input: unknown): VisibilityMap {
   const defaults: VisibilityMap = {
     genre: true,
@@ -177,18 +243,34 @@ export async function fetchStoryContext(
     console.error("Failed to fetch characters:", charsResult.error)
   }
 
+  const bibleNotFound = bibleResult.error?.code === "PGRST116"
+  if (projectResult.error && projectResult.error.code !== "PGRST116") {
+    console.error("Failed to fetch project series info:", projectResult.error)
+  }
+
   // Optionally fetch series bible if project belongs to a series
   let seriesBibleData: Record<string, unknown> | null = null
-  const seriesId = projectResult.data?.series_id
-  if (seriesId) {
+  const shouldTrySeriesFallback =
+    !projectResult.error && (!bibleResult.error || bibleNotFound)
+  const seriesId =
+    projectResult.data && typeof projectResult.data.series_id === "string"
+      ? projectResult.data.series_id
+      : null
+
+  if (shouldTrySeriesFallback && seriesId) {
     const seriesBibleQuery = supabase
       .from("series_bibles")
       .select("*")
       .eq("series_id", seriesId)
     withUserScope(seriesBibleQuery)
 
-    const { data: sb } = await seriesBibleQuery.single()
-    seriesBibleData = sb
+    const { data: sb, error: seriesError } = await seriesBibleQuery.single()
+    if (seriesError && seriesError.code !== "PGRST116") {
+      console.error("Failed to fetch series bible:", seriesError)
+    }
+    if (!seriesError && sb && typeof sb === "object" && !Array.isArray(sb)) {
+      seriesBibleData = sb
+    }
   }
 
   const bible: StoryBibleData | null = bibleResult.data
@@ -214,43 +296,10 @@ export async function fetchStoryContext(
 
   // Merge series bible data into project bible (series data as fallback)
   if (seriesBibleData && bible) {
-    if (bible.genre == null && seriesBibleData.genre) bible.genre = seriesBibleData.genre as string
-    if (bible.style == null && seriesBibleData.style) bible.style = seriesBibleData.style as string
-    if (bible.themes == null && seriesBibleData.themes) bible.themes = seriesBibleData.themes as string
-    if (bible.setting == null && seriesBibleData.setting) bible.setting = seriesBibleData.setting as string
-    if (bible.worldbuilding == null && seriesBibleData.worldbuilding) bible.worldbuilding = seriesBibleData.worldbuilding as string
-    if (bible.notes == null && seriesBibleData.notes) bible.notes = seriesBibleData.notes as string
+    applySeriesFallbackFields(bible, seriesBibleData)
   } else if (seriesBibleData && !bible) {
-    const seriesFallbackBible: StoryBibleData = {
-      genre: (seriesBibleData.genre as string | undefined) ?? null,
-      style: (seriesBibleData.style as string | undefined) ?? null,
-      prose_mode: null,
-      style_sample: null,
-      synopsis: null,
-      themes: (seriesBibleData.themes as string | undefined) ?? null,
-      setting: (seriesBibleData.setting as string | undefined) ?? null,
-      pov: null,
-      tense: null,
-      worldbuilding: (seriesBibleData.worldbuilding as string | undefined) ?? null,
-      outline: null,
-      notes: (seriesBibleData.notes as string | undefined) ?? null,
-      braindump: null,
-      tone: null,
-      ai_rules: null,
-      visibility: normalizeVisibility(null),
-    }
-
-    const characters = (charsResult.data ?? []).map((c: Record<string, unknown>) => ({
-        name: c.name as string,
-        role: (c.role as string | null) ?? null,
-        description: (c.description as string | null) ?? null,
-        personality: (c.personality as string | null) ?? null,
-        appearance: (c.appearance as string | null) ?? null,
-        backstory: (c.backstory as string | null) ?? null,
-        goals: (c.goals as string | null) ?? null,
-        relationships: (c.relationships as string | null) ?? null,
-        notes: (c.notes as string | null) ?? null,
-      }))
+    const seriesFallbackBible = buildSeriesFallbackBible(seriesBibleData)
+    const characters = mapCharacters(charsResult.data)
 
     return {
       bible: seriesFallbackBible,
@@ -264,19 +313,7 @@ export async function fetchStoryContext(
     }
   }
 
-  const characters: CharacterData[] = (charsResult.data ?? []).map(
-    (c: Record<string, unknown>) => ({
-      name: c.name as string,
-      role: (c.role as string | null) ?? null,
-      description: (c.description as string | null) ?? null,
-      personality: (c.personality as string | null) ?? null,
-      appearance: (c.appearance as string | null) ?? null,
-      backstory: (c.backstory as string | null) ?? null,
-      goals: (c.goals as string | null) ?? null,
-      relationships: (c.relationships as string | null) ?? null,
-      notes: (c.notes as string | null) ?? null,
-    })
-  )
+  const characters = mapCharacters(charsResult.data)
 
   return {
     bible,
