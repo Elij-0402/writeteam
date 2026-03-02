@@ -55,6 +55,7 @@ export function ConflictWorkbench({ conflicts, onApplyConflict }: ConflictWorkbe
             <Button
               size="sm"
               className="h-7 text-xs shrink-0"
+              aria-label={`一键应用：${conflict.title}`}
               onClick={() => onApplyConflict(conflict.id)}
             >
               一键应用

@@ -34,7 +34,7 @@ describe("ConflictWorkbench", () => {
     expect(screen.getByText("冲突工作台")).toBeTruthy()
     expect(screen.getByText("严重程度：高")).toBeTruthy()
     expect(screen.getByText("证据来源：时间线校验")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "一键应用" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /一键应用：角色年龄与时间线不一致/ })).toBeTruthy()
   })
 
   it("calls apply callback when clicking apply", async () => {
@@ -55,7 +55,7 @@ describe("ConflictWorkbench", () => {
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "一键应用" }))
+    await user.click(screen.getByRole("button", { name: /一键应用：世界规则冲突/ }))
 
     expect(onApplyConflict).toHaveBeenCalledTimes(1)
     expect(onApplyConflict).toHaveBeenCalledWith("conf-2")
