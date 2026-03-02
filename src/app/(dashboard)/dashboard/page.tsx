@@ -24,11 +24,27 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single()
 
+  // Query document counts per project
+  const projectIds = (projects || []).map((p) => p.id)
+  const documentCounts: Record<string, number> = {}
+
+  if (projectIds.length > 0) {
+    const { data: documents } = await supabase
+      .from("documents")
+      .select("project_id")
+      .in("project_id", projectIds)
+
+    documents?.forEach((d) => {
+      documentCounts[d.project_id] = (documentCounts[d.project_id] || 0) + 1
+    })
+  }
+
   return (
     <DashboardContent
       projects={projects || []}
       user={user}
       profile={profile}
+      documentCounts={documentCounts}
     />
   )
 }
