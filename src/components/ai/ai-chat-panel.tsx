@@ -19,6 +19,7 @@ import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import { useAIRecovery } from "@/hooks/use-ai-recovery"
 import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
 import { readAIStream } from "@/lib/ai/read-ai-stream"
+import { ChatSlashCommands } from "@/components/ai/chat-slash-commands"
 
 interface Message {
   role: "user" | "assistant"
@@ -65,6 +66,137 @@ export function AIChatPanel({
       : fallbackToBalanced
         ? "balanced"
         : proseModeOverride
+
+  const slashMenuVisible = input.startsWith("/") && !loading
+
+  async function handleSlashCommand(command: string) {
+    setInput("")
+    recovery.clearError()
+
+    // /bible — just display a hint message, no API call
+    if (command === "/bible") {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: command },
+        { role: "assistant", content: "请使用右侧面板中的「故事圣经」标签页查看或编辑故事圣经。" },
+      ])
+      return
+    }
+
+    // /visualize — non-streaming JSON endpoint
+    if (command === "/visualize") {
+      const userMsg: Message = { role: "user", content: "/visualize" }
+      setMessages((prev) => [...prev, userMsg])
+      setLoading(true)
+
+      try {
+        const body = {
+          projectId,
+          text: documentContent.slice(-2000),
+          style: "realistic",
+        }
+        const response = await fetch("/api/ai/visualize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getHeaders() },
+          body: JSON.stringify(body),
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: `图片生成失败：${data.error || "未知错误"}` },
+          ])
+          return
+        }
+
+        const { imageUrl, prompt } = await response.json()
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `场景图片已生成。\n\nPrompt: ${prompt}\n\n图片链接: ${imageUrl}` },
+        ])
+      } catch (error) {
+        recovery.handleFetchError(error)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // /muse commands — streaming endpoint
+    const museModeMap: Record<string, string> = {
+      "/muse what-if": "what-if",
+      "/muse random": "random-prompt",
+      "/muse suggest": "suggest",
+    }
+    const museMode = museModeMap[command]
+    if (museMode) {
+      const userMsg: Message = { role: "user", content: command }
+      setMessages((prev) => [...prev, userMsg])
+      setLoading(true)
+
+      const endpoint = "/api/ai/muse"
+      const body: Record<string, string> = {
+        mode: museMode,
+        projectId,
+        documentId: documentId ?? "",
+        context: documentContent.slice(-5000),
+      }
+
+      if (effectiveProseMode) {
+        body.proseMode = effectiveProseMode
+      }
+
+      recovery.storeRequestContext(endpoint, body, async (reader) => {
+        setMessages((prev) => [...prev, { role: "assistant", content: "" }])
+        await readAIStream(reader, (text) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            updated[updated.length - 1] = { role: "assistant", content: text }
+            return updated
+          })
+        })
+      })
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getHeaders() },
+          body: JSON.stringify(body),
+        })
+
+        if (!response.ok) {
+          await recovery.handleResponseError(response)
+          return
+        }
+
+        const reader = response.body?.getReader()
+        if (!reader) {
+          recovery.setError({
+            errorType: "format_incompatible",
+            message: "灵感返回为空响应，请重试或切换模型后继续写作。",
+            retriable: true,
+            suggestedActions: ["retry", "switch_model"],
+            severity: "medium",
+          })
+          return
+        }
+
+        setMessages((prev) => [...prev, { role: "assistant", content: "" }])
+        await readAIStream(reader, (text) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            updated[updated.length - 1] = { role: "assistant", content: text }
+            return updated
+          })
+        })
+      } catch (error) {
+        recovery.handleFetchError(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -146,6 +278,11 @@ export function AIChatPanel({
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
+      // Don't send when slash command menu is open — user selects via click
+      if (slashMenuVisible) {
+        e.preventDefault()
+        return
+      }
       e.preventDefault()
       handleSend()
     }
@@ -264,11 +401,16 @@ export function AIChatPanel({
       )}
 
       {/* Input */}
-      <div className="border-t p-4">
+      <div className="relative border-t p-4">
+        <ChatSlashCommands
+          input={input}
+          onSelect={handleSlashCommand}
+          visible={slashMenuVisible}
+        />
         <div className="flex gap-2">
           <Textarea
             ref={textareaRef}
-            placeholder="问问你的故事..."
+            placeholder="问问你的故事... 输入 / 查看命令"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
