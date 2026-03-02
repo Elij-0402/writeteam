@@ -84,7 +84,6 @@ export async function signIn(formData: FormData) {
 export async function signUp(formData: FormData) {
   const email = formData.get("email")
   const password = formData.get("password")
-  const fullName = formData.get("fullName")
 
   if (typeof email !== "string" || typeof password !== "string") {
     return { error: "请填写邮箱和密码。" }
@@ -96,11 +95,6 @@ export async function signUp(formData: FormData) {
       supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: typeof fullName === "string" ? fullName : "",
-          },
-        },
       }),
       AUTH_TIMEOUT_MS
     )
