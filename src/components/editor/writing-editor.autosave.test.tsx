@@ -128,6 +128,14 @@ function createDocument(): Document {
   }
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 function renderEditor(options?: {
   onUpdate?: (docId: string, updates: { content?: unknown; content_text?: string; word_count?: number }) => Promise<{
     success?: boolean
@@ -214,5 +222,55 @@ describe("WritingEditor autosave status", () => {
       "saving",
       "saved",
     ])
+  })
+
+  it("ignores stale save completion when older request resolves last", async () => {
+    const onAutosaveStatusChange = vi.fn<(status: AutosaveStatus) => void>()
+    const firstSave = createDeferred<{ success?: boolean; error?: string }>()
+    const secondSave = createDeferred<{ success?: boolean; error?: string }>()
+    const onUpdate = vi
+      .fn<(docId: string, updates: { content?: unknown; content_text?: string; word_count?: number }) => Promise<{
+        success?: boolean
+        error?: string
+      }>>()
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockImplementationOnce(() => secondSave.promise)
+
+    renderEditor({ onUpdate, onAutosaveStatusChange })
+    await flushAsyncWork()
+
+    await triggerAutosave()
+    await triggerAutosave()
+
+    await act(async () => {
+      secondSave.resolve({ success: true })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      firstSave.resolve({ success: true })
+      await Promise.resolve()
+    })
+
+    expect(onAutosaveStatusChange.mock.calls.map(([status]) => status)).toEqual(["idle", "saving", "saving", "saved"])
+  })
+
+  it("falls back to generic error when onUpdate throws and shows retry path", async () => {
+    const onAutosaveStatusChange = vi.fn<(status: AutosaveStatus) => void>()
+    const onUpdate = vi
+      .fn<(docId: string, updates: { content?: unknown; content_text?: string; word_count?: number }) => Promise<{
+        success?: boolean
+        error?: string
+      }>>()
+      .mockRejectedValueOnce(new Error("network down"))
+
+    renderEditor({ onUpdate, onAutosaveStatusChange })
+    await flushAsyncWork()
+    await triggerAutosave()
+    await flushAsyncWork()
+
+    expect(onAutosaveStatusChange.mock.calls.map(([status]) => status)).toEqual(["idle", "saving", "error"])
+    expect(screen.getByText("保存文档失败，请检查网络后重试")).not.toBeNull()
+    expect(screen.getByRole("button", { name: "立即重试" })).not.toBeNull()
   })
 })

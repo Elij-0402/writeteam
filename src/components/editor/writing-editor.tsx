@@ -50,12 +50,15 @@ interface WritingEditorProps {
   onAutosaveStatusChange?: (status: AutosaveStatus) => void
 }
 
-type AutosaveState =
-  | { status: "idle" }
-  | { status: "saving"; docId: string }
-  | { status: "saved"; docId: string; savedAt: string }
-  | { status: "retrying"; docId: string }
-  | { status: "error"; docId: string; message: string }
+type AutosaveState = {
+  [Status in AutosaveStatus]: Status extends "idle"
+    ? { status: Status }
+    : Status extends "saved"
+      ? { status: Status; docId: string; savedAt: string }
+      : Status extends "error"
+        ? { status: Status; docId: string; message: string }
+        : { status: Status; docId: string }
+}[AutosaveStatus]
 
 export const WritingEditor = memo(function WritingEditor({
   document,
@@ -67,8 +70,7 @@ export const WritingEditor = memo(function WritingEditor({
   saliencyData,
   onAutosaveStatusChange,
 }: WritingEditorProps) {
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const currentDocumentIdRef = useRef(document.id)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastInsertRef = useRef<string>("")
   const latestDraftRef = useRef<{ content: Json | null; content_text: string; word_count: number } | null>(null)
   const latestSaveRequestRef = useRef(0)
@@ -115,8 +117,6 @@ export const WritingEditor = memo(function WritingEditor({
   )
 
   useEffect(() => {
-    currentDocumentIdRef.current = document.id
-
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -125,7 +125,7 @@ export const WritingEditor = memo(function WritingEditor({
     latestSaveRequestRef.current += 1
     latestDraftRef.current = null
     updateAutosaveState({ status: "idle" })
-  }, [document.id, updateAutosaveState])
+  }, [updateAutosaveState])
 
   const handleRetrySave = useCallback(() => {
     if (!latestDraftRef.current) {
