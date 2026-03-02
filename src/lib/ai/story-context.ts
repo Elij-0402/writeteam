@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
+import { buildStructuredContext } from "@/lib/ai/structured-context"
 import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
 import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
 
@@ -319,7 +320,7 @@ export function buildStoryPromptContext(
   ctx: StoryContext,
   options: StoryPromptOptions
 ): StoryPromptContext {
-  if (!ctx.bible && ctx.characters.length === 0) {
+  if (!ctx.bible && ctx.characters.length === 0 && !ctx.consistencyState) {
     return { fullContext: "" }
   }
 
@@ -345,6 +346,7 @@ export function buildStoryPromptContext(
     isVisible("characters") ? buildCharacterGuidance(ctx.characters, feature) : "",
     isVisible("characters") ? buildCharacterHealthGuidance(ctx.characters) : buildCharacterVisibilityNotice(),
     buildProseModeSection(bible, proseMode ?? null),
+    buildStructuredContext(ctx.consistencyState, feature),
     saliencyMap ? buildSaliencyGuidance(saliencyMap) : "",
   ]
 

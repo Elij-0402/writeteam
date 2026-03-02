@@ -199,6 +199,62 @@ describe("buildStoryPromptContext", () => {
     expect(checking.fullContext).not.toContain("STORY SYNOPSIS")
     expect(chatting.fullContext).not.toContain("STORY SYNOPSIS")
   })
+
+  it("injects minimal structured context for writing features", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: null,
+        characters: [],
+        consistencyState: {
+          canonFacts: [
+            {
+              fact: "魔法需要等价交换",
+              source: "human",
+              confidence: 0.9,
+              updated_at: "2026-03-03T10:00:00.000Z",
+            },
+          ],
+          timelineEvents: [
+            {
+              event: "第三章发生停电",
+              timeAnchor: "第三章",
+              participants: ["林晚"],
+              stateChanges: [],
+              source: "ai",
+              confidence: 0.8,
+              updated_at: "2026-03-03T11:00:00.000Z",
+            },
+          ],
+          characterArcStates: [
+            {
+              characterName: "林晚",
+              motivation: "找到姐姐",
+              relationshipStatus: "与沈舟互相猜忌",
+              secretProgress: "隐瞒身份",
+              source: "human",
+              confidence: 0.9,
+              updated_at: "2026-03-03T12:00:00.000Z",
+            },
+          ],
+          constraintRules: [
+            {
+              rule: "必须保持第一人称",
+              category: "required",
+              source: "human",
+              confidence: 1,
+              updated_at: "2026-03-03T13:00:00.000Z",
+            },
+          ],
+        },
+      },
+      { feature: "write" }
+    )
+
+    expect(result.fullContext).toContain("STRUCTURED CONTEXT")
+    expect(result.fullContext).toContain("Constraint rules")
+    expect(result.fullContext).toContain("Character arc states")
+    expect(result.fullContext).not.toContain("Timeline events")
+  })
 })
 
 describe("fetchStoryContext", () => {
