@@ -19,10 +19,15 @@ vi.mock("@/lib/ai/openai-stream", () => ({
   extractRetryMeta: vi.fn(() => ({})),
 }))
 
+vi.mock("@/lib/ai/consistency-preflight", () => ({
+  runConsistencyPreflight: vi.fn(),
+}))
+
 import { createClient } from "@/lib/supabase/server"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import { buildStoryPromptContext, fetchStoryContext } from "@/lib/ai/story-context"
 import { createOpenAIStreamResponse } from "@/lib/ai/openai-stream"
+import { runConsistencyPreflight } from "@/lib/ai/consistency-preflight"
 
 function makeSupabase(userId: string | null = "u-1") {
   const insert = vi.fn(async () => ({ error: null }))
@@ -46,6 +51,12 @@ function makeRequest(body: Record<string, unknown>) {
 describe("quick-edit route", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(runConsistencyPreflight).mockReturnValue({
+      shouldBlock: false,
+      highestSeverity: null,
+      violations: [],
+      softFailed: false,
+    })
   })
 
   it("returns 401 when user is not logged in", async () => {
@@ -125,6 +136,34 @@ describe("quick-edit route", () => {
 
     expect(res.status).toBe(500)
     expect(data).toEqual({ error: "服务器内部错误" })
+  })
+
+  it("returns 409 when preflight finds high-severity conflict", async () => {
+    const { client, insert } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+    vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [], consistencyState: undefined })
+    vi.mocked(runConsistencyPreflight).mockReturnValue({
+      shouldBlock: true,
+      highestSeverity: "high",
+      softFailed: false,
+      violations: [
+        {
+          severity: "high",
+          category: "forbidden",
+          message: "检测到禁止项冲突：传送术",
+          rule: "禁止使用传送术",
+        },
+      ],
+    })
+
+    const res = await POST(makeRequest({ text: "原文", instruction: "改写", projectId: "p-1" }) as never)
+    const data = await res.json()
+
+    expect(res.status).toBe(409)
+    expect(data.error).toBe("检测到高风险设定冲突，请先修正后再试")
+    expect(createOpenAIStreamResponse).not.toHaveBeenCalled()
+    expect(insert).toHaveBeenCalledTimes(1)
   })
 
   it("passes proseMode and saliency into story context builder and streams response", async () => {

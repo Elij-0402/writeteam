@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
+import { runConsistencyPreflight } from "@/lib/ai/consistency-preflight"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 import type { SaliencyMap } from "@/lib/ai/story-context"
 
@@ -98,6 +99,24 @@ export async function POST(request: NextRequest) {
   const contextText = typeof context === "string" ? context : ""
 
   const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
+  const preflight = runConsistencyPreflight({
+    text: `${text}\n${instruction}\n${contextText.slice(-1200)}`,
+    consistencyState: storyCtx.consistencyState,
+  })
+  if (preflight.shouldBlock) {
+    const firstMessage = preflight.violations[0]?.message ?? "检测到高风险设定冲突"
+    await logPrecheckFailure("consistency_high_risk", firstMessage)
+    return Response.json(
+      {
+        error: "检测到高风险设定冲突，请先修正后再试",
+        errorType: "consistency_high_risk",
+        severity: "high",
+        violations: preflight.violations,
+      },
+      { status: 409 }
+    )
+  }
+
   const { fullContext } = buildStoryPromptContext(storyCtx, {
     feature: "quick-edit",
     proseMode: proseModeValue,

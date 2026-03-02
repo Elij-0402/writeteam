@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
+import { runConsistencyPreflight } from "@/lib/ai/consistency-preflight"
 import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
 
 export async function POST(request: NextRequest) {
@@ -20,6 +21,22 @@ export async function POST(request: NextRequest) {
   const { context, mode, guidance, projectId, documentId, proseMode, saliency } = body
 
   const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
+  const preflight = runConsistencyPreflight({
+    text: `${typeof context === "string" ? context : ""}\n${typeof guidance === "string" ? guidance : ""}`,
+    consistencyState: storyCtx.consistencyState,
+  })
+  if (preflight.shouldBlock) {
+    return Response.json(
+      {
+        error: "检测到高风险设定冲突，请先修正后再试",
+        errorType: "consistency_high_risk",
+        severity: "high",
+        violations: preflight.violations,
+      },
+      { status: 409 }
+    )
+  }
+
   const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "write", proseMode, saliencyMap: saliency ?? null })
 
   let systemPrompt = `You are a creative fiction writing AI assistant. Your task is to continue the story seamlessly from where the author left off. Write in a natural, engaging style that matches the existing prose.`
