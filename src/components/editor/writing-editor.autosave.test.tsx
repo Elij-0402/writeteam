@@ -222,6 +222,11 @@ describe("WritingEditor autosave status", () => {
         />
       )
     })
+
+    await act(async () => {
+      vi.runAllTicks()
+      await vi.advanceTimersByTimeAsync(0)
+    })
     await flushAsyncWork()
 
     expect(onAutosaveStatusChange.mock.calls.map(([status]) => status)).toEqual([

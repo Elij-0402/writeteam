@@ -153,7 +153,13 @@ export const WritingEditor = memo(function WritingEditor({
     }
 
     lastRetryRequestIdRef.current = nextRetryRequestId
-    handleRetrySave()
+    const retryTimer = setTimeout(() => {
+      handleRetrySave()
+    }, 0)
+
+    return () => {
+      clearTimeout(retryTimer)
+    }
   }, [handleRetrySave, retryRequestId])
 
   const editor = useEditor(
