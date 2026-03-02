@@ -7,6 +7,10 @@ import {
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
 import { buildStructuredContext } from "@/lib/ai/structured-context"
 import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
+import {
+  getConsistencyFeatureFlags,
+  isStructuredContextEnabled,
+} from "@/lib/story-bible/consistency-flags"
 import type { AIFeature } from "@/lib/ai/feature-groups"
 import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
 
@@ -125,6 +129,12 @@ export async function fetchStoryContext(
   projectId: string,
   userId?: string
 ): Promise<StoryContext> {
+  const featureFlags = getConsistencyFeatureFlags()
+  const shouldBuildConsistencyState =
+    featureFlags.consistencyPreflight ||
+    featureFlags.structuredContext ||
+    featureFlags.postCheckEnhanced
+
   interface UserScopedQuery {
     eq: (column: string, value: string) => unknown
   }
@@ -245,10 +255,12 @@ export async function fetchStoryContext(
     return {
       bible: seriesFallbackBible,
       characters,
-      consistencyState: extractConsistencyState({
-        bible: seriesFallbackBible,
-        characters,
-      }),
+      consistencyState: shouldBuildConsistencyState
+        ? extractConsistencyState({
+            bible: seriesFallbackBible,
+            characters,
+          })
+        : undefined,
     }
   }
 
@@ -269,10 +281,12 @@ export async function fetchStoryContext(
   return {
     bible,
     characters,
-    consistencyState: extractConsistencyState({
-      bible,
-      characters,
-    }),
+    consistencyState: shouldBuildConsistencyState
+      ? extractConsistencyState({
+          bible,
+          characters,
+        })
+      : undefined,
   }
 }
 
@@ -287,6 +301,7 @@ export function buildStoryPromptContext(
   const { feature, proseMode, saliencyMap } = options
   const bible = ctx.bible
   const vis = normalizeVisibility(bible?.visibility)
+  const structuredContextEnabled = isStructuredContextEnabled()
 
   // Helper: check if a field is visible (default true if not set)
   const isVisible = (field: VisibilityField) => vis[field] !== false
@@ -306,9 +321,11 @@ export function buildStoryPromptContext(
     isVisible("characters") ? buildCharacterGuidance(ctx.characters, feature) : "",
     isVisible("characters") ? buildCharacterHealthGuidance(ctx.characters) : buildCharacterVisibilityNotice(),
     buildProseModeSection(bible, proseMode ?? null),
-    buildStructuredContext(ctx.consistencyState, feature, {
-      characters: isVisible("characters"),
-    }),
+    structuredContextEnabled
+      ? buildStructuredContext(ctx.consistencyState, feature, {
+          characters: isVisible("characters"),
+        })
+      : "",
     saliencyMap ? buildSaliencyGuidance(saliencyMap) : "",
   ]
 

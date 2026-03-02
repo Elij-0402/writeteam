@@ -10,6 +10,11 @@ import {
   sanitizeStoryBibleUpdates,
   validateVisibilityUpdate,
 } from "@/app/actions/story-bible-guards"
+import { getConsistencyFeatureFlags } from "@/lib/story-bible/consistency-flags"
+
+export async function getStoryBibleConsistencyFlags() {
+  return getConsistencyFeatureFlags()
+}
 
 export async function getStoryBible(projectId: string) {
   const supabase = await createClient()
