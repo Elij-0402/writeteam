@@ -12,21 +12,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -49,20 +40,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   PenLine,
   Plus,
-  MoreVertical,
-  Trash2,
-  BookOpen,
   LogOut,
   Moon,
   Sun,
   Loader2,
   Library,
   Settings,
-  FileEdit,
 } from "lucide-react"
 import { useTheme } from "next-themes"
-import { formatDistanceToNow } from "date-fns"
-import { zhCN } from "date-fns/locale"
 import { toast } from "sonner"
 import {
   Select,
@@ -72,45 +57,30 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CommandPalette } from "@/components/layout/command-palette"
-
-const GENRES = [
-  "奇幻",
-  "科幻",
-  "言情",
-  "悬疑",
-  "惊悚",
-  "恐怖",
-  "文学",
-  "历史",
-  "青少年",
-  "儿童",
-  "非虚构",
-  "其他",
-]
+import { GENRES } from "@/lib/genre-colors"
+import { DashboardHeader } from "./dashboard-header"
+import { ProjectGrid } from "./project-grid"
+import { ProjectEditDialog } from "./project-edit-dialog"
 
 interface DashboardContentProps {
   projects: Project[]
   user: User
   profile: Profile | null
+  documentCounts: Record<string, number>
 }
 
 export function DashboardContent({
   projects: initialProjects,
   user,
   profile,
+  documentCounts,
 }: DashboardContentProps) {
   const [projects, setProjects] = useState(initialProjects)
   const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
-  const [projectToRename, setProjectToRename] = useState<Project | null>(null)
-  const [renameTitle, setRenameTitle] = useState("")
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
-  const [editTitle, setEditTitle] = useState("")
-  const [editDescription, setEditDescription] = useState("")
-  const [editGenre, setEditGenre] = useState("")
   const [loading, setLoading] = useState(false)
   const { theme, setTheme } = useTheme()
   const router = useRouter()
@@ -144,55 +114,24 @@ export function DashboardContent({
     setLoading(false)
   }
 
-  async function handleRenameProject() {
-    if (!projectToRename || !renameTitle.trim()) return
+  async function handleEditProject(projectId: string, formData: FormData) {
     setLoading(true)
-    const formData = new FormData()
-    formData.append("title", renameTitle.trim())
-    formData.append("description", projectToRename.description || "")
-    formData.append("genre", projectToRename.genre || "")
-    const result = await updateProject(projectToRename.id, formData)
-    if (result.error) {
-      toast.error("重命名失败，请稍后重试")
-    } else {
-      setProjects(
-        projects
-          .map((p) =>
-            p.id === projectToRename.id
-              ? { ...p, title: renameTitle.trim(), updated_at: new Date().toISOString() }
-              : p
-          )
-          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-      )
-      toast.success("项目已重命名")
-      setRenameDialogOpen(false)
-      setProjectToRename(null)
-      setRenameTitle("")
-    }
-    setLoading(false)
-  }
-
-  async function handleEditProject() {
-    if (!projectToEdit || !editTitle.trim()) return
-    setLoading(true)
-    const resolvedGenre = editGenre === "none" ? "" : editGenre
-    const formData = new FormData()
-    formData.append("title", editTitle.trim())
-    formData.append("description", editDescription)
-    formData.append("genre", resolvedGenre)
-    const result = await updateProject(projectToEdit.id, formData)
+    const result = await updateProject(projectId, formData)
     if (result.error) {
       toast.error("更新项目信息失败，请稍后重试")
     } else {
+      const title = formData.get("title") as string
+      const description = formData.get("description") as string
+      const genre = formData.get("genre") as string
       setProjects(
         projects
           .map((p) =>
-            p.id === projectToEdit.id
+            p.id === projectId
               ? {
                   ...p,
-                  title: editTitle.trim(),
-                  description: editDescription || null,
-                  genre: resolvedGenre || null,
+                  title,
+                  description: description || null,
+                  genre: genre || null,
                   updated_at: new Date().toISOString(),
                 }
               : p
@@ -217,6 +156,7 @@ export function DashboardContent({
   return (
     <div className="min-h-screen bg-background">
       <CommandPalette onNewProject={() => setNewProjectOpen(true)} />
+
       {/* Top Nav */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-16 items-center justify-between px-5">
@@ -242,10 +182,7 @@ export function DashboardContent({
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="relative h-9 w-9 rounded-full"
-                >
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9">
                     <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                       {initials}
@@ -259,9 +196,7 @@ export function DashboardContent({
                     <p className="text-sm font-medium">
                       {profile?.full_name || "作者"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.email}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
                   </div>
                 </div>
                 <DropdownMenuItem asChild>
@@ -286,177 +221,75 @@ export function DashboardContent({
 
       {/* Main Content */}
       <main className="container mx-auto px-5 py-10">
-        <div className="mb-10 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">我的项目</h1>
-            <p className="mt-1 text-muted-foreground">
-              {projects.length} 个项目
-            </p>
-          </div>
-          <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                新建项目
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <form action={handleCreateProject}>
-                <DialogHeader>
-                  <DialogTitle>创建新项目</DialogTitle>
-                  <DialogDescription>
-                    创建新的写作项目，后续可随时修改这些信息。
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">标题</Label>
-                    <Input
-                      id="title"
-                      name="title"
-                      placeholder="我的精彩小说"
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">简介</Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      placeholder="简要描述你的项目..."
-                      rows={3}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="genre">题材</Label>
-                    <Select name="genre">
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择题材" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GENRES.map((genre) => (
-                          <SelectItem key={genre} value={genre}>
-                            {genre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={loading}>
-                    {loading && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    创建项目
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <DashboardHeader
+          projectCount={projects.length}
+          onNewProject={() => setNewProjectOpen(true)}
+        />
 
-        {/* Project Grid */}
-        {projects.length === 0 ? (
-          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed">
-            <BookOpen className="mb-4 h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mb-2 text-lg font-semibold">还没有项目</h3>
-            <p className="mb-4 text-sm text-muted-foreground">
-              创建你的第一个项目，开始写作
-            </p>
-            <Button onClick={() => setNewProjectOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              新建项目
-            </Button>
-          </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                className="group relative transition-shadow hover:shadow-md"
-              >
-                <Link href={`/editor/${project.id}`} className="absolute inset-0 z-10" />
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg leading-tight">
-                      {project.title}
-                    </CardTitle>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="relative z-20 h-8 w-8 opacity-0 group-hover:opacity-100"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          disabled={loading}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setProjectToRename(project)
-                            setRenameTitle(project.title)
-                            setRenameDialogOpen(true)
-                          }}
-                        >
-                          <PenLine className="mr-2 h-4 w-4" />
-                          重命名
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={loading}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setProjectToEdit(project)
-                            setEditTitle(project.title)
-                            setEditDescription(project.description || "")
-                            setEditGenre(project.genre || "")
-                            setEditDialogOpen(true)
-                          }}
-                        >
-                          <FileEdit className="mr-2 h-4 w-4" />
-                          编辑信息
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          disabled={loading}
-                          className="text-destructive focus:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setProjectToDelete(project)
-                            setDeleteDialogOpen(true)
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          删除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  {project.genre && (
-                    <CardDescription>
-                      {project.genre}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <p className="line-clamp-2 text-sm text-muted-foreground">
-                    {project.description || "暂无简介"}
-                  </p>
-                </CardContent>
-                <CardFooter className="text-xs text-muted-foreground">
-                  更新于{" "}
-                  {formatDistanceToNow(new Date(project.updated_at), {
-                    addSuffix: true,
-                    locale: zhCN,
-                  })}
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        )}
+        {/* New Project Dialog */}
+        <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
+          <DialogContent>
+            <form action={handleCreateProject}>
+              <DialogHeader>
+                <DialogTitle>创建新项目</DialogTitle>
+                <DialogDescription>
+                  创建新的写作项目，后续可随时修改这些信息。
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="title">标题</Label>
+                  <Input id="title" name="title" placeholder="我的精彩小说" required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="description">简介</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="简要描述你的项目..."
+                    rows={3}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="genre">题材</Label>
+                  <Select name="genre">
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择题材" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GENRES.map((genre) => (
+                        <SelectItem key={genre} value={genre}>
+                          {genre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  创建项目
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <ProjectGrid
+          projects={projects}
+          documentCounts={documentCounts}
+          onEdit={(project) => {
+            setProjectToEdit(project)
+            setEditDialogOpen(true)
+          }}
+          onDelete={(project) => {
+            setProjectToDelete(project)
+            setDeleteDialogOpen(true)
+          }}
+          onNewProject={() => setNewProjectOpen(true)}
+          loading={loading}
+        />
       </main>
 
       {/* Delete Confirmation */}
@@ -481,121 +314,16 @@ export function DashboardContent({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Rename Dialog */}
-      <Dialog
-        open={renameDialogOpen}
-        onOpenChange={(open) => {
-          setRenameDialogOpen(open)
-          if (!open) {
-            setProjectToRename(null)
-            setRenameTitle("")
-          }
-        }}
-      >
-        <DialogContent>
-          <form onSubmit={(e) => { e.preventDefault(); handleRenameProject() }}>
-            <DialogHeader>
-              <DialogTitle>重命名项目</DialogTitle>
-              <DialogDescription>
-                输入新的项目标题。
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="rename-title">标题</Label>
-                <Input
-                  id="rename-title"
-                  value={renameTitle}
-                  onChange={(e) => setRenameTitle(e.target.value)}
-                  placeholder="项目标题"
-                  required
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="submit"
-                disabled={loading || !renameTitle.trim()}
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                确认
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Project Info Dialog */}
-      <Dialog
+      {/* Edit Project Dialog (merged — replaces old rename + edit dialogs) */}
+      <ProjectEditDialog
+        project={projectToEdit}
         open={editDialogOpen}
         onOpenChange={(open) => {
           setEditDialogOpen(open)
-          if (!open) {
-            setProjectToEdit(null)
-            setEditTitle("")
-            setEditDescription("")
-            setEditGenre("")
-          }
+          if (!open) setProjectToEdit(null)
         }}
-      >
-        <DialogContent>
-          <form onSubmit={(e) => { e.preventDefault(); handleEditProject() }}>
-            <DialogHeader>
-              <DialogTitle>编辑项目信息</DialogTitle>
-              <DialogDescription>
-                修改项目的标题、简介和题材。
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-title">标题</Label>
-                <Input
-                  id="edit-title"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="项目标题"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-description">简介</Label>
-                <Textarea
-                  id="edit-description"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  placeholder="简要描述你的项目..."
-                  rows={3}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-genre">题材</Label>
-                <Select value={editGenre} onValueChange={setEditGenre}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择题材" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">不设置题材</SelectItem>
-                    {GENRES.map((genre) => (
-                      <SelectItem key={genre} value={genre}>
-                        {genre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="submit"
-                disabled={loading || !editTitle.trim()}
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onSave={handleEditProject}
+      />
     </div>
   )
 }
