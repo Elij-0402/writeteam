@@ -1,4 +1,11 @@
 export type EvidenceSource = "正文片段" | "故事圣经" | "角色资料" | "系列设定" | "未知"
+export type ContinuityActionTarget = "current_passage" | "selected_text"
+
+export interface ContinuityAction {
+  type: "insert" | "replace"
+  target: ContinuityActionTarget
+  text: string
+}
 
 export interface ContinuityIssue {
   issue: string
@@ -6,7 +13,10 @@ export interface ContinuityIssue {
   reason: string
   evidence: string
   evidenceSource: EvidenceSource
+  evidenceQuote: string
+  evidenceAnchor: string
   fix: string
+  action: ContinuityAction
   actionType: "insert" | "replace"
   insertionText: string
   replacementText: string
@@ -30,10 +40,19 @@ interface ContinuityIssuePayload {
   reason?: unknown
   evidence?: unknown
   evidenceSource?: unknown
+  evidenceQuote?: unknown
+  evidenceAnchor?: unknown
   fix?: unknown
+  action?: unknown
   actionType?: unknown
   insertionText?: unknown
   replacementText?: unknown
+}
+
+interface ContinuityActionPayload {
+  type?: unknown
+  target?: unknown
+  text?: unknown
 }
 
 function pickText(value: unknown, fallback = ""): string {
@@ -56,6 +75,35 @@ function normalizeActionType(value: unknown): "insert" | "replace" {
   return value === "replace" ? "replace" : "insert"
 }
 
+function normalizeActionTarget(value: unknown, type: "insert" | "replace"): ContinuityActionTarget {
+  if (value === "current_passage" || value === "selected_text") {
+    return value
+  }
+  return type === "replace" ? "selected_text" : "current_passage"
+}
+
+function normalizeAction(
+  value: unknown,
+  fallbackType: "insert" | "replace",
+  fallbackText: string
+): ContinuityAction {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      type: fallbackType,
+      target: normalizeActionTarget(undefined, fallbackType),
+      text: fallbackText,
+    }
+  }
+
+  const payload = value as ContinuityActionPayload
+  const type = normalizeActionType(payload.type)
+  return {
+    type,
+    target: normalizeActionTarget(payload.target, type),
+    text: pickText(payload.text, fallbackText),
+  }
+}
+
 function normalizeIssue(value: unknown): ContinuityIssue | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null
@@ -66,21 +114,36 @@ function normalizeIssue(value: unknown): ContinuityIssue | null {
   const reason = pickText(payload.reason)
   const fix = pickText(payload.fix)
   const evidence = pickText(payload.evidence)
+  const evidenceQuote = pickText(payload.evidenceQuote, evidence)
+  const evidenceSource = normalizeSource(payload.evidenceSource)
+  const evidenceAnchor = pickText(payload.evidenceAnchor, `${evidenceSource}:未标注`)
+  const fallbackActionType = normalizeActionType(payload.actionType)
+  const fallbackActionText =
+    fallbackActionType === "replace"
+      ? pickText(payload.replacementText, fix)
+      : pickText(payload.insertionText, fix)
+  const action = normalizeAction(payload.action, fallbackActionType, fallbackActionText || fix)
 
-  if (!issue || !reason || !fix || !evidence) {
+  if (!issue || !reason || !fix || !evidenceQuote) {
     return null
   }
+
+  const insertionText = action.type === "insert" ? action.text : pickText(payload.insertionText, fix)
+  const replacementText = action.type === "replace" ? action.text : pickText(payload.replacementText, fix)
 
   return {
     issue,
     type: pickText(payload.type, "连续性问题"),
     reason,
-    evidence,
-    evidenceSource: normalizeSource(payload.evidenceSource),
+    evidence: evidence || `${evidenceQuote}（${evidenceAnchor}）`,
+    evidenceSource,
+    evidenceQuote,
+    evidenceAnchor,
     fix,
-    actionType: normalizeActionType(payload.actionType),
-    insertionText: pickText(payload.insertionText, fix),
-    replacementText: pickText(payload.replacementText, fix),
+    action,
+    actionType: action.type,
+    insertionText,
+    replacementText,
   }
 }
 
