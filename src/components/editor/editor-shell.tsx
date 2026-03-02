@@ -6,6 +6,7 @@ import Link from "next/link"
 import type { Project, Document, StoryBible, Character } from "@/types/database"
 import { createDocument, updateDocument, deleteDocument, reorderDocuments } from "@/app/actions/documents"
 import { WritingEditor } from "@/components/editor/writing-editor"
+import { SaveStatusBanner } from "@/components/editor/save-status-banner"
 import { StoryBiblePanel } from "@/components/story-bible/story-bible-panel"
 import { AIChatPanel } from "@/components/ai/ai-chat-panel"
 import { AIToolbar } from "@/components/ai/ai-toolbar"
@@ -90,6 +91,7 @@ import { computeSaliency } from "@/lib/ai/saliency"
 import type { SaliencyMap } from "@/lib/ai/saliency"
 import { countDocumentWords } from "@/lib/text-stats"
 import { readEditorSessionState, writeEditorSessionState } from "@/components/editor/editor-session-state"
+import type { AutosaveStatus } from "@/components/editor/autosave-status"
 
 interface EditorShellProps {
   project: Project
@@ -155,6 +157,7 @@ export function EditorShell({
   const [renameSubmitting, setRenameSubmitting] = useState(false)
   const [showEntryHint, setShowEntryHint] = useState(true)
   const [aiConfigOpen, setAiConfigOpen] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle")
   const [switcherModels, setSwitcherModels] = useState<Array<{ id: string; name: string }>>([])
   const [switcherLoading, setSwitcherLoading] = useState(false)
   const [switcherSearch, setSwitcherSearch] = useState("")
@@ -571,6 +574,19 @@ export function EditorShell({
 
   const totalWordCount = documents.reduce((sum, d) => sum + (d.word_count || 0), 0)
 
+  const handleRetryAutosave = useCallback(() => {
+    const retryButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "立即重试"
+    )
+
+    if (retryButton) {
+      retryButton.click()
+      return
+    }
+
+    toast.message("请继续编辑，系统会自动重试保存")
+  }, [])
+
   const renderEditorArea = () => (
     <div className="flex h-full flex-col">
       {hasCanvasEntry && (
@@ -609,6 +625,10 @@ export function EditorShell({
       )}
       {activeDocument && (
         <>
+          <SaveStatusBanner
+            status={autosaveStatus}
+            onRetry={autosaveStatus === "error" ? handleRetryAutosave : undefined}
+          />
           <AIToolbar
             selectedText={selectedText}
             documentContent={activeDocument.content_text || ""}
@@ -630,6 +650,7 @@ export function EditorShell({
             insertContent={editorContent}
             replaceContent={replaceContent}
             saliencyData={saliencyMap}
+            onAutosaveStatusChange={setAutosaveStatus}
           />
           <SaliencyIndicator
             saliencyMap={saliencyMap}
