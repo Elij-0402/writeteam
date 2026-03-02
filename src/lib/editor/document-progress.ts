@@ -29,5 +29,6 @@ export function isDocumentRecentlyEdited(
     return false
   }
 
-  return now - updatedAtMs <= recentWindowMs
+  const elapsedMs = now - updatedAtMs
+  return elapsedMs >= 0 && elapsedMs <= recentWindowMs
 }

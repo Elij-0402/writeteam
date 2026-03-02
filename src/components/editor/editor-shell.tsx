@@ -968,14 +968,15 @@ export function EditorShell({
                       (() => {
                         const progressTag = getDocumentProgressTag(doc)
                         const progressMeta = documentProgressTagMeta[progressTag]
-                        const showRecentMarker = activeDocId === doc.id || isDocumentRecentlyEdited(doc)
+                        const isCurrentDocument = activeDocId === doc.id
+                        const showRecentMarker = isDocumentRecentlyEdited(doc)
 
                         return (
                           <div
                             key={doc.id}
                             className={cn(
                               "group rounded-md px-2 py-2 text-sm transition-colors",
-                              activeDocId === doc.id
+                              isCurrentDocument
                                 ? "bg-accent text-accent-foreground"
                                 : "hover:bg-accent/50"
                             )}
@@ -995,7 +996,11 @@ export function EditorShell({
                                   <Badge variant="secondary" className={cn("h-5 px-1.5 text-[10px] font-normal", progressMeta.className)}>
                                     {progressMeta.label}
                                   </Badge>
-                                  {showRecentMarker ? (
+                                  {isCurrentDocument ? (
+                                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                                      当前文档
+                                    </Badge>
+                                  ) : showRecentMarker ? (
                                     <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
                                       最近编辑
                                     </Badge>
