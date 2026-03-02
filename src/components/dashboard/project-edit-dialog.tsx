@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import type { Project } from "@/types/database"
 import { GENRES } from "@/lib/genre-colors"
 import { Button } from "@/components/ui/button"
@@ -37,18 +37,10 @@ export function ProjectEditDialog({
   onOpenChange,
   onSave,
 }: ProjectEditDialogProps) {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [genre, setGenre] = useState("")
+  const [title, setTitle] = useState(project?.title ?? "")
+  const [description, setDescription] = useState(project?.description ?? "")
+  const [genre, setGenre] = useState(project?.genre ?? "")
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (project && open) {
-      setTitle(project.title)
-      setDescription(project.description || "")
-      setGenre(project.genre || "")
-    }
-  }, [project, open])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -64,17 +56,7 @@ export function ProjectEditDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen)
-        if (!isOpen) {
-          setTitle("")
-          setDescription("")
-          setGenre("")
-        }
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>

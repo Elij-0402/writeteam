@@ -39,7 +39,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   PenLine,
-  Plus,
   LogOut,
   Moon,
   Sun,
@@ -316,6 +315,7 @@ export function DashboardContent({
 
       {/* Edit Project Dialog (merged — replaces old rename + edit dialogs) */}
       <ProjectEditDialog
+        key={projectToEdit?.id ?? "none"}
         project={projectToEdit}
         open={editDialogOpen}
         onOpenChange={(open) => {
