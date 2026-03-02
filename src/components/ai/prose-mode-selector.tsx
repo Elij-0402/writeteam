@@ -13,8 +13,8 @@ const PROSE_MODES = [
   { value: "balanced", label: "均衡" },
   { value: "cinematic", label: "电影感" },
   { value: "lyrical", label: "抒情" },
-  { value: "minimal", label: "极简" },
-  { value: "match-style", label: "模仿风格" },
+  { value: "minimal", label: "简洁" },
+  { value: "match-style", label: "匹配风格" },
 ] as const
 
 export type ProseMode = (typeof PROSE_MODES)[number]["value"]

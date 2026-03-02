@@ -70,8 +70,8 @@ describe("ProseModeSelector", () => {
     expect(screen.getByText("均衡")).toBeTruthy()
     expect(screen.getByText("电影感")).toBeTruthy()
     expect(screen.getByText("抒情")).toBeTruthy()
-    expect(screen.getByText("极简")).toBeTruthy()
-    expect(screen.getByText("模仿风格")).toBeTruthy()
+    expect(screen.getByText("简洁")).toBeTruthy()
+    expect(screen.getByText("匹配风格")).toBeTruthy()
   })
 
   it("calls onChange when selection changes", async () => {
@@ -86,7 +86,7 @@ describe("ProseModeSelector", () => {
     render(
       <ProseModeSelector value="default" onChange={() => {}} hasStyleSample={false} />
     )
-    const matchStyleOption = screen.getByText("模仿风格").closest("option") as HTMLOptionElement
+    const matchStyleOption = screen.getByText("匹配风格").closest("option") as HTMLOptionElement
     expect(matchStyleOption.disabled).toBe(true)
   })
 
@@ -94,7 +94,7 @@ describe("ProseModeSelector", () => {
     render(
       <ProseModeSelector value="default" onChange={() => {}} hasStyleSample={true} />
     )
-    const matchStyleOption = screen.getByText("模仿风格").closest("option") as HTMLOptionElement
+    const matchStyleOption = screen.getByText("匹配风格").closest("option") as HTMLOptionElement
     expect(matchStyleOption.disabled).toBeFalsy()
   })
 })
