@@ -89,6 +89,7 @@ import { parseImportedFile } from "@/lib/import"
 import { computeSaliency } from "@/lib/ai/saliency"
 import type { SaliencyMap } from "@/lib/ai/saliency"
 import { countDocumentWords } from "@/lib/text-stats"
+import { readEditorSessionState, writeEditorSessionState } from "@/components/editor/editor-session-state"
 
 interface EditorShellProps {
   project: Project
@@ -136,6 +137,8 @@ export function EditorShell({
     initialDocuments[0]?.id || null
   )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [focusMode, setFocusMode] = useState(false)
+  const [sessionHydrated, setSessionHydrated] = useState(false)
   const [rightPanel, setRightPanel] = useState<RightPanelType>("none")
   const [creatingDoc, setCreatingDoc] = useState(false)
   const [selectedText, setSelectedText] = useState("")
@@ -214,6 +217,21 @@ export function EditorShell({
     ? `/canvas/${project.id}?focusNodeId=${encodeURIComponent(entryContext.nodeId)}`
     : `/canvas/${project.id}`
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setSessionHydrated(false)
+    const sessionState = readEditorSessionState(project.id)
+    setFocusMode(sessionState.focusMode)
+    setSessionHydrated(true)
+  }, [project.id])
+
+  useEffect(() => {
+    if (!sessionHydrated) {
+      return
+    }
+
+    writeEditorSessionState(project.id, { focusMode })
+  }, [focusMode, project.id, sessionHydrated])
 
   const getActionErrorMessage = useCallback((error: unknown, fallbackMessage: string) => {
     if (typeof error === "object" && error && "message" in error) {
@@ -547,6 +565,10 @@ export function EditorShell({
     setRightPanel((current) => current === panel ? "none" : panel)
   }, [])
 
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode((current) => !current)
+  }, [])
+
   const totalWordCount = documents.reduce((sum, d) => sum + (d.word_count || 0), 0)
 
   const renderEditorArea = () => (
@@ -797,6 +819,18 @@ export function EditorShell({
             {totalWordCount.toLocaleString()} 字
           </span>
           <Separator orientation="vertical" className="h-6" />
+          <Button
+            variant={focusMode ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={toggleFocusMode}
+          >
+            专注模式
+          </Button>
+          <span data-testid="editor-focus-mode" data-active={focusMode ? "true" : "false"} className="sr-only">
+            {focusMode ? "开启" : "关闭"}
+          </span>
+          <Separator orientation="vertical" className="h-6" />
           {/* Canvas Link */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -866,186 +900,188 @@ export function EditorShell({
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - Document List */}
-        <div
-          className={cn(
-            "flex flex-col border-r transition-all duration-200",
-            sidebarCollapsed ? "w-12" : "w-60"
-          )}
-        >
-          <div className="flex h-10 items-center justify-between px-2">
-            {!sidebarCollapsed && (
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                文档
-              </span>
+        {!focusMode && (
+          <div
+            className={cn(
+              "flex flex-col border-r transition-all duration-200",
+              sidebarCollapsed ? "w-12" : "w-60"
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
+          >
+            <div className="flex h-10 items-center justify-between px-2">
+              {!sidebarCollapsed && (
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  文档
+                </span>
               )}
-            </Button>
-          </div>
-          {!sidebarCollapsed && (
-            <>
-              <ScrollArea className="flex-1 px-2">
-                <div className="space-y-1 pb-4">
-                  {documents.map((doc, index) => (
-                    <div
-                      key={doc.id}
-                      className={cn(
-                        "group flex cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
-                        activeDocId === doc.id
-                          ? "bg-accent text-accent-foreground"
-                          : "hover:bg-accent/50"
-                      )}
-                      onClick={() => setActiveDocId(doc.id)}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{doc.title}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              >
+                {sidebarCollapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            {!sidebarCollapsed && (
+              <>
+                <ScrollArea className="flex-1 px-2">
+                  <div className="space-y-1 pb-4">
+                    {documents.map((doc, index) => (
+                      <div
+                        key={doc.id}
+                        className={cn(
+                          "group flex cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
+                          activeDocId === doc.id
+                            ? "bg-accent text-accent-foreground"
+                            : "hover:bg-accent/50"
+                        )}
+                        onClick={() => setActiveDocId(doc.id)}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{doc.title}</span>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openRenameDialog(doc)
+                              }}
+                              disabled={renameSubmitting || deletingDocId === doc.id || reorderingDocId === doc.id}
+                            >
+                              重命名
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleReorderDocument(doc.id, "up")
+                              }}
+                              disabled={index === 0 || deletingDocId === doc.id || reorderingDocId !== null}
+                            >
+                              <ArrowUp className="mr-2 h-4 w-4" />
+                              上移
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleReorderDocument(doc.id, "down")
+                              }}
+                              disabled={
+                                index === documents.length - 1 ||
+                                deletingDocId === doc.id ||
+                                reorderingDocId !== null
+                              }
+                            >
+                              <ArrowDown className="mr-2 h-4 w-4" />
+                              下移
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteDocument(doc.id)
+                              }}
+                              disabled={deletingDocId === doc.id || reorderingDocId === doc.id || renameSubmitting}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              删除
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openRenameDialog(doc)
-                            }}
-                            disabled={renameSubmitting || deletingDocId === doc.id || reorderingDocId === doc.id}
-                          >
-                            重命名
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleReorderDocument(doc.id, "up")
-                            }}
-                            disabled={index === 0 || deletingDocId === doc.id || reorderingDocId !== null}
-                          >
-                            <ArrowUp className="mr-2 h-4 w-4" />
-                            上移
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleReorderDocument(doc.id, "down")
-                            }}
-                            disabled={
-                              index === documents.length - 1 ||
-                              deletingDocId === doc.id ||
-                              reorderingDocId !== null
-                            }
-                          >
-                            <ArrowDown className="mr-2 h-4 w-4" />
-                            下移
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteDocument(doc.id)
-                            }}
-                            disabled={deletingDocId === doc.id || reorderingDocId === doc.id || renameSubmitting}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            删除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </ScrollArea>
+                <div className="border-t p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={handleCreateDocument}
+                    disabled={creatingDoc}
+                  >
+                    {creatingDoc ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 h-4 w-4" />
+                    )}
+                    新建文档
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        disabled={!activeDocument && documents.length === 0}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        导出文档
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        onClick={handleExportTxt}
+                        disabled={!activeDocument}
+                      >
+                        导出为 .txt
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleExportDocx}
+                        disabled={!activeDocument}
+                      >
+                        导出为 .docx
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleExportProject}
+                        disabled={documents.length === 0}
+                      >
+                        导出整个项目
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      toast.message("支持 .txt/.docx，单文件最大 5MB")
+                      fileInputRef.current?.click()
+                    }}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    导入文件
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.docx"
+                    className="hidden"
+                    onChange={handleImportFile}
+                  />
                 </div>
-              </ScrollArea>
-              <div className="border-t p-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={handleCreateDocument}
-                  disabled={creatingDoc}
-                >
-                  {creatingDoc ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 h-4 w-4" />
-                  )}
-                  新建文档
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start"
-                      disabled={!activeDocument && documents.length === 0}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      导出文档
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem
-                      onClick={handleExportTxt}
-                      disabled={!activeDocument}
-                    >
-                      导出为 .txt
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleExportDocx}
-                      disabled={!activeDocument}
-                    >
-                      导出为 .docx
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleExportProject}
-                      disabled={documents.length === 0}
-                    >
-                      导出整个项目
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    toast.message("支持 .txt/.docx，单文件最大 5MB")
-                    fileInputRef.current?.click()
-                  }}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  导入文件
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".txt,.docx"
-                  className="hidden"
-                  onChange={handleImportFile}
-                />
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Editor + Right Panel */}
-        {rightPanel !== "none" ? (
+        {!focusMode && rightPanel !== "none" ? (
           <ResizablePanelGroup orientation="horizontal" className="flex-1">
             <ResizablePanel defaultSize={65} minSize={40}>
               {renderEditorArea()}
