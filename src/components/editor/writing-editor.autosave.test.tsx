@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { WritingEditor } from "./writing-editor"
 import type { AutosaveStatus } from "./autosave-status"
@@ -138,6 +138,7 @@ function createDeferred<T>() {
 
 function renderEditor(options?: {
   document?: Document
+  retryRequestId?: number
   onUpdate?: (docId: string, updates: { content?: unknown; content_text?: string; word_count?: number }) => Promise<{
     success?: boolean
     error?: string
@@ -155,6 +156,7 @@ function renderEditor(options?: {
         }))
       }
       onSelectionChange={() => {}}
+      retryRequestId={options?.retryRequestId}
       onAutosaveStatusChange={options?.onAutosaveStatusChange}
     />
   )
@@ -203,15 +205,22 @@ describe("WritingEditor autosave status", () => {
       .mockResolvedValueOnce({ error: "保存失败" })
       .mockResolvedValueOnce({ success: true })
 
-    renderEditor({ onUpdate, onAutosaveStatusChange })
+    const view = renderEditor({ onUpdate, onAutosaveStatusChange, retryRequestId: 0 })
     await flushAsyncWork()
     await triggerAutosave()
     await flushAsyncWork()
 
-    expect(screen.getByRole("button", { name: "立即重试" })).not.toBeNull()
-
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "立即重试" }))
+      view.rerender(
+        <WritingEditor
+          document={createDocument()}
+          projectId="project-1"
+          onUpdate={onUpdate}
+          onSelectionChange={() => {}}
+          retryRequestId={1}
+          onAutosaveStatusChange={onAutosaveStatusChange}
+        />
+      )
     })
     await flushAsyncWork()
 
@@ -256,7 +265,7 @@ describe("WritingEditor autosave status", () => {
     expect(onAutosaveStatusChange.mock.calls.map(([status]) => status)).toEqual(["idle", "saving", "saving", "saved"])
   })
 
-  it("falls back to generic error when onUpdate throws and shows retry path", async () => {
+  it("falls back to generic error when onUpdate throws without inline retry action", async () => {
     const onAutosaveStatusChange = vi.fn<(status: AutosaveStatus) => void>()
     const onUpdate = vi
       .fn<(docId: string, updates: { content?: unknown; content_text?: string; word_count?: number }) => Promise<{
@@ -271,8 +280,7 @@ describe("WritingEditor autosave status", () => {
     await flushAsyncWork()
 
     expect(onAutosaveStatusChange.mock.calls.map(([status]) => status)).toEqual(["idle", "saving", "error"])
-    expect(screen.getByText("保存文档失败，请检查网络后重试")).not.toBeNull()
-    expect(screen.getByRole("button", { name: "立即重试" })).not.toBeNull()
+    expect(screen.queryByRole("button", { name: "立即重试" })).toBeNull()
   })
 
   it("resets autosave state and invalidates pending save when switching documents", async () => {

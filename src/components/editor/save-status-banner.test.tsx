@@ -20,6 +20,27 @@ describe("SaveStatusBanner", () => {
     expect(screen.getByText("正在重试保存..."))
   })
 
+  it("shows saved state text", () => {
+    render(<SaveStatusBanner status="saved" />)
+
+    expect(screen.getByText("内容已自动保存")).not.toBeNull()
+  })
+
+  it("hides retry action for non-error states", () => {
+    const { rerender } = render(<SaveStatusBanner status="idle" onRetry={vi.fn()} />)
+
+    expect(screen.queryByRole("button", { name: "立即重试" })).toBeNull()
+
+    rerender(<SaveStatusBanner status="saving" onRetry={vi.fn()} />)
+    expect(screen.queryByRole("button", { name: "立即重试" })).toBeNull()
+
+    rerender(<SaveStatusBanner status="retrying" onRetry={vi.fn()} />)
+    expect(screen.queryByRole("button", { name: "立即重试" })).toBeNull()
+
+    rerender(<SaveStatusBanner status="saved" onRetry={vi.fn()} />)
+    expect(screen.queryByRole("button", { name: "立即重试" })).toBeNull()
+  })
+
   it("shows error state with retry action", async () => {
     const user = userEvent.setup()
     const onRetry = vi.fn()

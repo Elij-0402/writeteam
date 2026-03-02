@@ -341,6 +341,9 @@ describe("EditorShell focus mode", () => {
 
     renderEditorShell()
 
+    const retryButtons = screen.getAllByRole("button", { name: "立即重试" })
+    expect(retryButtons).toHaveLength(1)
+
     await user.click(screen.getByRole("button", { name: "立即重试" }))
 
     expect(screen.getByText("正在重试保存...")).not.toBeNull()
