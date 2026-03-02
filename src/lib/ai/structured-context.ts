@@ -11,6 +11,10 @@ import type {
   TimelineEvent,
 } from "@/lib/story-bible/consistency-types"
 
+export interface StructuredContextVisibility {
+  characters?: boolean
+}
+
 const RULE_CATEGORY_PRIORITY: Record<ConstraintRule["category"], number> = {
   required: 0,
   forbidden: 1,
@@ -113,7 +117,8 @@ function buildTimelineLines(events: TimelineEvent[]): string[] {
 
 export function buildStructuredContext(
   consistencyState: ConsistencyState | undefined,
-  feature: AIFeature
+  feature: AIFeature,
+  visibility?: StructuredContextVisibility
 ): string {
   if (!consistencyState) {
     return ""
@@ -128,7 +133,12 @@ export function buildStructuredContext(
     }
   }
 
-  if (isWritingFeature(feature) || isPlanningFeature(feature) || feature === "continuity-check") {
+  const canUseCharacterArcs = visibility?.characters !== false
+
+  if (
+    canUseCharacterArcs &&
+    (isWritingFeature(feature) || isPlanningFeature(feature) || feature === "continuity-check")
+  ) {
     const characterLines = buildCharacterArcLines(consistencyState.characterArcStates)
     if (characterLines.length > 0) {
       sections.push(`Character arc states:\n${characterLines.join("\n")}`)

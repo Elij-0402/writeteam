@@ -291,6 +291,52 @@ describe("buildStoryPromptContext", () => {
     expect(result.fullContext).toContain("Character arc states")
     expect(result.fullContext).not.toContain("Timeline events")
   })
+
+  it("hides structured character arc states when characters visibility is false", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: {
+          genre: null,
+          style: null,
+          prose_mode: null,
+          style_sample: null,
+          synopsis: null,
+          themes: null,
+          setting: null,
+          pov: null,
+          tense: null,
+          worldbuilding: null,
+          outline: null,
+          notes: null,
+          braindump: null,
+          tone: null,
+          ai_rules: null,
+          visibility: { characters: false },
+        },
+        characters: [],
+        consistencyState: {
+          canonFacts: [],
+          timelineEvents: [],
+          characterArcStates: [
+            {
+              characterName: "林晚",
+              motivation: "找到姐姐",
+              relationshipStatus: "与沈舟互相猜忌",
+              secretProgress: "隐瞒身份",
+              source: "human",
+              confidence: 0.9,
+              updated_at: "2026-03-03T12:00:00.000Z",
+            },
+          ],
+          constraintRules: [],
+        },
+      },
+      { feature: "write" }
+    )
+
+    expect(result.fullContext).not.toContain("Character arc states")
+    expect(result.fullContext).not.toContain("林晚")
+  })
 })
 
 describe("fetchStoryContext", () => {

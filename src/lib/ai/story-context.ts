@@ -306,7 +306,9 @@ export function buildStoryPromptContext(
     isVisible("characters") ? buildCharacterGuidance(ctx.characters, feature) : "",
     isVisible("characters") ? buildCharacterHealthGuidance(ctx.characters) : buildCharacterVisibilityNotice(),
     buildProseModeSection(bible, proseMode ?? null),
-    buildStructuredContext(ctx.consistencyState, feature),
+    buildStructuredContext(ctx.consistencyState, feature, {
+      characters: isVisible("characters"),
+    }),
     saliencyMap ? buildSaliencyGuidance(saliencyMap) : "",
   ]
 
