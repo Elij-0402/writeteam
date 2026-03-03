@@ -19,7 +19,7 @@ export type AIFeature =
   | "visualize"
   | "bible-assist"
 
-export const WRITING_FEATURES: readonly AIFeature[] = [
+const WRITING_FEATURES: readonly AIFeature[] = [
   "write",
   "rewrite",
   "expand",
@@ -31,14 +31,14 @@ export const WRITING_FEATURES: readonly AIFeature[] = [
   "plugin",
 ]
 
-export const PLANNING_FEATURES: readonly AIFeature[] = [
+const PLANNING_FEATURES: readonly AIFeature[] = [
   "scene-plan",
   "brainstorm",
   "twist",
   "muse",
 ]
 
-export const CHECK_FEATURES: readonly AIFeature[] = ["continuity-check"]
+const CHECK_FEATURES: readonly AIFeature[] = ["continuity-check"]
 
 export function isWritingFeature(feature: AIFeature): boolean {
   return WRITING_FEATURES.includes(feature)

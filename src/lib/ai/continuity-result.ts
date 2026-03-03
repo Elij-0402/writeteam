@@ -1,7 +1,7 @@
-export type EvidenceSource = "正文片段" | "故事圣经" | "角色资料" | "系列设定" | "未知"
-export type ContinuityActionTarget = "current_passage" | "selected_text"
+type EvidenceSource = "正文片段" | "故事圣经" | "角色资料" | "系列设定" | "未知"
+type ContinuityActionTarget = "current_passage" | "selected_text"
 
-export interface ContinuityAction {
+interface ContinuityAction {
   type: "insert" | "replace"
   target: ContinuityActionTarget
   text: string
