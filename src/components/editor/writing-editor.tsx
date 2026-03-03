@@ -34,6 +34,9 @@ import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { countDocumentWords } from "@/lib/text-stats"
 import type { AutosaveStatus } from "./autosave-status"
+import { CharacterHighlightExtension, setHighlightCharacters } from "@/lib/editor/character-highlight-plugin"
+import { CharacterHoverCard } from "@/components/editor/character-hover-card"
+import type { Character } from "@/types/database"
 
 interface WritingEditorProps {
   document: Document
@@ -48,6 +51,8 @@ interface WritingEditorProps {
   retryRequestId?: number
   saliencyData?: { activeCharacters: string[]; activeLocations: string[]; activePlotlines: string[] } | null
   onAutosaveStatusChange?: (status: AutosaveStatus) => void
+  characters?: Character[]
+  onOpenBible?: () => void
 }
 
 type AutosaveState = {
@@ -70,12 +75,15 @@ export const WritingEditor = memo(function WritingEditor({
   retryRequestId,
   saliencyData,
   onAutosaveStatusChange,
+  characters,
+  onOpenBible,
 }: WritingEditorProps) {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastInsertRef = useRef<string>("")
   const latestDraftRef = useRef<{ content: Json | null; content_text: string; word_count: number } | null>(null)
   const latestSaveRequestRef = useRef(0)
   const activeDocumentIdRef = useRef(document.id)
+  const [editorContainer, setEditorContainer] = useState<HTMLDivElement | null>(null)
   const [autosaveState, setAutosaveState] = useState<AutosaveState>({ status: "idle" })
 
   const updateAutosaveState = useCallback(
@@ -174,6 +182,7 @@ export const WritingEditor = memo(function WritingEditor({
         CharacterCount,
         Highlight,
         Typography,
+        CharacterHighlightExtension,
       ],
       content: (document.content as Record<string, unknown>) || "<p></p>",
       editorProps: {
@@ -245,6 +254,12 @@ export const WritingEditor = memo(function WritingEditor({
       }
     }
   }, [])
+
+  // Update character highlights when saliency detects active characters
+  useEffect(() => {
+    if (!editor || !saliencyData?.activeCharacters) return
+    setHighlightCharacters(editor, saliencyData.activeCharacters)
+  }, [editor, saliencyData?.activeCharacters])
 
   if (!editor) return null
 
@@ -342,13 +357,18 @@ export const WritingEditor = memo(function WritingEditor({
       </div>
 
       {/* Editor Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={setEditorContainer} className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />
         <SelectionAIMenu
           editor={editor}
           projectId={projectId}
           documentId={document.id}
           saliencyData={saliencyData}
+        />
+        <CharacterHoverCard
+          editorElement={editorContainer}
+          characters={characters ?? []}
+          onViewCharacter={onOpenBible}
         />
       </div>
     </div>

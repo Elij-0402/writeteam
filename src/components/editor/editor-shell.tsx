@@ -678,6 +678,8 @@ export function EditorShell({
             saliencyData={saliencyMap}
             onAutosaveStatusChange={setAutosaveStatus}
             retryRequestId={autosaveRetryRequestId}
+            characters={initialCharacters}
+            onOpenBible={() => setRightPanel("bible")}
           />
           <SaliencyIndicator
             saliencyMap={saliencyMap}
