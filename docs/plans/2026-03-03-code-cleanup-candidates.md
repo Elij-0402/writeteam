@@ -26,6 +26,9 @@
 | `src/app/actions/story-bible.ts#getStoryBible` | `rg -n "\\bgetStoryBible\\b" src` 仅定义处 | 删除函数 | 已完成 |
 | `src/app/actions/story-bible.ts#getCharacters` | `rg -n "\\bgetCharacters\\b" src` 仅定义处 | 删除函数 | 已完成 |
 | `src/app/actions/story-bible.ts#getConsistencyFeatureFlags import` | lint 提示未使用 | 删除 import | 已完成 |
+| `src/lib/ai/consistency-preflight.ts` exported internal-only types | `rg` 全局仅在模块内出现 | 移除 `export`（4 个类型） | 已完成 |
+| `src/lib/ai/consistency-metrics.ts#ConflictMetricsInput` | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
+| `src/lib/ai/saliency.ts#CharacterInfo` | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）
@@ -35,3 +38,4 @@
 - 为避免对历史编码文本做风险性改写，针对 `react/no-unescaped-entities` 在以下文件使用了文件级 lint 规则关闭：
   - `src/components/editor/editor-shell.tsx`
   - `src/components/layout/app-sidebar.tsx`
+

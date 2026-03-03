@@ -4,7 +4,7 @@ export interface SaliencyMap {
   activePlotlines: string[]
 }
 
-export interface CharacterInfo {
+interface CharacterInfo {
   name: string
   role: string | null
 }

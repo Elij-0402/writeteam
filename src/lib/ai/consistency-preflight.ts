@@ -1,20 +1,20 @@
 import type { ConsistencyState, ConstraintRule } from "@/lib/story-bible/consistency-types"
 
-export type ConsistencySeverity = "high" | "medium" | "low"
+type ConsistencySeverity = "high" | "medium" | "low"
 
-export interface ConsistencyPreflightViolation {
+interface ConsistencyPreflightViolation {
   severity: ConsistencySeverity
   category: ConstraintRule["category"] | "timeline" | "character"
   message: string
   rule?: string
 }
 
-export interface ConsistencyPreflightInput {
+interface ConsistencyPreflightInput {
   text: string
   consistencyState?: ConsistencyState | null
 }
 
-export interface ConsistencyPreflightResult {
+interface ConsistencyPreflightResult {
   shouldBlock: boolean
   highestSeverity: ConsistencySeverity | null
   violations: ConsistencyPreflightViolation[]

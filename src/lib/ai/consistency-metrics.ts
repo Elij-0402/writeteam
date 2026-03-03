@@ -1,4 +1,4 @@
-export interface ConflictMetricsInput {
+interface ConflictMetricsInput {
   issues: number
   chars: number
 }
