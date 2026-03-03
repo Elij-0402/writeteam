@@ -1,23 +1,15 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
-import { resolveAIConfig } from "@/lib/ai/resolve-config"
-import { runConsistencyPreflight } from "@/lib/ai/consistency-preflight"
-import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-context"
-import type { SaliencyMap } from "@/lib/ai/story-context"
+import { runStreamingPipeline } from "@/lib/ai/shared-pipeline"
+import type { AIIntent } from "@/lib/ai/intent-config"
 
-interface WriteRequestBody {
-  [key: string]: unknown
-  context?: unknown
-  mode?: unknown
-  guidance?: unknown
-  projectId?: unknown
-  documentId?: unknown
-  proseMode?: unknown
-  saliency?: unknown
-}
+// ---------------------------------------------------------------------------
+// Write intent types
+// ---------------------------------------------------------------------------
 
 type WriteMode = "auto" | "guided" | "tone-ominous" | "tone-romantic" | "tone-fast" | "tone-humorous"
+
+type WriteRouteIntent = "write" | "first-draft" | "expand" | "describe"
 
 function isWriteMode(value: unknown): value is WriteMode {
   return (
@@ -30,81 +22,26 @@ function isWriteMode(value: unknown): value is WriteMode {
   )
 }
 
-function isSaliencyMap(value: unknown): value is SaliencyMap {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false
-  }
-
-  const v = value as Record<string, unknown>
+function isWriteRouteIntent(value: unknown): value is WriteRouteIntent {
   return (
-    Array.isArray(v.activeCharacters) &&
-    Array.isArray(v.activeLocations) &&
-    Array.isArray(v.activePlotlines) &&
-    v.activeCharacters.every((item) => typeof item === "string") &&
-    v.activeLocations.every((item) => typeof item === "string") &&
-    v.activePlotlines.every((item) => typeof item === "string")
+    value === "write" ||
+    value === "first-draft" ||
+    value === "expand" ||
+    value === "describe"
   )
 }
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return Response.json({ error: "未登录" }, { status: 401 })
-  }
+// ---------------------------------------------------------------------------
+// Per-intent message builders
+// ---------------------------------------------------------------------------
 
-  const aiConfig = resolveAIConfig(request)
-  if (!aiConfig) {
-    return Response.json({ error: "AI 服务未配置" }, { status: 400 })
-  }
-
-  let body: WriteRequestBody
-  try {
-    body = await request.json()
-  } catch {
-    return Response.json({ error: "请求参数格式错误，请刷新后重试" }, { status: 400 })
-  }
-
-  const projectId =
-    typeof body.projectId === "string" && body.projectId.trim().length > 0 ? body.projectId.trim() : null
-  if (!projectId) {
-    return Response.json({ error: "缺少项目ID，请返回项目后重试" }, { status: 400 })
-  }
-
-  const context = typeof body.context === "string" ? body.context : null
-  if (!context || context.trim().length === 0) {
-    return Response.json({ error: "缺少上下文，请输入内容后重试" }, { status: 400 })
-  }
-
+function buildWriteMessages(
+  body: Record<string, unknown>,
+  fullContext: string,
+): Array<{ role: "system" | "user"; content: string }> {
+  const context = typeof body.context === "string" ? body.context : ""
   const guidance = typeof body.guidance === "string" ? body.guidance : ""
   const mode: WriteMode = isWriteMode(body.mode) ? body.mode : "auto"
-  const documentId =
-    typeof body.documentId === "string" && body.documentId.trim().length > 0 ? body.documentId.trim() : null
-  const proseMode = typeof body.proseMode === "string" ? body.proseMode : null
-  const saliency = isSaliencyMap(body.saliency) ? body.saliency : null
-
-  const storyCtx = await fetchStoryContext(supabase, projectId, user.id)
-  const preflight = runConsistencyPreflight({
-    text: `${context}\n${guidance}`,
-    consistencyState: storyCtx.consistencyState,
-  })
-  if (preflight.shouldBlock) {
-    return Response.json(
-      {
-        error: "检测到高风险设定冲突，请先修正后再试",
-        errorType: "consistency_high_risk",
-        severity: "high",
-        violations: preflight.violations,
-      },
-      { status: 409 }
-    )
-  }
-
-  const { fullContext } = buildStoryPromptContext(storyCtx, {
-    feature: "write",
-    proseMode,
-    saliencyMap: saliency,
-  })
 
   let systemPrompt = `You are a creative fiction writing AI assistant. Your task is to continue the story seamlessly from where the author left off. Write in a natural, engaging style that matches the existing prose.`
 
@@ -135,28 +72,117 @@ export async function POST(request: NextRequest) {
       break
   }
 
-  try {
-      return await createOpenAIStreamResponse(
-        {
-          messages: [
-            { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        maxTokens: 1000,
-        temperature: 0.8,
-        ...aiConfig,
-      },
-        {
-          supabase,
-          userId: user.id,
-          projectId,
-          documentId,
-          feature: "write",
-          promptLog: userPrompt.slice(0, 500),
-          ...extractRetryMeta(body),
-      }
-    )
-  } catch {
-    return Response.json({ error: "服务器内部错误" }, { status: 500 })
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]
+}
+
+function buildFirstDraftMessages(
+  body: Record<string, unknown>,
+  fullContext: string,
+): Array<{ role: "system" | "user"; content: string }> {
+  const outline = typeof body.outline === "string" ? body.outline : ""
+  const context = typeof body.context === "string" ? body.context : ""
+
+  let systemPrompt = `You are a professional fiction writer. Given an outline or scene beats, write a complete, polished first draft scene. Write vivid, engaging prose with dialogue, action, and description. Match the specified POV and tense. Do NOT include meta-commentary — just write the scene.`
+  if (fullContext) {
+    systemPrompt += `\n\n${fullContext}`
   }
+
+  const userPrompt = `${context ? `Previous context:\n${context.slice(-2000)}\n\n` : ""}Write a complete first draft scene based on these beats/outline:\n\n${outline}\n\nWrite the full scene (800-1200 words) with rich prose, dialogue, and description:`
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]
+}
+
+function buildExpandMessages(
+  body: Record<string, unknown>,
+  fullContext: string,
+): Array<{ role: "system" | "user"; content: string }> {
+  const text = typeof body.text === "string" ? body.text : ""
+  const context = typeof body.context === "string" ? body.context : ""
+
+  let systemPrompt = `You are a creative fiction writing assistant. Your task is to expand the given passage by adding more detail, description, sensory imagery, internal thoughts, and moment-to-moment action. Slow down the pacing and flesh out the scene without changing the plot direction. Return ONLY the expanded prose.`
+
+  if (fullContext) {
+    systemPrompt += `\n\n${fullContext}`
+  }
+
+  const userPrompt = `Expand this passage with more detail, description, and depth:\n\n"${text}"\n\n${context ? `Story context:\n${context.slice(-2000)}\n\n` : ""}Write an expanded version (roughly 2-3x the original length). Focus on sensory details, character interiority, and scene-setting:`
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]
+}
+
+function buildDescribeMessages(
+  body: Record<string, unknown>,
+  fullContext: string,
+): Array<{ role: "system" | "user"; content: string }> {
+  const text = typeof body.text === "string" ? body.text : ""
+
+  let systemPrompt = `You are a creative writing assistant specializing in sensory description. Given a word, phrase, or passage, generate vivid descriptions organized by the five senses plus metaphors. Format your response clearly with headers for each sense.`
+  if (fullContext) {
+    systemPrompt += `\n\n${fullContext}`
+  }
+
+  const userPrompt = `Generate rich, sensory descriptions for: "${text}"
+
+Format your response like this:
+
+**Sight**: [visual descriptions]
+**Sound**: [auditory descriptions]
+**Smell**: [olfactory descriptions]
+**Touch**: [tactile descriptions]
+**Taste**: [gustatory descriptions]
+**Metaphor**: [creative metaphors and similes]
+
+Make each description vivid and suitable for use in fiction. Provide 2-3 options per sense.`
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+
+  // Pre-parse body to extract intent before handing off to pipeline.
+  // We clone so the pipeline can re-parse the body independently.
+  let intent: WriteRouteIntent = "write"
+  try {
+    const peek = await request.clone().json()
+    if (isWriteRouteIntent(peek.intent)) {
+      intent = peek.intent
+    }
+  } catch {
+    // Body parse will fail again inside the pipeline, which returns 400.
+  }
+
+  return runStreamingPipeline({
+    supabase,
+    request,
+    intent: intent as AIIntent,
+    buildMessages({ body, fullContext }) {
+      switch (intent) {
+        case "first-draft":
+          return buildFirstDraftMessages(body, fullContext)
+        case "expand":
+          return buildExpandMessages(body, fullContext)
+        case "describe":
+          return buildDescribeMessages(body, fullContext)
+        default:
+          return buildWriteMessages(body, fullContext)
+      }
+    },
+  })
 }

@@ -40,14 +40,18 @@ function makeSupabase(userId: string | null = "u-1") {
 }
 
 function makeRequest(body: Record<string, unknown>, options?: { rejectJson?: boolean }) {
-  return {
-    json: options?.rejectJson
-      ? vi.fn(async () => {
-          throw new Error("invalid json")
-        })
-      : vi.fn(async () => body),
+  const jsonFn = options?.rejectJson
+    ? () => Promise.reject(new Error("invalid json"))
+    : () => Promise.resolve(body)
+
+  const req = {
+    json: vi.fn(jsonFn),
     headers: new Headers(),
-  } as unknown as Request
+    clone() {
+      return makeRequest(body, options)
+    },
+  }
+  return req as unknown as Request
 }
 
 describe("write route", () => {
@@ -81,7 +85,7 @@ describe("write route", () => {
     const data = await res.json()
 
     expect(res.status).toBe(400)
-    expect(data).toEqual({ error: "AI 服务未配置" })
+    expect(data.error).toContain("AI 服务未配置")
   })
 
   it("returns 400 when request body is malformed JSON", async () => {
@@ -138,7 +142,7 @@ describe("write route", () => {
     expect(createOpenAIStreamResponse).not.toHaveBeenCalled()
   })
 
-  it("streams response when preflight passes", async () => {
+  it("streams response when preflight passes (write intent)", async () => {
     const { client } = makeSupabase()
     vi.mocked(createClient).mockResolvedValue(client as never)
     vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
@@ -156,5 +160,88 @@ describe("write route", () => {
 
     expect(res.status).toBe(200)
     expect(createOpenAIStreamResponse).toHaveBeenCalled()
+  })
+
+  it("defaults to write intent when no intent is specified", async () => {
+    const { client } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+    vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+    vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+    vi.mocked(createOpenAIStreamResponse).mockResolvedValue(new Response("ok") as never)
+
+    await POST(makeRequest({
+      context: "这是一段文本",
+      projectId: "p-1",
+    }) as never)
+
+    const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
+    const messages = call[0].messages as Array<{ role: string; content: string }>
+    expect(messages[0].content).toContain("continue the story")
+  })
+
+  it("routes to first-draft intent", async () => {
+    const { client } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+    vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+    vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+    vi.mocked(createOpenAIStreamResponse).mockResolvedValue(new Response("ok") as never)
+
+    await POST(makeRequest({
+      intent: "first-draft",
+      outline: "角色走进房间，发现了一封信",
+      projectId: "p-1",
+    }) as never)
+
+    const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
+    const messages = call[0].messages as Array<{ role: string; content: string }>
+    expect(messages[0].content).toContain("professional fiction writer")
+    expect(messages[1].content).toContain("角色走进房间，发现了一封信")
+  })
+
+  it("routes to expand intent with context truncation", async () => {
+    const { client } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+    vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+    vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+    vi.mocked(createOpenAIStreamResponse).mockResolvedValue(new Response("ok") as never)
+
+    const longContext = "x".repeat(3000)
+    await POST(makeRequest({
+      intent: "expand",
+      text: "他推开了门",
+      context: longContext,
+      projectId: "p-1",
+    }) as never)
+
+    const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
+    const messages = call[0].messages as Array<{ role: string; content: string }>
+    expect(messages[0].content).toContain("expand the given passage")
+    // Context should be truncated to last 2000 characters
+    expect(messages[1].content).toContain("x".repeat(2000))
+    expect(messages[1].content).not.toContain("x".repeat(2001))
+  })
+
+  it("routes to describe intent", async () => {
+    const { client } = makeSupabase()
+    vi.mocked(createClient).mockResolvedValue(client as never)
+    vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+    vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+    vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+    vi.mocked(createOpenAIStreamResponse).mockResolvedValue(new Response("ok") as never)
+
+    await POST(makeRequest({
+      intent: "describe",
+      text: "雨中的城市",
+      projectId: "p-1",
+    }) as never)
+
+    const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
+    const messages = call[0].messages as Array<{ role: string; content: string }>
+    expect(messages[0].content).toContain("sensory description")
+    expect(messages[1].content).toContain("雨中的城市")
+    expect(messages[1].content).toContain("**Sight**")
   })
 })
