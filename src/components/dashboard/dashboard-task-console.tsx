@@ -1,7 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import type { ShellUXDocument, ShellUXState } from "@/lib/dashboard/shell-ux-state"
+import type {
+  ShellUXDocument,
+  ShellUXRecommendedNextAction,
+  ShellUXState,
+} from "@/lib/dashboard/shell-ux-state"
 
 interface DashboardTaskConsoleProps {
   state: ShellUXState
@@ -17,32 +21,45 @@ interface SuggestionContent {
   onAction: () => void
 }
 
+function assertNever(action: never): never {
+  throw new Error(`Unhandled recommended next action: ${action}`)
+}
+
 function getSuggestionContent(
   state: ShellUXState,
   onResumeLastDoc: () => void,
   onCreateProject: () => void,
   onCreateFirstDoc: () => void,
 ): SuggestionContent {
-  if (state.recommendedNextAction === "create_project") {
-    return {
-      message: "下一步建议：先创建一个项目。",
-      actionLabel: "创建项目",
-      onAction: onCreateProject,
-    }
-  }
+  const action: ShellUXRecommendedNextAction = state.recommendedNextAction
 
-  if (state.recommendedNextAction === "create_first_document") {
-    return {
-      message: "下一步建议：先创建首个文档。",
-      actionLabel: "创建首个文档",
-      onAction: onCreateFirstDoc,
-    }
-  }
-
-  return {
-    message: "下一步建议：回到最近编辑的文档继续写作。",
-    actionLabel: "继续最近文档",
-    onAction: onResumeLastDoc,
+  switch (action) {
+    case "create_project":
+      return {
+        message: "下一步建议：先创建一个项目。",
+        actionLabel: "创建项目",
+        onAction: onCreateProject,
+      }
+    case "create_first_document":
+      return {
+        message: "下一步建议：先创建首个文档。",
+        actionLabel: "创建首个文档",
+        onAction: onCreateFirstDoc,
+      }
+    case "continue_current_document":
+      return {
+        message: "下一步建议：继续当前文档写作。",
+        actionLabel: "继续当前文档",
+        onAction: onResumeLastDoc,
+      }
+    case "resume_last_document":
+      return {
+        message: "下一步建议：回到最近编辑的文档继续写作。",
+        actionLabel: "继续最近文档",
+        onAction: onResumeLastDoc,
+      }
+    default:
+      return assertNever(action)
   }
 }
 

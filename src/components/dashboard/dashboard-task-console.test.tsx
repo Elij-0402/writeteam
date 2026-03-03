@@ -73,7 +73,22 @@ describe("DashboardTaskConsole", () => {
       />,
     )
 
-    expect(screen.getByText("下一步建议：先创建一个项目。"))
+    expect(screen.getByText("下一步建议：先创建一个项目。")).not.toBeNull()
+  })
+
+  it("renders continue current document suggestion when recommended", () => {
+    render(
+      <DashboardTaskConsole
+        state={createState({ recommendedNextAction: "continue_current_document" })}
+        recentDocuments={createRecentDocuments()}
+        onResumeLastDoc={vi.fn()}
+        onCreateProject={vi.fn()}
+        onCreateFirstDoc={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText("下一步建议：继续当前文档写作。")).not.toBeNull()
+    expect(screen.getByRole("button", { name: "继续当前文档" })).not.toBeNull()
   })
 
   it("triggers create first document callback from suggestion action", () => {
