@@ -113,7 +113,7 @@ export default async function DashboardPage() {
     "use server"
 
     const fallbackProjectId = shellProjects[0]?.projectId
-    let targetProjectId: string | undefined = shellProjects.find((project) => project.documents.length === 0)?.projectId ?? fallbackProjectId
+    const targetProjectId: string | undefined = shellProjects.find((project) => project.documents.length === 0)?.projectId ?? fallbackProjectId
 
     if (!targetProjectId) {
       const projectFormData = new FormData()
