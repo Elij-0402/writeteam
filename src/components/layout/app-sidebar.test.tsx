@@ -2,6 +2,7 @@
 
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AppSidebar } from "./app-sidebar"
 import type { Document, Project } from "@/types/database"
@@ -163,21 +164,31 @@ vi.mock("@/components/dashboard/project-edit-dialog", () => ({
     project: Project | null
     onOpenChange: (open: boolean) => void
     onSave: (projectId: string, formData: FormData) => Promise<void>
-  }) =>
-    open && project ? (
+  }) => {
+    const [loading, setLoading] = useState(false)
+
+    if (!open || !project) {
+      return null
+    }
+
+    return (
       <div>
         <button
           type="button"
-          onClick={() => {
+          disabled={loading}
+          onClick={async () => {
+            setLoading(true)
             const formData = new FormData()
             formData.append("title", "更新后的标题")
-            return onSave(project.id, formData)
+            await onSave(project.id, formData)
+            setLoading(false)
           }}
         >
-          保存项目修改
+          {loading ? "保存中" : "保存项目修改"}
         </button>
       </div>
-    ) : null,
+    )
+  },
 }))
 
 function makeProject(overrides: Partial<Project> = {}): Project {
@@ -340,5 +351,32 @@ describe("AppSidebar", () => {
     })
     expect(toast.error).toHaveBeenLastCalledWith("操作失败，请稍后重试")
     expect(onDocumentsChange).not.toHaveBeenCalled()
+  })
+
+  it("keeps save pending while project update request is in flight", async () => {
+    const user = userEvent.setup()
+    vi.mocked(updateProject).mockClear()
+    let resolveUpdate: (value: { success: boolean }) => void = () => {}
+    const updatePromise = new Promise<{ success: boolean }>((resolve) => {
+      resolveUpdate = resolve
+    })
+    vi.mocked(updateProject).mockReturnValue(updatePromise)
+
+    renderSidebar()
+
+    await user.click(screen.getByRole("menuitem", { name: "编辑项目" }))
+    const saveButton = screen.getByRole("button", { name: "保存项目修改" })
+
+    await user.click(saveButton)
+    expect(updateProject).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole("button", { name: "保存中" }))
+    expect(updateProject).toHaveBeenCalledTimes(1)
+
+    resolveUpdate({ success: true })
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "保存中" })).toBeNull()
+    })
   })
 })

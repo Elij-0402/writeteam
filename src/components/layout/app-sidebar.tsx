@@ -224,22 +224,20 @@ export function AppSidebar({
   }
 
   async function handleSaveProject(projectId: string, formData: FormData) {
-    startTransition(async () => {
-      try {
-        const result = await updateProject(projectId, formData)
-        const error = getActionError(result)
-        if (error) {
-          toast.error(error)
-          return
-        }
-
-        setEditDialogOpen(false)
-        setEditProject(null)
-        onDocumentsChange?.()
-      } catch {
-        toast.error(ACTION_ERROR_FALLBACK)
+    try {
+      const result = await updateProject(projectId, formData)
+      const error = getActionError(result)
+      if (error) {
+        toast.error(error)
+        return
       }
-    })
+
+      setEditDialogOpen(false)
+      setEditProject(null)
+      onDocumentsChange?.()
+    } catch {
+      toast.error(ACTION_ERROR_FALLBACK)
+    }
   }
 
   function handleOpenCanvas(projectId: string) {
