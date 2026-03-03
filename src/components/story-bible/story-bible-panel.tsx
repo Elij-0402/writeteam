@@ -878,58 +878,6 @@ function parseOutlineInput(input: string): unknown {
   }
 }
 
-function CharacterField({
-  label,
-  value,
-  placeholder,
-  onSave,
-}: {
-  label: string
-  value: string
-  placeholder: string
-  onSave: (value: string) => void
-}) {
-  const [localValue, setLocalValue] = useState(value)
-  const [dirty, setDirty] = useState(false)
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs">{label}</Label>
-        {dirty && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 px-1.5 text-[10px]"
-            onClick={() => {
-              onSave(localValue)
-              setDirty(false)
-            }}
-          >
-            保存
-          </Button>
-        )}
-      </div>
-      <Textarea
-        placeholder={placeholder}
-        value={localValue}
-        onChange={(e) => {
-          setLocalValue(e.target.value)
-          setDirty(true)
-        }}
-        onBlur={() => {
-          if (dirty) {
-            onSave(localValue)
-            setDirty(false)
-          }
-        }}
-        rows={2}
-        className="text-xs"
-      />
-    </div>
-  )
-}
-
 function VisibilityToggle({
   label,
   field,
