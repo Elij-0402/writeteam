@@ -47,6 +47,8 @@ import {
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
 import { ConflictWorkbench } from "@/components/story-bible/conflict-workbench"
+import { CollapsibleSection } from "./collapsible-section"
+import { CompletionIndicator } from "./completion-indicator"
 
 interface StoryBiblePanelProps {
   projectId: string
@@ -92,6 +94,14 @@ export function StoryBiblePanel({
     }
     return {}
   })
+
+  const overviewFields = { genre, style, pov, tense, tone, synopsis, themes }
+  const overviewFilled = Object.values(overviewFields).filter(v => v.trim() !== "").length
+  const overviewTotal = Object.keys(overviewFields).length
+
+  const guidanceFields = { aiRules, braindump, outlineText, notes }
+  const guidanceFilled = Object.values(guidanceFields).filter(v => v.trim() !== "").length
+  const guidanceTotal = Object.keys(guidanceFields).length
 
   function isFieldVisible(field: string): boolean {
     return visibility[field] !== false
@@ -252,7 +262,7 @@ export function StoryBiblePanel({
             onApplyConflict={handleApplyConflict}
           />
         </div>
-        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-4">
+        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-5">
           <TabsTrigger value="overview" className="text-xs">
             概览
           </TabsTrigger>
@@ -262,6 +272,9 @@ export function StoryBiblePanel({
           <TabsTrigger value="world" className="text-xs">
             世界观
           </TabsTrigger>
+          <TabsTrigger value="guidance" className="text-xs">
+            创作指导
+          </TabsTrigger>
           <TabsTrigger value="visibility" className="text-xs">
             AI 可见性
           </TabsTrigger>
@@ -270,68 +283,65 @@ export function StoryBiblePanel({
         <ScrollArea className="flex-1 px-4 py-3">
           {/* Overview Tab */}
           <TabsContent value="overview" className="mt-0 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <Lightbulb className="h-3 w-3" /> 灵感池
-              </Label>
-              <Textarea
-                placeholder="把你的原始灵感都记录在这里，AI 会参考这些内容..."
-                value={braindump}
-                onChange={(e) => {
-                  setBraindump(e.target.value)
-                  markDirty()
-                }}
-                rows={4}
-                className="text-xs"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+            <CompletionIndicator filled={overviewFilled} total={overviewTotal} />
+
+            <CollapsibleSection title="核心设定" defaultOpen={true}>
               <div className="space-y-2">
                 <Label className="text-xs">题材</Label>
-                <Input
-                  placeholder="奇幻、科幻..."
+                <Textarea
+                  placeholder="你的故事属于哪个类型？如：都市悬疑、奇幻冒险、科幻末世..."
                   value={genre}
                   onChange={(e) => {
                     setGenre(e.target.value)
                     markDirty()
                   }}
-                  className="h-8 text-xs"
+                  rows={2}
+                  className="text-xs"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">风格</Label>
-                <Input
-                  placeholder="黑暗、抒情..."
+                <Textarea
+                  placeholder="你期望的写作风格？如：紧凑明快、细腻文学、幽默讽刺..."
                   value={style}
                   onChange={(e) => {
                     setStyle(e.target.value)
                     markDirty()
                   }}
-                  className="h-8 text-xs"
+                  rows={2}
+                  className="text-xs"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">文风模式</Label>
-                <Select value={proseMode} onValueChange={(value) => {
-                  setProseMode(value)
-                  markDirty()
-                }}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="balanced" className="text-xs">均衡</SelectItem>
-                    <SelectItem value="cinematic" className="text-xs">电影感</SelectItem>
-                    <SelectItem value="lyrical" className="text-xs">抒情</SelectItem>
-                    <SelectItem value="minimal" className="text-xs">简洁</SelectItem>
-                    <SelectItem value="match-style" className="text-xs">匹配风格样本</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs">POV</Label>
+                  <Input
+                    placeholder="第一人称、第三人称有限..."
+                    value={pov}
+                    onChange={(e) => {
+                      setPov(e.target.value)
+                      markDirty()
+                    }}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">时态</Label>
+                  <Input
+                    placeholder="过去时、现在时..."
+                    value={tense}
+                    onChange={(e) => {
+                      setTense(e.target.value)
+                      markDirty()
+                    }}
+                    className="h-8 text-xs"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">语调</Label>
                 <Input
-                  placeholder="温暖、紧张、忧郁..."
+                  placeholder="故事的整体情绪基调？如：压抑、温暖、紧张..."
                   value={tone}
                   onChange={(e) => {
                     setTone(e.target.value)
@@ -340,117 +350,38 @@ export function StoryBiblePanel({
                   className="h-8 text-xs"
                 />
               </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection title="故事内容" defaultOpen={true}>
               <div className="space-y-2">
-                <Label className="text-xs">POV</Label>
-                <Input
-                  placeholder="第三人称限知"
-                  value={pov}
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <FileText className="h-3 w-3" /> 故事梗概
+                </Label>
+                <Textarea
+                  placeholder="用几段话描述你的故事核心情节——AI 会以此为叙事指南"
+                  value={synopsis}
                   onChange={(e) => {
-                    setPov(e.target.value)
+                    setSynopsis(e.target.value)
                     markDirty()
                   }}
-                  className="h-8 text-xs"
+                  rows={4}
+                  className="text-xs"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">时态</Label>
-                <Input
-                  placeholder="过去时"
-                  value={tense}
+                <Label className="text-xs">主题</Label>
+                <Textarea
+                  placeholder="你想探索的核心主题？如：救赎、权力腐化、人性光辉..."
+                  value={themes}
                   onChange={(e) => {
-                    setTense(e.target.value)
+                    setThemes(e.target.value)
                     markDirty()
                   }}
-                  className="h-8 text-xs"
+                  rows={3}
+                  className="text-xs"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <FileText className="h-3 w-3" /> 故事梗概
-              </Label>
-              <Textarea
-                placeholder="故事的高层概要..."
-                value={synopsis}
-                onChange={(e) => {
-                  setSynopsis(e.target.value)
-                  markDirty()
-                }}
-                rows={4}
-                className="text-xs"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">大纲（JSON 或逐行）</Label>
-              <Textarea
-                placeholder='[{"chapter":"第1章","beats":["节拍1","节拍2"]}] 或每行一个节拍'
-                value={outlineText}
-                onChange={(e) => {
-                  setOutlineText(e.target.value)
-                  markDirty()
-                }}
-                rows={4}
-                className="text-xs font-mono"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">主题</Label>
-              <Textarea
-                placeholder="故事要探讨的核心主题..."
-                value={themes}
-                onChange={(e) => {
-                  setThemes(e.target.value)
-                  markDirty()
-                }}
-                rows={3}
-                className="text-xs"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">风格样本（用于匹配风格）</Label>
-              <Textarea
-                placeholder="粘贴 1-3 段目标叙事风格文本"
-                value={styleSample}
-                onChange={(e) => {
-                  setStyleSample(e.target.value)
-                  markDirty()
-                }}
-                rows={4}
-                className="text-xs"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">备注</Label>
-              <Textarea
-                placeholder="其他补充说明..."
-                value={notes}
-                onChange={(e) => {
-                  setNotes(e.target.value)
-                  markDirty()
-                }}
-                rows={3}
-                className="text-xs"
-              />
-            </div>
-            <Separator />
-            <div className="space-y-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <FileText className="h-3 w-3" /> AI 规则
-              </Label>
-              <p className="text-[10px] text-muted-foreground">
-                AI 必须严格遵守的硬规则，优先级最高
-              </p>
-              <Textarea
-                placeholder="例：绝对不要写性描写；角色「小明」永远说方言；战斗场景不超过500字..."
-                value={aiRules}
-                onChange={(e) => {
-                  setAiRules(e.target.value)
-                  markDirty()
-                }}
-                rows={4}
-                className="text-xs"
-              />
-            </div>
+            </CollapsibleSection>
           </TabsContent>
 
           {/* Characters Tab */}
@@ -647,6 +578,112 @@ export function StoryBiblePanel({
                 className="text-xs"
               />
             </div>
+          </TabsContent>
+
+          {/* Guidance Tab */}
+          <TabsContent value="guidance" className="mt-0 space-y-4">
+            <CompletionIndicator filled={guidanceFilled} total={guidanceTotal} />
+
+            <CollapsibleSection title="AI 规则" defaultOpen={true}>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <FileText className="h-3 w-3" /> AI 规则
+                </Label>
+                <p className="text-[10px] text-muted-foreground">
+                  AI 必须严格遵守的硬规则，优先级最高
+                </p>
+                <Textarea
+                  placeholder="给 AI 的最高优先级指令——AI 会严格遵守这些规则，覆盖其他所有设定"
+                  value={aiRules}
+                  onChange={(e) => {
+                    setAiRules(e.target.value)
+                    markDirty()
+                  }}
+                  rows={3}
+                  className="text-xs"
+                />
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection title="写作素材" defaultOpen={false}>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <Lightbulb className="h-3 w-3" /> 灵感池
+                </Label>
+                <Textarea
+                  placeholder="在这里自由记录你的灵感、想法、片段——AI 会作为创意参考"
+                  value={braindump}
+                  onChange={(e) => {
+                    setBraindump(e.target.value)
+                    markDirty()
+                  }}
+                  rows={4}
+                  className="text-xs"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">大纲（JSON 或逐行）</Label>
+                <Textarea
+                  placeholder='[{"chapter":"第1章","beats":["节拍1","节拍2"]}] 或每行一个节拍'
+                  value={outlineText}
+                  onChange={(e) => {
+                    setOutlineText(e.target.value)
+                    markDirty()
+                  }}
+                  rows={4}
+                  className="text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">备注</Label>
+                <Textarea
+                  placeholder="任何额外的写作指导或备注"
+                  value={notes}
+                  onChange={(e) => {
+                    setNotes(e.target.value)
+                    markDirty()
+                  }}
+                  rows={3}
+                  className="text-xs"
+                />
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection title="风格控制" defaultOpen={true}>
+              <div className="space-y-2">
+                <Label className="text-xs">文风模式</Label>
+                <Select value={proseMode} onValueChange={(value) => {
+                  setProseMode(value)
+                  markDirty()
+                }}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="balanced" className="text-xs">均衡</SelectItem>
+                    <SelectItem value="cinematic" className="text-xs">电影感</SelectItem>
+                    <SelectItem value="lyrical" className="text-xs">抒情</SelectItem>
+                    <SelectItem value="minimal" className="text-xs">简洁</SelectItem>
+                    <SelectItem value="match-style" className="text-xs">匹配风格样本</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {proseMode === "match-style" && (
+                <div className="space-y-2">
+                  <Label className="text-xs">风格样本（用于匹配风格）</Label>
+                  <Textarea
+                    placeholder="粘贴 1-3 段目标叙事风格文本"
+                    value={styleSample}
+                    onChange={(e) => {
+                      setStyleSample(e.target.value)
+                      markDirty()
+                    }}
+                    rows={4}
+                    className="text-xs"
+                  />
+                </div>
+              )}
+            </CollapsibleSection>
           </TabsContent>
 
           {/* Visibility Tab */}
