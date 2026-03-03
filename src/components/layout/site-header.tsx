@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Maximize, MessageSquare, LayoutGrid } from "lucide-react"
 
-export interface SiteHeaderProps {
+interface SiteHeaderProps {
   projectTitle?: string
   projectId?: string
   documentTitle?: string

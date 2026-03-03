@@ -48,7 +48,7 @@ import { ProjectTree } from "./project-tree"
 import { ProjectEditDialog } from "@/components/dashboard/project-edit-dialog"
 import { NavUser } from "./nav-user"
 
-export interface AppSidebarProps {
+interface AppSidebarProps {
   projects: Project[]
   documentsByProject: Record<string, Document[]>
   activeDocumentId: string | null

@@ -29,6 +29,7 @@
 | `src/lib/ai/consistency-preflight.ts` exported internal-only types | `rg` 全局仅在模块内出现 | 移除 `export`（4 个类型） | 已完成 |
 | `src/lib/ai/consistency-metrics.ts#ConflictMetricsInput` | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
 | `src/lib/ai/saliency.ts#CharacterInfo` | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
+| `src/components/layout/*` props interfaces (`SiteHeaderProps`/`ProjectTreeProps`/`NavUserProps`/`AISidebarProps`/`AppShellProps`/`AppSidebarProps`) | 全局检索仅模块内使用 | 移除 `export` | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar"
 import { signOut } from "@/app/actions/auth"
 
-export interface NavUserProps {
+interface NavUserProps {
   displayName: string
   email: string
 }

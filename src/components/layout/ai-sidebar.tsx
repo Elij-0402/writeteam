@@ -8,7 +8,7 @@ import {
 import { AIChatPanel } from "@/components/ai/ai-chat-panel"
 import type { Character } from "@/types/database"
 
-export interface AISidebarProps {
+interface AISidebarProps {
   projectId: string
   documentId: string | null
   documentContent: string

@@ -10,7 +10,7 @@ import { SiteHeader } from "./site-header"
 import { AISidebar } from "./ai-sidebar"
 import { useEditorContext } from "@/components/editor/editor-context"
 
-export interface AppShellProps {
+interface AppShellProps {
   projects: Project[]
   documentsByProject: Record<string, Document[]>
   userDisplayName: string

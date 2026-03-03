@@ -36,7 +36,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 
-export interface ProjectTreeProps {
+interface ProjectTreeProps {
   projects: Project[]
   documentsByProject: Record<string, Document[]>
   activeDocumentId: string | null
