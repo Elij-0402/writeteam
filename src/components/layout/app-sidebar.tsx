@@ -180,9 +180,6 @@ export function AppSidebar({
   }
 
   function openRenameDocumentDialog(doc: Document) {
-    const projectId = Object.entries(documentsByProject).find(
-      ([, docs]) => docs.some((d) => d.id === doc.id)
-    )?.[0]
     setRenameDocId(doc.id)
     setRenameDocTitle(doc.title)
     setRenameDocOpen(true)
