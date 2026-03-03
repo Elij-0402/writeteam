@@ -47,6 +47,7 @@ export interface ProjectTreeProps {
   onDeleteProject?: (projectId: string) => void
   onEditProject?: (project: Project) => void
   onOpenCanvas?: (projectId: string) => void
+  onRenameDocument?: (document: Document) => void
 }
 
 export function ProjectTree({
@@ -60,6 +61,7 @@ export function ProjectTree({
   onDeleteProject,
   onEditProject,
   onOpenCanvas,
+  onRenameDocument,
 }: ProjectTreeProps) {
   // Determine which project contains the active document
   const activeProjectId = useMemo(() => {
@@ -178,7 +180,7 @@ export function ProjectTree({
 
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {docs.map((doc) => (
+                      {docs.map((doc, docIndex) => (
                         <SidebarMenuSubItem key={doc.id} className="group/doc relative">
                           <SidebarMenuSubButton
                             isActive={doc.id === activeDocumentId}
@@ -187,19 +189,37 @@ export function ProjectTree({
                             }
                           >
                             <FileText className="h-4 w-4" />
-                            <span>{doc.title}</span>
+                            <span>{docIndex + 1}. {doc.title}</span>
                           </SidebarMenuSubButton>
-                          {onDeleteDocument && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDeleteDocument(doc.id, project.id)
-                              }}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/doc:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                              aria-label={`删除 ${doc.title}`}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
+                          {(onRenameDocument || onDeleteDocument) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/doc:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent text-muted-foreground"
+                                  aria-label={`文档菜单 ${doc.title}`}
+                                >
+                                  <MoreHorizontal className="h-3 w-3" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" side="right">
+                                {onRenameDocument && (
+                                  <DropdownMenuItem onClick={() => onRenameDocument(doc)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    重命名
+                                  </DropdownMenuItem>
+                                )}
+                                {onDeleteDocument && (
+                                  <DropdownMenuItem
+                                    onClick={() => onDeleteDocument(doc.id, project.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    删除
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
                         </SidebarMenuSubItem>
                       ))}

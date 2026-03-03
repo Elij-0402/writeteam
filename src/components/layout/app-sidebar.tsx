@@ -13,7 +13,7 @@ import {
 import type { Project, Document } from "@/types/database"
 import { GENRES } from "@/lib/genre-colors"
 import { createProject, deleteProject, updateProject } from "@/app/actions/projects"
-import { createDocument, deleteDocument } from "@/app/actions/documents"
+import { createDocument, deleteDocument, updateDocument } from "@/app/actions/documents"
 import {
   Sidebar,
   SidebarContent,
@@ -75,6 +75,16 @@ export function AppSidebar({
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
 
+  // New document dialog state
+  const [newDocOpen, setNewDocOpen] = useState(false)
+  const [newDocTitle, setNewDocTitle] = useState("")
+  const [newDocProjectId, setNewDocProjectId] = useState<string | null>(null)
+
+  // Rename document dialog state
+  const [renameDocOpen, setRenameDocOpen] = useState(false)
+  const [renameDocId, setRenameDocId] = useState<string | null>(null)
+  const [renameDocTitle, setRenameDocTitle] = useState("")
+
   // Filter projects and documents based on search query
   const filteredProjects = useMemo(() => {
     if (!searchQuery.trim()) return projects
@@ -134,20 +144,62 @@ export function AppSidebar({
     })
   }
 
-  function handleCreateDocument(projectId: string) {
+  function openCreateDocumentDialog(projectId: string) {
+    setNewDocProjectId(projectId)
+    setNewDocTitle("")
+    setNewDocOpen(true)
+  }
+
+  function handleCreateDocument(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newDocProjectId) return
+
+    const title = newDocTitle.trim() || "未命名章节"
     const formData = new FormData()
-    formData.append("title", "新文档")
+    formData.append("title", title)
     formData.append("documentType", "chapter")
 
     startTransition(async () => {
-      await createDocument(projectId, formData)
+      const result = await createDocument(newDocProjectId, formData)
+      setNewDocOpen(false)
+      setNewDocTitle("")
+      setNewDocProjectId(null)
       onDocumentsChange?.()
+      // Navigate to editor with the new document
+      if (result.data) {
+        window.location.href = `/editor/${newDocProjectId}?doc=${result.data.id}`
+      }
     })
   }
 
   function handleDeleteDocument(documentId: string, projectId: string) {
     startTransition(async () => {
       await deleteDocument(documentId, projectId)
+      onDocumentsChange?.()
+    })
+  }
+
+  function openRenameDocumentDialog(doc: Document) {
+    const projectId = Object.entries(documentsByProject).find(
+      ([, docs]) => docs.some((d) => d.id === doc.id)
+    )?.[0]
+    setRenameDocId(doc.id)
+    setRenameDocTitle(doc.title)
+    setRenameDocOpen(true)
+  }
+
+  function handleRenameDocument(e: React.FormEvent) {
+    e.preventDefault()
+    if (!renameDocId) return
+
+    const trimmedTitle = renameDocTitle.trim()
+    if (!trimmedTitle) return
+
+    startTransition(async () => {
+      await updateDocument(renameDocId, { title: trimmedTitle })
+      setRenameDocOpen(false)
+      setRenameDocId(null)
+      setRenameDocTitle("")
       onDocumentsChange?.()
     })
   }
@@ -218,12 +270,13 @@ export function AppSidebar({
             documentsByProject={filteredDocumentsByProject}
             activeDocumentId={activeDocumentId}
             onSelectDocument={onSelectDocument}
-            onCreateDocument={handleCreateDocument}
+            onCreateDocument={openCreateDocumentDialog}
             onCreateProject={() => setNewProjectOpen(true)}
             onDeleteDocument={handleDeleteDocument}
             onDeleteProject={handleDeleteProject}
             onEditProject={handleEditProject}
             onOpenCanvas={handleOpenCanvas}
+            onRenameDocument={openRenameDocumentDialog}
           />
         </SidebarContent>
 
@@ -317,6 +370,109 @@ export function AppSidebar({
         }}
         onSave={handleSaveProject}
       />
+
+      {/* New Document Dialog */}
+      <Dialog open={newDocOpen} onOpenChange={(open) => {
+        if (isPending) return
+        setNewDocOpen(open)
+        if (!open) {
+          setNewDocTitle("")
+          setNewDocProjectId(null)
+        }
+      }}>
+        <DialogContent>
+          <form onSubmit={handleCreateDocument}>
+            <DialogHeader>
+              <DialogTitle>新建文档</DialogTitle>
+              <DialogDescription>
+                为章节起一个标题，留空将使用"未命名章节"。
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                value={newDocTitle}
+                onChange={(e) => setNewDocTitle(e.target.value)}
+                placeholder="请输入章节标题"
+                maxLength={120}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setNewDocOpen(false)
+                  setNewDocTitle("")
+                  setNewDocProjectId(null)
+                }}
+                disabled={isPending}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                创建
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Document Dialog */}
+      <Dialog open={renameDocOpen} onOpenChange={(open) => {
+        if (isPending) return
+        setRenameDocOpen(open)
+        if (!open) {
+          setRenameDocId(null)
+          setRenameDocTitle("")
+        }
+      }}>
+        <DialogContent>
+          <form onSubmit={handleRenameDocument}>
+            <DialogHeader>
+              <DialogTitle>重命名文档</DialogTitle>
+              <DialogDescription>
+                输入新的文档标题，保存后立即生效。
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                value={renameDocTitle}
+                onChange={(e) => setRenameDocTitle(e.target.value)}
+                placeholder="请输入文档标题"
+                maxLength={120}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    const form = e.currentTarget.closest("form")
+                    form?.requestSubmit()
+                  }
+                }}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setRenameDocOpen(false)
+                  setRenameDocId(null)
+                  setRenameDocTitle("")
+                }}
+                disabled={isPending}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isPending || !renameDocTitle.trim()}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
