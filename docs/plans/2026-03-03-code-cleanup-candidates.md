@@ -62,6 +62,11 @@
 | `src/components/editor/editor-session-state.ts#EditorSessionState` | `rg -n` 全局仅本模块使用 | 移除 `export`（保留接口） | 已完成 |
 | `src/lib/editor/character-positions.ts#CharacterMention` | `rg -n` 全局仅本模块使用 | 移除 `export`（保留接口） | 已完成 |
 | `src/lib/editor/character-highlight-plugin.ts` internal-only exports (`characterHighlightKey`/`createCharacterHighlightPlugin`) | `rg -n` 全局仅本模块使用 | 移除 `export`（保留实现） | 已完成 |
+| `src/components/ui/accordion.tsx` | `rg -n "@/components/ui/accordion" src` 无结果 | 删除文件 | 已完成 |
+| `src/components/ui/form.tsx` | `rg -n "@/components/ui/form" src` 无结果 | 删除文件 | 已完成 |
+| `src/components/ui/skeleton.tsx` | `rg -n "@/components/ui/skeleton" src` 无结果 | 删除文件 | 已完成 |
+| `src/components/ui/toggle-group.tsx` | 仅被 `toggle.tsx` 引用，且两者均无外部 import | 删除文件 | 已完成 |
+| `src/components/ui/toggle.tsx` | 仅被 `toggle-group.tsx` 引用，且两者均无外部 import | 删除文件 | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）
