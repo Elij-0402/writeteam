@@ -272,6 +272,12 @@ describe("AppSidebar", () => {
 
     await user.click(screen.getByRole("menuitem", { name: "新建文档" }))
 
+    // Dialog opens; click "创建" to submit the new document form
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "新建文档" })).toBeTruthy()
+    })
+    await user.click(screen.getByRole("button", { name: "创建" }))
+
     await waitFor(() => {
       expect(createDocument).toHaveBeenCalledWith("proj-1", expect.any(FormData))
     })
@@ -301,6 +307,10 @@ describe("AppSidebar", () => {
     expect(screen.getByRole("heading", { name: "新建项目" })).toBeTruthy()
 
     await user.click(screen.getByRole("menuitem", { name: "新建文档" }))
+    // Dialog opens; the new project dialog is still open too, so there are
+    // two "创建" buttons. The new-document dialog renders later in the DOM.
+    const createButtons = screen.getAllByRole("button", { name: "创建" })
+    await user.click(createButtons[createButtons.length - 1])
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("操作失败，请稍后重试")
     })
@@ -312,7 +322,12 @@ describe("AppSidebar", () => {
     })
     expect(onDocumentsChange).not.toHaveBeenCalled()
 
-    await user.click(screen.getByLabelText("删除 第一章"))
+    // Document delete is now in a dropdown menu; find the menuitem with
+    // text "删除" (not "删除项目" which is the project-level delete)
+    const deleteMenuItems = screen.getAllByRole("menuitem").filter(
+      (el) => el.textContent?.trim() === "删除"
+    )
+    await user.click(deleteMenuItems[0])
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("删除文档失败")
     })

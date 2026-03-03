@@ -149,8 +149,8 @@ describe("ProjectTree", () => {
         onSelectDocument={vi.fn()}
       />
     )
-    expect(screen.getByText("第一章")).toBeTruthy()
-    expect(screen.getByText("第二章")).toBeTruthy()
+    expect(screen.getByText("1. 第一章")).toBeTruthy()
+    expect(screen.getByText("2. 第二章")).toBeTruthy()
   })
 
   it("calls onSelectDocument when document clicked", async () => {
@@ -168,7 +168,7 @@ describe("ProjectTree", () => {
         onSelectDocument={onSelectDocument}
       />
     )
-    await user.click(screen.getByText("第一章"))
+    await user.click(screen.getByText("1. 第一章"))
     expect(onSelectDocument).toHaveBeenCalledWith("p1", "d1")
   })
 
@@ -188,8 +188,8 @@ describe("ProjectTree", () => {
         onSelectDocument={vi.fn()}
       />
     )
-    const activeButton = screen.getByText("第一章").closest("button")
-    const inactiveButton = screen.getByText("第二章").closest("button")
+    const activeButton = screen.getByText("1. 第一章").closest("button")
+    const inactiveButton = screen.getByText("2. 第二章").closest("button")
     expect(activeButton?.getAttribute("data-active")).toBe("true")
     expect(inactiveButton?.getAttribute("data-active")).toBe("false")
   })
