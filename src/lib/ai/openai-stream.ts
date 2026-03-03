@@ -1,3 +1,5 @@
+import { streamText } from "ai"
+import { createBYOKProvider } from "@/lib/ai/ai-provider"
 import { createTextFingerprint, estimateTokenCount } from "@/lib/ai/telemetry"
 import { classifyAIError } from "@/lib/ai/error-classification"
 import { resolveProviderNameByBaseUrl } from "@/lib/ai/ai-config"
@@ -40,56 +42,97 @@ export function extractRetryMeta(body: Record<string, unknown>): {
   return meta
 }
 
+// ---------------------------------------------------------------------------
+// Telemetry helper — reduces duplication between error and success paths
+// ---------------------------------------------------------------------------
+
+interface TelemetryRecord {
+  userId: string
+  projectId: string
+  documentId: string | null
+  provider: string
+  feature: string
+  promptLog: string
+  result: string
+  modelId: string
+  latencyMs: number
+  errorType: string | null
+  errorMessage: string | null
+  isRetry: boolean
+  recoveryStatus: string
+  attemptedModel: string | null
+}
+
+async function writeTelemetry(
+  supabase: SupabaseClient,
+  record: TelemetryRecord,
+): Promise<void> {
+  await supabase.from("ai_history").insert({
+    user_id: record.userId,
+    project_id: record.projectId,
+    document_id: record.documentId,
+    provider: record.provider,
+    feature: record.feature,
+    prompt: record.promptLog,
+    result: record.result,
+    model: record.modelId,
+    tokens_used: record.result ? estimateTokenCount(record.result) : undefined,
+    latency_ms: record.latencyMs,
+    output_chars: record.result.length,
+    response_fingerprint: record.result ? createTextFingerprint(record.result) : null,
+    error_type: record.errorType,
+    error_message: record.errorMessage,
+    is_retry: record.isRetry,
+    recovery_status: record.recoveryStatus,
+    attempted_model: record.attemptedModel,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Main streaming function
+// ---------------------------------------------------------------------------
+
 export async function createOpenAIStreamResponse(
   options: OpenAIStreamOptions,
-  telemetry: TelemetryOptions
+  telemetry: TelemetryOptions,
 ): Promise<Response> {
   const startedAt = Date.now()
   const provider = resolveProviderNameByBaseUrl(options.baseUrl)
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  }
-  if (options.apiKey) {
-    headers["Authorization"] = `Bearer ${options.apiKey}`
-  }
-
-  const url = `${options.baseUrl.replace(/\/+$/, "")}/chat/completions`
-
-  let response: globalThis.Response
+  // Create BYOK model via AI SDK
+  let result: ReturnType<typeof streamText>
   try {
-    response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: options.modelId,
-        messages: options.messages,
-        stream: true,
-        max_tokens: options.maxTokens,
-        temperature: options.temperature,
-      }),
+    const model = createBYOKProvider({
+      baseUrl: options.baseUrl,
+      apiKey: options.apiKey,
+      modelId: options.modelId,
     })
-  } catch (fetchError) {
-    // Network error before response (ECONNREFUSED, timeout, etc.)
-    const classification = classifyAIError(null, fetchError, "ai-stream")
 
-    // Write failure telemetry
-    await telemetry.supabase.from("ai_history").insert({
-      user_id: telemetry.userId,
-      project_id: telemetry.projectId,
-      document_id: telemetry.documentId,
+    result = streamText({
+      model,
+      messages: options.messages,
+      maxTokens: options.maxTokens,
+      temperature: options.temperature,
+    })
+  } catch (initError) {
+    // streamText initialization error (model not found, config invalid, etc.)
+    const classification = classifyAIError(null, initError, "ai-stream")
+
+    await writeTelemetry(telemetry.supabase, {
+      userId: telemetry.userId,
+      projectId: telemetry.projectId,
+      documentId: telemetry.documentId,
       provider,
       feature: telemetry.feature,
-      prompt: telemetry.promptLog,
+      promptLog: telemetry.promptLog,
       result: "",
-      model: options.modelId,
-      latency_ms: Date.now() - startedAt,
-      output_chars: 0,
-      error_type: classification.errorType,
-      error_message: classification.message,
-      is_retry: telemetry.isRetry ?? false,
-      recovery_status: "failure",
-      attempted_model: telemetry.attemptedModel ?? null,
+      modelId: options.modelId,
+      latencyMs: Date.now() - startedAt,
+      errorType: classification.errorType,
+      errorMessage: classification.message,
+      isRetry: telemetry.isRetry ?? false,
+      recoveryStatus: "failure",
+      attemptedModel: telemetry.attemptedModel ?? null,
     })
 
     return Response.json(
@@ -99,84 +142,21 @@ export async function createOpenAIStreamResponse(
         retriable: classification.retriable,
         suggestedActions: classification.suggestedActions,
       },
-      { status: 502 }
+      { status: 502 },
     )
   }
 
-  if (!response.ok) {
-    const classification = classifyAIError(response.status, null, "ai-stream")
-
-    // Write failure telemetry
-    await telemetry.supabase.from("ai_history").insert({
-      user_id: telemetry.userId,
-      project_id: telemetry.projectId,
-      document_id: telemetry.documentId,
-      provider,
-      feature: telemetry.feature,
-      prompt: telemetry.promptLog,
-      result: "",
-      model: options.modelId,
-      latency_ms: Date.now() - startedAt,
-      output_chars: 0,
-      error_type: classification.errorType,
-      error_message: classification.message,
-      is_retry: telemetry.isRetry ?? false,
-      recovery_status: "failure",
-      attempted_model: telemetry.attemptedModel ?? null,
-    })
-
-    return Response.json(
-      {
-        error: classification.message,
-        errorType: classification.errorType,
-        retriable: classification.retriable,
-        suggestedActions: classification.suggestedActions,
-      },
-      { status: response.status }
-    )
-  }
-
+  // Build streaming Response via ReadableStream
   const encoder = new TextEncoder()
   const readable = new ReadableStream({
     async start(controller) {
-      const reader = response.body?.getReader()
-      if (!reader) {
-        controller.close()
-        return
-      }
-      const decoder = new TextDecoder()
       let fullText = ""
       let streamError = false
+
       try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split("\n").filter((l) => l.startsWith("data: "))
-          for (const line of lines) {
-            const data = line.slice(6)
-            if (data === "[DONE]") continue
-            try {
-              const parsed = JSON.parse(data)
-              // Check for provider-side error events in the stream
-              if (parsed.error) {
-                streamError = true
-                const errorEvent = JSON.stringify({
-                  error: typeof parsed.error === "string" ? parsed.error : "流式传输中断",
-                  errorType: "server_error",
-                  retriable: true,
-                  suggestedActions: ["retry", "switch_model"],
-                })
-                controller.enqueue(encoder.encode(`\n\ndata: ${errorEvent}\n\n`))
-                break
-              }
-              const content = parsed.choices?.[0]?.delta?.content
-              if (content) {
-                fullText += content
-                controller.enqueue(encoder.encode(content))
-              }
-            } catch { /* skip malformed SSE chunks */ }
-          }
+        for await (const chunk of result.textStream) {
+          fullText += chunk
+          controller.enqueue(encoder.encode(chunk))
         }
       } catch {
         // Stream interrupted mid-read
@@ -197,24 +177,21 @@ export async function createOpenAIStreamResponse(
               ? "recovered_retry"
               : "success"
 
-        await telemetry.supabase.from("ai_history").insert({
-          user_id: telemetry.userId,
-          project_id: telemetry.projectId,
-          document_id: telemetry.documentId,
+        await writeTelemetry(telemetry.supabase, {
+          userId: telemetry.userId,
+          projectId: telemetry.projectId,
+          documentId: telemetry.documentId,
           provider,
           feature: telemetry.feature,
-          prompt: telemetry.promptLog,
+          promptLog: telemetry.promptLog,
           result: fullText,
-          model: options.modelId,
-          tokens_used: estimateTokenCount(fullText),
-          latency_ms: Date.now() - startedAt,
-          output_chars: fullText.length,
-          response_fingerprint: fullText ? createTextFingerprint(fullText) : null,
-          error_type: streamError ? "network" : null,
-          error_message: streamError ? "流式传输中断" : null,
-          is_retry: telemetry.isRetry ?? false,
-          recovery_status: recoveryStatus,
-          attempted_model: telemetry.attemptedModel ?? null,
+          modelId: options.modelId,
+          latencyMs: Date.now() - startedAt,
+          errorType: streamError ? "network" : null,
+          errorMessage: streamError ? "流式传输中断" : null,
+          isRetry: telemetry.isRetry ?? false,
+          recoveryStatus,
+          attemptedModel: telemetry.attemptedModel ?? null,
         })
         controller.close()
       }
