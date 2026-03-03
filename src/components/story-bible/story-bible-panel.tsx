@@ -34,10 +34,13 @@ import {
   Lightbulb,
   Eye,
   RefreshCw,
+  Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
+import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import { ConflictWorkbench } from "@/components/story-bible/conflict-workbench"
+import { AIFieldButton } from "./ai-field-button"
 import { CharacterCard } from "./character-card"
 import { CollapsibleSection } from "./collapsible-section"
 import { CompletionIndicator } from "./completion-indicator"
@@ -101,6 +104,10 @@ export function StoryBiblePanel({
     return {}
   })
 
+  const [braindumpExpanding, setBraindumpExpanding] = useState(false)
+
+  const { config, getHeaders } = useAIConfigContext()
+
   const overviewFields = { genre, style, pov, tense, tone, synopsis, themes }
   const overviewFilled = Object.values(overviewFields).filter(v => v.trim() !== "").length
   const overviewTotal = Object.keys(overviewFields).length
@@ -108,6 +115,63 @@ export function StoryBiblePanel({
   const guidanceFields = { aiRules, braindump, outlineText, notes }
   const guidanceFilled = Object.values(guidanceFields).filter(v => v.trim() !== "").length
   const guidanceTotal = Object.keys(guidanceFields).length
+
+  const currentBibleSnapshot = {
+    genre, style, pov, tense, tone, synopsis, themes,
+    setting, aiRules, braindump, outlineText, notes,
+    worldbuilding: serializeWorldbuildingSections(worldSections),
+  }
+
+  const handleBraindumpExpand = async () => {
+    if (!config?.apiKey || !config?.baseUrl || !braindump.trim()) return
+    setBraindumpExpanding(true)
+    try {
+      const response = await fetch("/api/ai/bible-assist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getHeaders(),
+        },
+        body: JSON.stringify({
+          projectId,
+          mode: "braindump-expand",
+          currentBible: currentBibleSnapshot,
+        }),
+      })
+      if (!response.ok || !response.body) return
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let result = ""
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        result += decoder.decode(value, { stream: true })
+      }
+
+      // Try parse JSON from the result
+      try {
+        const suggestions = JSON.parse(result.trim())
+        let filled = 0
+        if (suggestions.genre && !genre.trim()) { setGenre(suggestions.genre); markDirty(); filled++ }
+        if (suggestions.synopsis && !synopsis.trim()) { setSynopsis(suggestions.synopsis); markDirty(); filled++ }
+        if (suggestions.themes && !themes.trim()) { setThemes(suggestions.themes); markDirty(); filled++ }
+        if (suggestions.setting && !setting.trim()) { setSetting(suggestions.setting); markDirty(); filled++ }
+        if (suggestions.tone && !tone.trim()) { setTone(suggestions.tone); markDirty(); filled++ }
+        if (filled > 0) {
+          toast.success(`已从灵感池生成 ${filled} 个字段`)
+        } else {
+          toast.info("所有可生成的字段已有内容，未做修改")
+        }
+      } catch {
+        toast.error("AI 返回格式异常，请重试")
+      }
+    } catch {
+      toast.error("请求失败，请重试")
+    } finally {
+      setBraindumpExpanding(false)
+    }
+  }
 
   function isFieldVisible(field: string): boolean {
     return visibility[field] !== false
@@ -292,8 +356,16 @@ export function StoryBiblePanel({
             <CompletionIndicator filled={overviewFilled} total={overviewTotal} />
 
             <CollapsibleSection title="核心设定" defaultOpen={true}>
-              <div className="space-y-2">
-                <Label className="text-xs">题材</Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">题材</Label>
+                  <AIFieldButton
+                    projectId={projectId}
+                    targetField="genre"
+                    currentBible={currentBibleSnapshot}
+                    onAccept={(v) => { setGenre(v); markDirty() }}
+                  />
+                </div>
                 <Textarea
                   placeholder="你的故事属于哪个类型？如：都市悬疑、奇幻冒险、科幻末世..."
                   value={genre}
@@ -305,8 +377,16 @@ export function StoryBiblePanel({
                   className="text-xs"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">风格</Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">风格</Label>
+                  <AIFieldButton
+                    projectId={projectId}
+                    targetField="style"
+                    currentBible={currentBibleSnapshot}
+                    onAccept={(v) => { setStyle(v); markDirty() }}
+                  />
+                </div>
                 <Textarea
                   placeholder="你期望的写作风格？如：紧凑明快、细腻文学、幽默讽刺..."
                   value={style}
@@ -344,8 +424,16 @@ export function StoryBiblePanel({
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">语调</Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">语调</Label>
+                  <AIFieldButton
+                    projectId={projectId}
+                    targetField="tone"
+                    currentBible={currentBibleSnapshot}
+                    onAccept={(v) => { setTone(v); markDirty() }}
+                  />
+                </div>
                 <Input
                   placeholder="故事的整体情绪基调？如：压抑、温暖、紧张..."
                   value={tone}
@@ -359,10 +447,18 @@ export function StoryBiblePanel({
             </CollapsibleSection>
 
             <CollapsibleSection title="故事内容" defaultOpen={true}>
-              <div className="space-y-2">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <FileText className="h-3 w-3" /> 故事梗概
-                </Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    <FileText className="h-3 w-3" /> 故事梗概
+                  </Label>
+                  <AIFieldButton
+                    projectId={projectId}
+                    targetField="synopsis"
+                    currentBible={currentBibleSnapshot}
+                    onAccept={(v) => { setSynopsis(v); markDirty() }}
+                  />
+                </div>
                 <Textarea
                   placeholder="用几段话描述你的故事核心情节——AI 会以此为叙事指南"
                   value={synopsis}
@@ -374,8 +470,16 @@ export function StoryBiblePanel({
                   className="text-xs"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">主题</Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">主题</Label>
+                  <AIFieldButton
+                    projectId={projectId}
+                    targetField="themes"
+                    currentBible={currentBibleSnapshot}
+                    onAccept={(v) => { setThemes(v); markDirty() }}
+                  />
+                </div>
                 <Textarea
                   placeholder="你想探索的核心主题？如：救赎、权力腐化、人性光辉..."
                   value={themes}
@@ -544,9 +648,17 @@ export function StoryBiblePanel({
 
             <CollapsibleSection title="AI 规则" defaultOpen={true}>
               <div className="space-y-2">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <FileText className="h-3 w-3" /> AI 规则
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    <FileText className="h-3 w-3" /> AI 规则
+                  </Label>
+                  <AIFieldButton
+                    projectId={projectId}
+                    targetField="aiRules"
+                    currentBible={currentBibleSnapshot}
+                    onAccept={(v) => { setAiRules(v); markDirty() }}
+                  />
+                </div>
                 <p className="text-[10px] text-muted-foreground">
                   AI 必须严格遵守的硬规则，优先级最高
                 </p>
@@ -565,9 +677,26 @@ export function StoryBiblePanel({
 
             <CollapsibleSection title="写作素材" defaultOpen={false}>
               <div className="space-y-2">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <Lightbulb className="h-3 w-3" /> 灵感池
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    <Lightbulb className="h-3 w-3" /> 灵感池
+                  </Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 gap-1.5 text-xs"
+                    onClick={handleBraindumpExpand}
+                    disabled={!braindump.trim() || braindumpExpanding || !config?.apiKey}
+                    title={!config?.apiKey ? "请先配置 AI 密钥" : "将灵感池内容一键拆解到各字段"}
+                  >
+                    {braindumpExpanding ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    从灵感池一键生成
+                  </Button>
+                </div>
                 <Textarea
                   placeholder="在这里自由记录你的灵感、想法、片段——AI 会作为创意参考"
                   value={braindump}
