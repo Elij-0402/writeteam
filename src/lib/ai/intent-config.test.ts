@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   type AIIntent,
   type RouteCategory,
-  type IntentConfig,
+
   INTENT_CONFIGS,
   getIntentConfig,
   getIntentsByCategory,
