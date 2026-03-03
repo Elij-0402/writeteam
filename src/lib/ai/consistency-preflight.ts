@@ -1,4 +1,4 @@
-import type { ConsistencyState, ConstraintRule } from "@/lib/story-bible/consistency-types"
+import type { ConsistencyState, ConstraintRule } from "@/lib/story-bible/consistency"
 
 type ConsistencySeverity = "high" | "medium" | "low"
 

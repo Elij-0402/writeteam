@@ -9,7 +9,7 @@ import type {
   ConsistencyState,
   ConstraintRule,
   TimelineEvent,
-} from "@/lib/story-bible/consistency-types"
+} from "@/lib/story-bible/consistency"
 
 interface StructuredContextVisibility {
   characters?: boolean

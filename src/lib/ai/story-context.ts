@@ -6,14 +6,12 @@ import {
 } from "@/lib/ai/feature-groups"
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
 import { buildStructuredContext } from "@/lib/ai/structured-context"
-import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
 import { parseWorldbuildingSections } from "@/lib/story-bible/worldbuilding-sections"
 import {
-  getConsistencyFeatureFlags,
   isStructuredContextEnabled,
-} from "@/lib/story-bible/consistency-flags"
+} from "@/lib/story-bible/consistency"
 import type { AIFeature } from "@/lib/ai/feature-groups"
-import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
+import type { ConsistencyState } from "@/lib/story-bible/consistency"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -196,12 +194,6 @@ export async function fetchStoryContext(
   projectId: string,
   userId?: string
 ): Promise<StoryContext> {
-  const featureFlags = getConsistencyFeatureFlags()
-  const shouldBuildConsistencyState =
-    featureFlags.consistencyPreflight ||
-    featureFlags.structuredContext ||
-    featureFlags.postCheckEnhanced
-
   interface UserScopedQuery {
     eq: (column: string, value: string) => unknown
   }
@@ -305,12 +297,6 @@ export async function fetchStoryContext(
     return {
       bible: seriesFallbackBible,
       characters,
-      consistencyState: shouldBuildConsistencyState
-        ? extractConsistencyState({
-            bible: seriesFallbackBible,
-            characters,
-          })
-        : undefined,
     }
   }
 
@@ -319,12 +305,6 @@ export async function fetchStoryContext(
   return {
     bible,
     characters,
-    consistencyState: shouldBuildConsistencyState
-      ? extractConsistencyState({
-          bible,
-          characters,
-        })
-      : undefined,
   }
 }
 
