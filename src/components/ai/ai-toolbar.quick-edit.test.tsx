@@ -118,10 +118,11 @@ describe("AIToolbar quick-edit", () => {
     }
 
     const [url, init] = firstCall as unknown as [string, RequestInit]
-    expect(url).toBe("/api/ai/quick-edit")
+    expect(url).toBe("/api/ai/edit")
     const body = JSON.parse(String(init.body))
     expect(body.text).toBe("原始选中文本")
     expect(body.instruction).toBe("改得更紧张")
+    expect(body.intent).toBe("quick-edit")
     expect(body.projectId).toBe("p-1")
     expect(body.documentId).toBe("d-1")
 

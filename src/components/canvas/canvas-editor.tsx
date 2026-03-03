@@ -34,6 +34,7 @@ import {
 import { CanvasNode } from "@/components/canvas/canvas-node"
 import { CanvasToolbar } from "@/components/canvas/canvas-toolbar"
 import { NodeDetailPanel } from "@/components/canvas/node-detail-panel"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 
 interface CanvasEditorProps {
   projectId: string
@@ -268,10 +269,10 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialEdg
     async (outline: string) => {
       setGenerating(true)
       try {
-        const response = await fetch("/api/ai/canvas-generate", {
+        const response = await fetch(getEndpointForFeature("canvas-generate"), {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getHeaders() },
-          body: JSON.stringify({ projectId, outline }),
+          body: JSON.stringify({ projectId, outline, intent: "canvas-generate" }),
         })
 
         if (!response.ok) {

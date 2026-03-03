@@ -20,6 +20,7 @@ import { useAIRecovery } from "@/hooks/use-ai-recovery"
 import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
 import { readAIStream } from "@/lib/ai/read-ai-stream"
 import { ChatSlashCommands } from "@/components/ai/chat-slash-commands"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 import { ChatMentions, extractMentionQuery } from "@/components/ai/chat-mentions"
 import type { MentionItem } from "@/components/ai/chat-mentions"
 import type { Character } from "@/types/database"
@@ -139,8 +140,9 @@ export function AIChatPanel({
           projectId,
           text: documentContent.slice(-2000),
           style: "realistic",
+          intent: "visualize",
         }
-        const response = await fetch("/api/ai/visualize", {
+        const response = await fetch(getEndpointForFeature("visualize"), {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getHeaders() },
           body: JSON.stringify(body),
@@ -180,12 +182,13 @@ export function AIChatPanel({
       setMessages((prev) => [...prev, userMsg])
       setLoading(true)
 
-      const endpoint = "/api/ai/muse"
+      const endpoint = getEndpointForFeature("muse")
       const body: Record<string, string> = {
         mode: museMode,
         projectId,
         documentId: documentId ?? "",
         context: documentContent.slice(-5000),
+        intent: "muse",
       }
 
       if (effectiveProseMode) {
@@ -258,13 +261,14 @@ export function AIChatPanel({
     setLoading(true)
     recovery.clearError()
 
-    const endpoint = "/api/ai/chat"
+    const endpoint = getEndpointForFeature("chat")
     const body = {
       messages: [...messages, userMessage],
       projectId,
       documentId,
       context: documentContent.slice(-3000),
       proseMode: effectiveProseMode,
+      intent: "chat",
     }
 
     // Store request context for recovery

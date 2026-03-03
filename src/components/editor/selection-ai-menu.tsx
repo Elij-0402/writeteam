@@ -34,6 +34,7 @@ import { useAIRecovery } from "@/hooks/use-ai-recovery"
 import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
 import { readAIStream } from "@/lib/ai/read-ai-stream"
 import { AI_TTFB_MS } from "@/lib/ai/timing"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 
 interface SelectionAIMenuProps {
   editor: Editor
@@ -144,26 +145,14 @@ export function SelectionAIMenu({
         body.saliency = saliencyData
       }
 
-      let endpoint = ""
+      body.intent = action
+      const endpoint = getEndpointForFeature(action)
+
       switch (action) {
         case "rewrite":
-          endpoint = "/api/ai/rewrite"
           body.mode = "rephrase"
           break
-        case "expand":
-          endpoint = "/api/ai/expand"
-          break
-        case "describe":
-          endpoint = "/api/ai/describe"
-          break
-        case "shrink":
-          endpoint = "/api/ai/shrink"
-          break
-        case "tone-shift":
-          endpoint = "/api/ai/tone-shift"
-          break
         case "quick-edit":
-          endpoint = "/api/ai/quick-edit"
           body.instruction = quickEditInstruction
           break
       }

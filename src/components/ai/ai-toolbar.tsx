@@ -61,6 +61,7 @@ import {
   saveLastQuickEditInstruction,
 } from "@/components/ai/ai-last-action"
 import { isEditorQuickEditReuseEnabled } from "@/lib/editor/editor-experience-flags"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 
 interface AIToolbarProps {
   selectedText: string
@@ -251,7 +252,9 @@ export function AIToolbar({
         saveLastQuickEditInstruction(projectId, body.instruction)
       }
 
-      const endpoint = feature === "plugin" ? "/api/ai/plugin" : `/api/ai/${feature}`
+      body.intent = feature
+
+      const endpoint = getEndpointForFeature(feature)
 
       // Store request context for recovery retry
       recovery.storeRequestContext(endpoint, body, async (reader) => {

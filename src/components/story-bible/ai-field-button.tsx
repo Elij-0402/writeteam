@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Sparkles, Check, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 
 interface AIFieldButtonProps {
   projectId: string
@@ -28,7 +29,7 @@ export function AIFieldButton({
     setPreview(null)
 
     try {
-      const response = await fetch("/api/ai/bible-assist", {
+      const response = await fetch(getEndpointForFeature("bible-assist"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -39,6 +40,7 @@ export function AIFieldButton({
           mode: "field-generate",
           targetField,
           currentBible,
+          intent: "bible-assist",
         }),
       })
 

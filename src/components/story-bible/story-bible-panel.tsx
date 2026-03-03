@@ -44,6 +44,7 @@ import { AIFieldButton } from "./ai-field-button"
 import { CharacterCard } from "./character-card"
 import { CollapsibleSection } from "./collapsible-section"
 import { CompletionIndicator } from "./completion-indicator"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 import {
   parseWorldbuildingSections,
   serializeWorldbuildingSections,
@@ -126,7 +127,7 @@ export function StoryBiblePanel({
     if (!config?.apiKey || !config?.baseUrl || !braindump.trim()) return
     setBraindumpExpanding(true)
     try {
-      const response = await fetch("/api/ai/bible-assist", {
+      const response = await fetch(getEndpointForFeature("bible-assist"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -136,6 +137,7 @@ export function StoryBiblePanel({
           projectId,
           mode: "braindump-expand",
           currentBible: currentBibleSnapshot,
+          intent: "bible-assist",
         }),
       })
       if (!response.ok || !response.body) return
