@@ -27,6 +27,7 @@ import { useAIConfigContext } from "@/components/providers/ai-config-provider"
 import { useAIRecovery } from "@/hooks/use-ai-recovery"
 import { RecoveryActionBar } from "@/components/ai/recovery-action-bar"
 import { readAIStream } from "@/lib/ai/read-ai-stream"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 
 interface MuseGeneration {
   id: string
@@ -113,6 +114,7 @@ export function MusePanel({
 
       try {
         const body: Record<string, string> = {
+          intent: "muse",
           mode,
           projectId,
           documentId: documentId ?? "",
@@ -127,7 +129,7 @@ export function MusePanel({
           body.input = whatIfInput.trim()
         }
 
-        const endpoint = "/api/ai/muse"
+        const endpoint = getEndpointForFeature("muse")
 
         recovery.storeRequestContext(endpoint, body, async (reader) => {
           await consumeMuseStream(reader, mode)

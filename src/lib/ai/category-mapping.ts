@@ -4,6 +4,7 @@ const INDEPENDENT_ENDPOINTS: Record<string, string> = {
   plugin: "/api/ai/plugin",
   models: "/api/ai/models",
   "test-connection": "/api/ai/test-connection",
+  feedback: "/api/ai/check",
 }
 
 export function getEndpointForFeature(feature: string): string {

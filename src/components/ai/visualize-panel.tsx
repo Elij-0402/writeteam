@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner"
 import { getImages, deleteImage } from "@/app/actions/images"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 import type { Image as ImageType } from "@/types/database"
 
 const STYLE_OPTIONS = [
@@ -78,10 +79,10 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
     setCurrentImage(null)
 
     try {
-      const response = await fetch("/api/ai/visualize", {
+      const response = await fetch(getEndpointForFeature("visualize"), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getHeaders() },
-        body: JSON.stringify({ projectId, text, style }),
+        body: JSON.stringify({ intent: "visualize", projectId, text, style }),
       })
 
       if (!response.ok) {

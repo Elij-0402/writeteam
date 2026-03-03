@@ -19,6 +19,7 @@ describe("category-mapping", () => {
   it("maps check features to /api/ai/check", () => {
     expect(getEndpointForFeature("continuity-check")).toBe("/api/ai/check")
     expect(getEndpointForFeature("saliency")).toBe("/api/ai/check")
+    expect(getEndpointForFeature("feedback")).toBe("/api/ai/check")
   })
 
   it("maps chat features to /api/ai/chat", () => {

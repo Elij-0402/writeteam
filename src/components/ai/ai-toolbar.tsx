@@ -451,10 +451,11 @@ export function AIToolbar({
 
     setFeedbackLoading(true)
     try {
-      const response = await fetch("/api/ai/feedback", {
+      const response = await fetch(getEndpointForFeature("feedback"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          intent: "feedback",
           projectId,
           feature: activeFeature,
           responseFingerprint,
