@@ -37,6 +37,10 @@
 | `src/lib/ai/feature-groups.ts` internal-only constants (`WRITING_FEATURES`/`PLANNING_FEATURES`/`CHECK_FEATURES`) | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
 | `src/lib/ai/story-context.ts` internal-only types (`StoryBibleData`/`CharacterData`/`StoryPromptOptions`/`StoryPromptContext`) | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
 | `src/lib/ai/structured-context.ts#StructuredContextVisibility` | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
+| `src/components/ui/progress.tsx` | 全局无 import（`rg "@/components/ui/progress"` 无结果） | 删除文件 | 已完成 |
+| `src/components/ui/card.tsx#CardAction` | `rg` 全局仅在模块内出现 | 移除导出并删除未使用实现 | 已完成 |
+| `src/components/ui/command.tsx#CommandShortcut` | `rg` 全局仅在模块内出现 | 移除导出并删除未使用实现 | 已完成 |
+| `src/components/ui/scroll-area.tsx#ScrollBar export` | `ScrollBar` 仅模块内使用 | 从 export 列表移除 | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）
