@@ -374,6 +374,67 @@ describe("buildStoryPromptContext", () => {
     expect(result.fullContext).toContain("简洁有力")
   })
 
+  it("parses structured worldbuilding sections in prompt", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: {
+          genre: null,
+          style: null,
+          prose_mode: null,
+          style_sample: null,
+          synopsis: null,
+          themes: null,
+          setting: null,
+          pov: null,
+          tense: null,
+          worldbuilding: "[地理环境]\n山脉纵横\n\n[能力体系]\n内力修炼",
+          outline: null,
+          notes: null,
+          braindump: null,
+          tone: null,
+          ai_rules: null,
+          visibility: null,
+        },
+        characters: [],
+      },
+      { feature: "write" }
+    )
+    expect(result.fullContext).toContain("### 地理环境")
+    expect(result.fullContext).toContain("山脉纵横")
+    expect(result.fullContext).toContain("### 能力体系")
+    expect(result.fullContext).toContain("内力修炼")
+  })
+
+  it("renders flat worldbuilding text without sub-headers", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: {
+          genre: null,
+          style: null,
+          prose_mode: null,
+          style_sample: null,
+          synopsis: null,
+          themes: null,
+          setting: null,
+          pov: null,
+          tense: null,
+          worldbuilding: "魔法需要等价交换",
+          outline: null,
+          notes: null,
+          braindump: null,
+          tone: null,
+          ai_rules: null,
+          visibility: null,
+        },
+        characters: [],
+      },
+      { feature: "write" }
+    )
+    expect(result.fullContext).toContain("WORLD RULES")
+    expect(result.fullContext).toContain("魔法需要等价交换")
+    expect(result.fullContext).not.toContain("###")
+  })
+
   it("hides structured character arc states when characters visibility is false", () => {
     const result = buildStoryPromptContext(
       {

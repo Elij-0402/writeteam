@@ -7,6 +7,7 @@ import {
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
 import { buildStructuredContext } from "@/lib/ai/structured-context"
 import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
+import { parseWorldbuildingSections } from "@/lib/story-bible/worldbuilding-sections"
 import {
   getConsistencyFeatureFlags,
   isStructuredContextEnabled,
@@ -493,6 +494,21 @@ function buildSettingGuidance(
 
 function buildWorldbuildingGuidance(worldbuilding: string | null): string {
   if (!worldbuilding) return ""
+
+  const sections = parseWorldbuildingSections(worldbuilding)
+  if (sections.length > 1 || (sections.length === 1 && sections[0].title !== "\u901A\u7528")) {
+    // Structured format - render with sub-headers
+    const sectionText = sections
+      .filter(s => s.content.trim())
+      .map(s => `### ${s.title}\n${s.content}`)
+      .join("\n\n")
+    return `WORLD RULES (hard constraints \u2014 never violate):\n${sectionText}`
+  } else if (sections.length === 1) {
+    // Legacy flat text
+    return `WORLD RULES (hard constraints \u2014 never violate):\n${sections[0].content}\nAll narrative elements must be consistent with these established rules.`
+  }
+
+  // Fallback
   const truncated = worldbuilding.slice(0, 2000)
   return `WORLD RULES (hard constraints \u2014 never violate):\n${truncated}\nAll narrative elements must be consistent with these established rules.`
 }
