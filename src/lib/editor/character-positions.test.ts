@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { findCharacterMentions, type CharacterMention } from "./character-positions"
+import { findCharacterMentions } from "./character-positions"
 
 describe("findCharacterMentions", () => {
   it("finds a single character name", () => {

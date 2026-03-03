@@ -96,6 +96,15 @@ vi.mock("@/components/editor/selection-ai-menu", () => ({
   SelectionAIMenu: () => null,
 }))
 
+vi.mock("@/components/editor/character-hover-card", () => ({
+  CharacterHoverCard: () => null,
+}))
+
+vi.mock("@/lib/editor/character-highlight-plugin", () => ({
+  CharacterHighlightExtension: {},
+  setHighlightCharacters: () => {},
+}))
+
 vi.mock("@/components/ui/button", () => ({
   Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props}>{children}</button>

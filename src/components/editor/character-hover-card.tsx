@@ -57,7 +57,11 @@ export function CharacterHoverCard({
 
         const rect = target.getBoundingClientRect()
         setActiveCharacter(char)
-        setPosition({ x: rect.left, y: rect.bottom + 6 })
+        const x = Math.min(rect.left, window.innerWidth - 296)
+        const y = rect.bottom + 6 + 280 > window.innerHeight
+          ? rect.top - 286
+          : rect.bottom + 6
+        setPosition({ x, y })
       }, 300)
     }
 
