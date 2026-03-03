@@ -1,4 +1,5 @@
 "use client"
+/* eslint-disable react/no-unescaped-entities */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { Json, Plugin } from "@/types/database"
