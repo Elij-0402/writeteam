@@ -177,6 +177,8 @@ export function EditorShell({
   const [renameDocId, setRenameDocId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState("")
   const [renameSubmitting, setRenameSubmitting] = useState(false)
+  const [createDocOpen, setCreateDocOpen] = useState(false)
+  const [createDocTitle, setCreateDocTitle] = useState("")
   const [showEntryHint, setShowEntryHint] = useState(true)
   const [aiConfigOpen, setAiConfigOpen] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle")
@@ -410,11 +412,17 @@ export function EditorShell({
     [getActionErrorMessage, project.id]
   )
 
+  const openCreateDocumentDialog = useCallback(() => {
+    setCreateDocTitle("")
+    setCreateDocOpen(true)
+  }, [])
+
   const handleCreateDocument = useCallback(async () => {
     setCreatingDoc(true)
     try {
+      const title = createDocTitle.trim() || "未命名章节"
       const formData = new FormData()
-      formData.set("title", `第 ${documents.length + 1} 章`)
+      formData.set("title", title)
       formData.set("documentType", "chapter")
       const result = await createDocument(project.id, formData)
       if (result.error) {
@@ -422,14 +430,16 @@ export function EditorShell({
       } else if (result.data) {
         setDocuments((prev) => [...prev, result.data!])
         setActiveDocId(result.data.id)
-        toast.success("文档已创建")
+        setCreateDocOpen(false)
+        setCreateDocTitle("")
+        toast.success("章节已创建")
       }
     } catch (error) {
       toast.error(getActionErrorMessage(error, "创建失败，请检查网络后重试"))
     } finally {
       setCreatingDoc(false)
     }
-  }, [documents.length, getActionErrorMessage, project.id])
+  }, [createDocTitle, getActionErrorMessage, project.id])
 
   const handleDeleteDocument = useCallback(
     async (docId: string) => {
@@ -1024,7 +1034,7 @@ export function EditorShell({
                               >
                                 <div className="flex items-center gap-2 truncate">
                                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                  <span className="truncate">{doc.title}</span>
+                                  <span className="truncate">{index + 1}. {doc.title}</span>
                                 </div>
                                 <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                   <span>{(doc.word_count || 0).toLocaleString()} 字</span>
@@ -1112,7 +1122,7 @@ export function EditorShell({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
-                    onClick={handleCreateDocument}
+                    onClick={openCreateDocumentDialog}
                     disabled={creatingDoc}
                   >
                     {creatingDoc ? (
@@ -1245,6 +1255,51 @@ export function EditorShell({
             <Button type="button" onClick={handleRenameDocument} disabled={renameSubmitting}>
               {renameSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Document Dialog */}
+      <Dialog open={createDocOpen} onOpenChange={(open) => {
+        if (creatingDoc) return
+        setCreateDocOpen(open)
+        if (!open) setCreateDocTitle("")
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建文档</DialogTitle>
+            <DialogDescription>为章节起一个标题，留空将使用"未命名章节"。</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={createDocTitle}
+            onChange={(e) => setCreateDocTitle(e.target.value)}
+            maxLength={120}
+            placeholder="请输入章节标题"
+            disabled={creatingDoc}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                handleCreateDocument()
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCreateDocOpen(false)
+                setCreateDocTitle("")
+              }}
+              disabled={creatingDoc}
+            >
+              取消
+            </Button>
+            <Button type="button" onClick={handleCreateDocument} disabled={creatingDoc}>
+              {creatingDoc ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              创建
             </Button>
           </DialogFooter>
         </DialogContent>
