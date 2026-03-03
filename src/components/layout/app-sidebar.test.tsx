@@ -273,7 +273,7 @@ describe("AppSidebar", () => {
 
     vi.mocked(createProject).mockResolvedValue({ error: "创建项目失败" })
     vi.mocked(deleteProject).mockResolvedValue({ error: "删除项目失败" })
-    vi.mocked(createDocument).mockResolvedValue({ error: "创建文档失败" })
+    vi.mocked(createDocument).mockResolvedValue({ error: "backend: timeout from provider" })
     vi.mocked(deleteDocument).mockResolvedValue({ error: "删除文档失败" })
     vi.mocked(updateProject).mockResolvedValue({ error: "更新项目失败" })
 
@@ -291,7 +291,7 @@ describe("AppSidebar", () => {
 
     await user.click(screen.getByRole("menuitem", { name: "新建文档" }))
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("创建文档失败")
+      expect(toast.error).toHaveBeenCalledWith("操作失败，请稍后重试")
     })
     expect(onDocumentsChange).not.toHaveBeenCalled()
 
@@ -314,5 +314,31 @@ describe("AppSidebar", () => {
     })
     expect(onDocumentsChange).not.toHaveBeenCalled()
     expect(screen.getByRole("button", { name: "保存项目修改" })).toBeTruthy()
+  })
+
+  it("shows fallback toast when create and delete flows throw", async () => {
+    const user = userEvent.setup()
+    const onDocumentsChange = vi.fn()
+
+    vi.mocked(createProject).mockRejectedValue(new Error("boom"))
+    vi.mocked(deleteProject).mockRejectedValue(new Error("boom"))
+
+    renderSidebar(onDocumentsChange)
+
+    await user.click(screen.getByRole("button", { name: "新建项目" }))
+    await user.type(screen.getByLabelText("标题"), "异常项目")
+    await user.click(screen.getByRole("button", { name: "创建" }))
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("操作失败，请稍后重试")
+    })
+    expect(onDocumentsChange).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole("menuitem", { name: "删除项目" }))
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledTimes(2)
+    })
+    expect(toast.error).toHaveBeenLastCalledWith("操作失败，请稍后重试")
+    expect(onDocumentsChange).not.toHaveBeenCalled()
   })
 })

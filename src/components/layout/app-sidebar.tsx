@@ -57,6 +57,8 @@ export interface AppSidebarProps {
   onDocumentsChange?: () => void
 }
 
+const ACTION_ERROR_FALLBACK = "操作失败，请稍后重试"
+
 export function AppSidebar({
   projects,
   documentsByProject,
@@ -76,6 +78,10 @@ export function AppSidebar({
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
 
+  function isUserSafeErrorMessage(message: string): boolean {
+    return /[\u4e00-\u9fff]/.test(message) && !message.includes("\n")
+  }
+
   function getActionError(result: unknown): string | null {
     if (
       result &&
@@ -84,7 +90,12 @@ export function AppSidebar({
       typeof result.error === "string" &&
       result.error
     ) {
-      return result.error
+      const message = result.error.trim()
+      if (!message) {
+        return ACTION_ERROR_FALLBACK
+      }
+
+      return isUserSafeErrorMessage(message) ? message : ACTION_ERROR_FALLBACK
     }
 
     return null
@@ -134,30 +145,38 @@ export function AppSidebar({
     formData.append("genre", resolvedGenre)
 
     startTransition(async () => {
-      const result = await createProject(formData)
-      const error = getActionError(result)
-      if (error) {
-        toast.error(error)
-        return
-      }
+      try {
+        const result = await createProject(formData)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
 
-      setNewProjectOpen(false)
-      setNewProjectTitle("")
-      setNewProjectGenre("")
-      onDocumentsChange?.()
+        setNewProjectOpen(false)
+        setNewProjectTitle("")
+        setNewProjectGenre("")
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
     })
   }
 
   function handleDeleteProject(projectId: string) {
     startTransition(async () => {
-      const result = await deleteProject(projectId)
-      const error = getActionError(result)
-      if (error) {
-        toast.error(error)
-        return
-      }
+      try {
+        const result = await deleteProject(projectId)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
 
-      onDocumentsChange?.()
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
     })
   }
 
@@ -167,27 +186,35 @@ export function AppSidebar({
     formData.append("documentType", "chapter")
 
     startTransition(async () => {
-      const result = await createDocument(projectId, formData)
-      const error = getActionError(result)
-      if (error) {
-        toast.error(error)
-        return
-      }
+      try {
+        const result = await createDocument(projectId, formData)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
 
-      onDocumentsChange?.()
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
     })
   }
 
   function handleDeleteDocument(documentId: string, projectId: string) {
     startTransition(async () => {
-      const result = await deleteDocument(documentId, projectId)
-      const error = getActionError(result)
-      if (error) {
-        toast.error(error)
-        return
-      }
+      try {
+        const result = await deleteDocument(documentId, projectId)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
 
-      onDocumentsChange?.()
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
     })
   }
 
@@ -197,16 +224,22 @@ export function AppSidebar({
   }
 
   async function handleSaveProject(projectId: string, formData: FormData) {
-    const result = await updateProject(projectId, formData)
-    const error = getActionError(result)
-    if (error) {
-      toast.error(error)
-      return
-    }
+    startTransition(async () => {
+      try {
+        const result = await updateProject(projectId, formData)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
 
-    setEditDialogOpen(false)
-    setEditProject(null)
-    onDocumentsChange?.()
+        setEditDialogOpen(false)
+        setEditProject(null)
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
+    })
   }
 
   function handleOpenCanvas(projectId: string) {
