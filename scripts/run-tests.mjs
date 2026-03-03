@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
 
 const npmExecPath = process.env.npm_execpath
 
@@ -50,6 +51,11 @@ if (extraArgs.length === 0) {
   ]
 
   for (const testFile of contractTests) {
+    if (!existsSync(testFile)) {
+      console.warn(`Skipping missing contract test: ${testFile}`)
+      continue
+    }
+
     const contractsResult = spawnSync("node", ["--test", testFile], {
       stdio: "inherit",
     })

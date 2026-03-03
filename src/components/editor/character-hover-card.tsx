@@ -23,8 +23,8 @@ export function CharacterHoverCard({
 }: CharacterHoverCardProps) {
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null)
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
-  const showTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const showTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const cardRef = useRef<HTMLDivElement>(null)
 
   const clearTimers = useCallback(() => {

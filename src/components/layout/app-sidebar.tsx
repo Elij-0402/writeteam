@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react"
 import Link from "next/link"
+import { toast } from "sonner"
 import {
   PenLine,
   Search,
@@ -56,6 +57,8 @@ export interface AppSidebarProps {
   onDocumentsChange?: () => void
 }
 
+const ACTION_ERROR_FALLBACK = "操作失败，请稍后重试"
+
 export function AppSidebar({
   projects,
   documentsByProject,
@@ -84,6 +87,29 @@ export function AppSidebar({
   const [renameDocOpen, setRenameDocOpen] = useState(false)
   const [renameDocId, setRenameDocId] = useState<string | null>(null)
   const [renameDocTitle, setRenameDocTitle] = useState("")
+
+  function isUserSafeErrorMessage(message: string): boolean {
+    return /[\u4e00-\u9fff]/.test(message) && !message.includes("\n")
+  }
+
+  function getActionError(result: unknown): string | null {
+    if (
+      result &&
+      typeof result === "object" &&
+      "error" in result &&
+      typeof result.error === "string" &&
+      result.error
+    ) {
+      const message = result.error.trim()
+      if (!message) {
+        return ACTION_ERROR_FALLBACK
+      }
+
+      return isUserSafeErrorMessage(message) ? message : ACTION_ERROR_FALLBACK
+    }
+
+    return null
+  }
 
   // Filter projects and documents based on search query
   const filteredProjects = useMemo(() => {
@@ -129,18 +155,38 @@ export function AppSidebar({
     formData.append("genre", resolvedGenre)
 
     startTransition(async () => {
-      await createProject(formData)
-      setNewProjectOpen(false)
-      setNewProjectTitle("")
-      setNewProjectGenre("")
-      onDocumentsChange?.()
+      try {
+        const result = await createProject(formData)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
+
+        setNewProjectOpen(false)
+        setNewProjectTitle("")
+        setNewProjectGenre("")
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
     })
   }
 
   function handleDeleteProject(projectId: string) {
     startTransition(async () => {
-      await deleteProject(projectId)
-      onDocumentsChange?.()
+      try {
+        const result = await deleteProject(projectId)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
+
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
     })
   }
 
@@ -160,22 +206,41 @@ export function AppSidebar({
     formData.append("documentType", "chapter")
 
     startTransition(async () => {
-      const result = await createDocument(newDocProjectId, formData)
-      setNewDocOpen(false)
-      setNewDocTitle("")
-      setNewDocProjectId(null)
-      onDocumentsChange?.()
-      // Navigate to editor with the new document
-      if (result.data) {
-        window.location.href = `/editor/${newDocProjectId}?doc=${result.data.id}`
+      try {
+        const result = await createDocument(newDocProjectId, formData)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
+
+        setNewDocOpen(false)
+        setNewDocTitle("")
+        setNewDocProjectId(null)
+        onDocumentsChange?.()
+        if (result.data) {
+          window.location.href = `/editor/${newDocProjectId}?doc=${result.data.id}`
+        }
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
       }
     })
   }
 
   function handleDeleteDocument(documentId: string, projectId: string) {
     startTransition(async () => {
-      await deleteDocument(documentId, projectId)
-      onDocumentsChange?.()
+      try {
+        const result = await deleteDocument(documentId, projectId)
+        const error = getActionError(result)
+        if (error) {
+          toast.error(error)
+          return
+        }
+
+        onDocumentsChange?.()
+      } catch {
+        toast.error(ACTION_ERROR_FALLBACK)
+      }
     })
   }
 
@@ -207,10 +272,20 @@ export function AppSidebar({
   }
 
   async function handleSaveProject(projectId: string, formData: FormData) {
-    await updateProject(projectId, formData)
-    setEditDialogOpen(false)
-    setEditProject(null)
-    onDocumentsChange?.()
+    try {
+      const result = await updateProject(projectId, formData)
+      const error = getActionError(result)
+      if (error) {
+        toast.error(error)
+        return
+      }
+
+      setEditDialogOpen(false)
+      setEditProject(null)
+      onDocumentsChange?.()
+    } catch {
+      toast.error(ACTION_ERROR_FALLBACK)
+    }
   }
 
   function handleOpenCanvas(projectId: string) {

@@ -65,6 +65,16 @@ describe("SiteHeader", () => {
     expect(screen.getByText("12,345 字")).toBeTruthy()
   })
 
+  it("renders default context status when no document selected", () => {
+    render(<SiteHeader />)
+    expect(screen.getByText("未选择文档")).toBeTruthy()
+  })
+
+  it("renders resumable context status when document selected", () => {
+    render(<SiteHeader documentTitle="第一章" />)
+    expect(screen.getByText("可继续")).toBeTruthy()
+  })
+
   it("does not render word count when not provided", () => {
     render(<SiteHeader />)
     expect(screen.queryByText(/字$/)).toBeNull()

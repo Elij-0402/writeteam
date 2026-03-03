@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import type { Project, Document } from "@/types/database"
+import { deriveShellUXState } from "@/lib/dashboard/shell-ux-state"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { SiteHeader } from "./site-header"
@@ -32,6 +33,7 @@ export function AppShell({
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false)
 
   const isEditorPage = pathname?.startsWith("/editor/") ?? false
+  const isDashboardPage = pathname === "/dashboard"
 
   // Read editor state from context
   const activeProjectId = editorCtx?.activeProjectId ?? undefined
@@ -42,6 +44,36 @@ export function AppShell({
   const documentContent = editorCtx?.documentContent ?? ""
   const hasStyleSample = editorCtx?.hasStyleSample ?? false
   const characters = editorCtx?.characters ?? []
+
+  const shellProjects = projects.map((project) => ({
+    projectId: project.id,
+    documents: (documentsByProject[project.id] ?? []).map((document) => ({
+      id: document.id,
+      title: document.title,
+      updatedAt: document.updated_at,
+    })),
+  }))
+
+  const shellContextState = deriveShellUXState(shellProjects, activeDocumentId)
+  const defaultContextStatus = activeDocumentTitle ? "resumable" : "unselected"
+
+  const dashboardContextStatusLabel =
+    shellContextState.recommendedNextAction === "create_project"
+      ? "下一步：创建项目"
+      : shellContextState.recommendedNextAction === "create_first_document"
+        ? "下一步：创建首个文档"
+        : shellContextState.recommendedNextAction === "continue_current_document"
+          ? "下一步：继续当前文档"
+          : "下一步：继续最近文档"
+
+  const contextStatus = isDashboardPage
+    ? shellContextState.recommendedNextAction === "create_project" ||
+      shellContextState.recommendedNextAction === "create_first_document"
+      ? "unselected"
+      : "resumable"
+    : defaultContextStatus
+
+  const contextStatusLabel = isDashboardPage ? dashboardContextStatusLabel : undefined
 
   const handleInsertToEditor = useCallback((text: string) => {
     editorCtx?.insertTextRef.current?.(text)
@@ -70,6 +102,8 @@ export function AppShell({
           projectTitle={activeProjectTitle}
           projectId={activeProjectId}
           documentTitle={activeDocumentTitle}
+          contextStatus={contextStatus}
+          contextStatusLabel={contextStatusLabel}
           wordCount={wordCount}
           focusMode={focusMode}
           onToggleFocusMode={handleToggleFocusMode}
@@ -95,6 +129,8 @@ export function AppShell({
           projectTitle={activeProjectTitle}
           projectId={activeProjectId}
           documentTitle={activeDocumentTitle}
+          contextStatus={contextStatus}
+          contextStatusLabel={contextStatusLabel}
           wordCount={wordCount}
           focusMode={focusMode}
           onToggleFocusMode={isEditorPage ? handleToggleFocusMode : undefined}
