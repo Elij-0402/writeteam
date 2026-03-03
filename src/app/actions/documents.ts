@@ -4,55 +4,6 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Json } from "@/types/database"
 
-export async function getDocuments(projectId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "未登录", data: [] }
-  }
-
-  const { data, error } = await supabase
-    .from("documents")
-    .select("*")
-    .eq("project_id", projectId)
-    .eq("user_id", user.id)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true })
-
-  if (error) {
-    return { error: "读取文档失败，请稍后重试", data: [] }
-  }
-
-  return { data: data || [] }
-}
-
-export async function getDocument(documentId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "未登录", data: null }
-  }
-
-  const { data, error } = await supabase
-    .from("documents")
-    .select("*")
-    .eq("id", documentId)
-    .eq("user_id", user.id)
-    .single()
-
-  if (error) {
-    return { error: "读取文档失败，请稍后重试", data: null }
-  }
-
-  return { data }
-}
-
 export async function createDocument(projectId: string, formData: FormData) {
   const supabase = await createClient()
   const {
@@ -82,7 +33,7 @@ export async function createDocument(projectId: string, formData: FormData) {
       project_id: projectId,
       user_id: user.id,
       title,
-      document_type: documentType as 'chapter' | 'scene' | 'note' | 'draft',
+      document_type: documentType as "chapter" | "scene" | "note" | "draft",
       sort_order: nextOrder,
     })
     .select()

@@ -572,12 +572,10 @@ export interface Database {
   }
 }
 
-export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Project = Database['public']['Tables']['projects']['Row']
 export type Document = Database['public']['Tables']['documents']['Row']
 export type Character = Database['public']['Tables']['characters']['Row']
 export type StoryBible = Database['public']['Tables']['story_bibles']['Row']
-export type AIHistory = Database['public']['Tables']['ai_history']['Row']
 export type Plugin = Database['public']['Tables']['plugins']['Row']
 export type Series = Database['public']['Tables']['series']['Row']
 export type SeriesBible = Database['public']['Tables']['series_bibles']['Row']
