@@ -27,20 +27,36 @@ interface MockDocument {
   updated_at: string
 }
 
+interface MockQueryError {
+  message: string
+}
+
+interface MockSupabaseResult<T> {
+  data: T[] | null
+  error: MockQueryError | null
+}
+
+interface MockSupabaseControls {
+  documentsSelect: ReturnType<typeof vi.fn>
+  documentsIn: ReturnType<typeof vi.fn>
+}
+
 function mockSupabaseData({
-  projects,
-  documents,
+  projectsResult,
+  documentsResult,
 }: {
-  projects: MockProject[]
-  documents: MockDocument[]
-}) {
-  const projectsOrder = vi.fn().mockResolvedValue({ data: projects, error: null })
+  projectsResult: MockSupabaseResult<MockProject>
+  documentsResult: MockSupabaseResult<MockDocument>
+}): MockSupabaseControls {
+  const projectsOrder = vi.fn().mockResolvedValue(projectsResult)
   const projectsEq = vi.fn().mockReturnValue({ order: projectsOrder })
   const projectsSelect = vi.fn().mockReturnValue({ eq: projectsEq })
 
-  const documentsOrder = vi.fn().mockResolvedValue({ data: documents, error: null })
+  const documentsOrder = vi.fn().mockResolvedValue(documentsResult)
   const documentsIn = vi.fn().mockReturnValue({ order: documentsOrder })
   const documentsSelect = vi.fn().mockReturnValue({ in: documentsIn })
+
+  type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
   vi.mocked(createClient).mockResolvedValue({
     auth: {
@@ -65,18 +81,24 @@ function mockSupabaseData({
 
       throw new Error(`Unexpected table: ${table}`)
     }),
-  } as never)
+  } as unknown as SupabaseClient)
+
+  return {
+    documentsSelect,
+    documentsIn,
+  }
 }
 
 async function renderDashboardPageWithData({
-  projects,
-  documents,
+  projectsResult,
+  documentsResult,
 }: {
-  projects: MockProject[]
-  documents: MockDocument[]
+  projectsResult: MockSupabaseResult<MockProject>
+  documentsResult: MockSupabaseResult<MockDocument>
 }) {
-  mockSupabaseData({ projects, documents })
+  const controls = mockSupabaseData({ projectsResult, documentsResult })
   render(await DashboardPage())
+  return controls
 }
 
 describe("DashboardPage", () => {
@@ -88,15 +110,21 @@ describe("DashboardPage", () => {
 
   it("no longer renders welcome-only copy", async () => {
     await renderDashboardPageWithData({
-      projects: [{ id: "project-1", user_id: "user-1", title: "长篇小说" }],
-      documents: [
-        {
-          id: "doc-1",
-          project_id: "project-1",
-          title: "第一章",
-          updated_at: "2026-03-03T10:00:00Z",
-        },
-      ],
+      projectsResult: {
+        data: [{ id: "project-1", user_id: "user-1", title: "长篇小说" }],
+        error: null,
+      },
+      documentsResult: {
+        data: [
+          {
+            id: "doc-1",
+            project_id: "project-1",
+            title: "第一章",
+            updated_at: "2026-03-03T10:00:00Z",
+          },
+        ],
+        error: null,
+      },
     })
 
     expect(screen.queryByText("开始创作")).toBeNull()
@@ -104,26 +132,94 @@ describe("DashboardPage", () => {
 
   it("shows continue writing action when documents exist", async () => {
     await renderDashboardPageWithData({
-      projects: [{ id: "project-1", user_id: "user-1", title: "长篇小说" }],
-      documents: [
-        {
-          id: "doc-1",
-          project_id: "project-1",
-          title: "第一章",
-          updated_at: "2026-03-03T10:00:00Z",
-        },
-      ],
+      projectsResult: {
+        data: [{ id: "project-1", user_id: "user-1", title: "长篇小说" }],
+        error: null,
+      },
+      documentsResult: {
+        data: [
+          {
+            id: "doc-1",
+            project_id: "project-1",
+            title: "第一章",
+            updated_at: "2026-03-03T10:00:00Z",
+          },
+        ],
+        error: null,
+      },
     })
 
     expect(screen.getByRole("button", { name: "继续写作" })).not.toBeNull()
+    expect(screen.getByRole("button", { name: "继续最近文档" })).not.toBeNull()
   })
 
-  it("shows create project recommendation when no projects", async () => {
-    await renderDashboardPageWithData({
-      projects: [],
-      documents: [],
+  it("shows create project recommendation and skips documents query when no projects", async () => {
+    const controls = await renderDashboardPageWithData({
+      projectsResult: {
+        data: [],
+        error: null,
+      },
+      documentsResult: {
+        data: [],
+        error: null,
+      },
     })
 
     expect(screen.getByRole("button", { name: "创建项目" })).not.toBeNull()
+    expect(controls.documentsSelect).not.toHaveBeenCalled()
+    expect(controls.documentsIn).not.toHaveBeenCalled()
+  })
+
+  it("shows create first document recommendation when projects exist without docs", async () => {
+    await renderDashboardPageWithData({
+      projectsResult: {
+        data: [{ id: "project-1", user_id: "user-1", title: "长篇小说" }],
+        error: null,
+      },
+      documentsResult: {
+        data: [],
+        error: null,
+      },
+    })
+
+    expect(screen.getByRole("button", { name: "创建首个文档" })).not.toBeNull()
+  })
+
+  it("falls back to create project recommendation when project query fails", async () => {
+    const controls = await renderDashboardPageWithData({
+      projectsResult: {
+        data: null,
+        error: { message: "db unavailable" },
+      },
+      documentsResult: {
+        data: [
+          {
+            id: "doc-1",
+            project_id: "project-1",
+            title: "第一章",
+            updated_at: "2026-03-03T10:00:00Z",
+          },
+        ],
+        error: null,
+      },
+    })
+
+    expect(screen.getByRole("button", { name: "创建项目" })).not.toBeNull()
+    expect(controls.documentsSelect).not.toHaveBeenCalled()
+  })
+
+  it("falls back to create first document recommendation when document query fails", async () => {
+    await renderDashboardPageWithData({
+      projectsResult: {
+        data: [{ id: "project-1", user_id: "user-1", title: "长篇小说" }],
+        error: null,
+      },
+      documentsResult: {
+        data: null,
+        error: { message: "db unavailable" },
+      },
+    })
+
+    expect(screen.getByRole("button", { name: "创建首个文档" })).not.toBeNull()
   })
 })

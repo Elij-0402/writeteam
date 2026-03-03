@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation"
+import { createDocument } from "@/app/actions/documents"
+import { createProject } from "@/app/actions/projects"
 import { DashboardTaskConsole } from "@/components/dashboard/dashboard-task-console"
 import { deriveShellUXState, type ShellUXDocument, type ShellUXProjectWithDocuments } from "@/lib/dashboard/shell-ux-state"
 import { createClient } from "@/lib/supabase/server"
@@ -24,22 +26,26 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  const { data: projectsData } = await supabase
+  const { data: projectsData, error: projectsError } = await supabase
     .from("projects")
     .select("id")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
 
-  const projects: DashboardProjectRow[] = projectsData ?? []
+  const projects: DashboardProjectRow[] = projectsError ? [] : projectsData ?? []
   const projectIds = projects.map((project) => project.id)
 
-  const { data: documentsData } = await supabase
-    .from("documents")
-    .select("id, project_id, title, updated_at")
-    .in("project_id", projectIds.length > 0 ? projectIds : ["__none__"])
-    .order("updated_at", { ascending: false })
+  let documents: DashboardDocumentRow[] = []
 
-  const documents: DashboardDocumentRow[] = documentsData ?? []
+  if (projectIds.length > 0) {
+    const { data: documentsData, error: documentsError } = await supabase
+      .from("documents")
+      .select("id, project_id, title, updated_at")
+      .in("project_id", projectIds)
+      .order("updated_at", { ascending: false })
+
+    documents = documentsError ? [] : documentsData ?? []
+  }
   const documentsByProject = new Map<string, ShellUXDocument[]>()
 
   for (const document of documents) {
@@ -86,11 +92,47 @@ export default async function DashboardPage() {
   async function handleCreateProject() {
     "use server"
 
+    const formData = new FormData()
+    formData.set("title", "未命名项目")
+    formData.set("description", "")
+    formData.set("genre", "")
+
+    const result = await createProject(formData)
+
+    if (result.data?.id) {
+      redirect(`/editor/${result.data.id}`)
+    }
+
     redirect("/dashboard")
   }
 
   async function handleCreateFirstDoc() {
     "use server"
+
+    const fallbackProjectId = shellProjects[0]?.projectId
+    let targetProjectId: string | undefined = shellProjects.find((project) => project.documents.length === 0)?.projectId ?? fallbackProjectId
+
+    if (!targetProjectId) {
+      const projectFormData = new FormData()
+      projectFormData.set("title", "未命名项目")
+      projectFormData.set("description", "")
+      projectFormData.set("genre", "")
+
+      const createdProject = await createProject(projectFormData)
+      targetProjectId = createdProject.data?.id
+    }
+
+    if (targetProjectId) {
+      const documentFormData = new FormData()
+      documentFormData.set("title", "第 1 章")
+      documentFormData.set("documentType", "chapter")
+
+      const createdDocument = await createDocument(targetProjectId, documentFormData)
+
+      if (createdDocument.data?.id) {
+        redirect(`/editor/${targetProjectId}?doc=${createdDocument.data.id}`)
+      }
+    }
 
     redirect("/dashboard")
   }
