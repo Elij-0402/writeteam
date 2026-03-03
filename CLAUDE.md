@@ -58,7 +58,7 @@ node --test tests/story-4-2-quick-edit.test.mjs
 - `(auth)/` — login, signup (public)
 - `(dashboard)/` — dashboard, series, settings (server-side auth guard in layout)
 - `(editor)/` — editor (`/editor/[id]`), canvas (`/canvas/[id]`)
-- `api/ai/*` — 21 AI endpoint route handlers (all POST, server-side only)
+- `api/ai/*` — 8 AI endpoint route handlers (all POST, server-side only): write, edit, check, chat, plan, models, plugin, test-connection
 - `api/auth/callback` — Supabase OAuth callback
 - `actions/` — Server Actions for documents, projects, series, canvas, images, plugins, auth
 
@@ -70,7 +70,7 @@ Provider presets: DeepSeek, OpenAI, Ollama, OpenRouter, 硅基流动.
 
 ### AI Streaming Pipeline
 
-All 21 AI route handlers follow the same pattern:
+All 8 AI route handlers follow the same pattern:
 
 1. Authenticate user via `supabase.auth.getUser()`
 2. `resolveAIConfig()` extracts BYOK config from headers
@@ -79,12 +79,15 @@ All 21 AI route handlers follow the same pattern:
 5. `createOpenAIStreamResponse()` calls the OpenAI-compatible `/chat/completions` endpoint with streaming, strips SSE framing, and logs telemetry to `ai_history` table
 
 Key AI files:
-- `src/lib/ai/story-context.ts` — story context orchestration and prompt engineering (17 AI features with different context needs)
+- `src/lib/ai/intent-config.ts` — 18 intent configs with category, temperature, context level
+- `src/lib/ai/shared-pipeline.ts` — shared 5-step streaming pipeline used by all route handlers
+- `src/lib/ai/story-context.ts` — story context orchestration and prompt engineering (3 context levels: full/summary/minimal)
 - `src/lib/ai/openai-stream.ts` — generic OpenAI-compatible streaming + telemetry logging
 - `src/lib/ai/error-classification.ts` — structured error classification with recovery actions (auth, rate_limit, timeout, etc.)
 - `src/lib/ai/prose-mode.ts` — 5 prose styles (balanced, cinematic, lyrical, minimal, match-style)
 - `src/lib/ai/saliency.ts` — client-side heuristic analysis of active characters/locations/plotlines
 - `src/lib/ai/ai-config.ts` — shared BYOK types, header constants, provider presets
+- `src/lib/ai/category-mapping.ts` — maps feature names to consolidated endpoint URLs
 
 ### Editor Architecture
 
