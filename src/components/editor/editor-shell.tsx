@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { Json, Plugin } from "@/types/database"
 import Link from "next/link"
 import type { Project, Document, StoryBible, Character } from "@/types/database"
@@ -739,6 +739,17 @@ export function EditorShell({
     }
   }
 
+  const bibleNeedsAttention = useMemo(() => {
+    if (!initialStoryBible) return true
+    const keyFields = [
+      initialStoryBible.genre,
+      initialStoryBible.synopsis,
+      initialStoryBible.setting,
+    ]
+    const filled = keyFields.filter((f) => f && f.trim().length > 0).length
+    return filled < 2
+  }, [initialStoryBible])
+
   return (
     <div className="flex h-screen flex-col bg-background">
       <CommandPalette
@@ -900,10 +911,13 @@ export function EditorShell({
               <Button
                 variant={rightPanel === "bible" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-8 w-8"
+                className="relative h-8 w-8"
                 onClick={() => toggleRightPanel("bible")}
               >
                 <BookOpen className="h-4 w-4" />
+                {bibleNeedsAttention && rightPanel !== "bible" && (
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>故事圣经</TooltipContent>
