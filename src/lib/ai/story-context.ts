@@ -19,8 +19,6 @@ import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
 // Types
 // ---------------------------------------------------------------------------
 
-export type { AIFeature } from "@/lib/ai/feature-groups"
-
 interface StoryBibleData {
   genre: string | null
   style: string | null

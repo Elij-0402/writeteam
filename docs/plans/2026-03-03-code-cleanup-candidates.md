@@ -67,6 +67,10 @@
 | `src/components/ui/skeleton.tsx` | `rg -n "@/components/ui/skeleton" src` 无结果 | 删除文件 | 已完成 |
 | `src/components/ui/toggle-group.tsx` | 仅被 `toggle.tsx` 引用，且两者均无外部 import | 删除文件 | 已完成 |
 | `src/components/ui/toggle.tsx` | 仅被 `toggle-group.tsx` 引用，且两者均无外部 import | 删除文件 | 已完成 |
+| `src/components/ui/badge.tsx#badgeVariants` | `rg -n "badgeVariants" src` 仅本模块使用 | 保留实现，移除导出 | 已完成 |
+| `src/components/ui/button.tsx#buttonVariants` | `rg -n "buttonVariants" src` 仅本模块使用 | 保留实现，移除导出 | 已完成 |
+| `src/components/ui/tabs.tsx#tabsListVariants` | `rg -n "tabsListVariants" src` 仅本模块使用 | 保留实现，移除导出 | 已完成 |
+| `src/lib/ai/story-context.ts#AIFeature re-export` | `rg -n "AIFeature" src` 未发现对 `story-context` 的类型导入 | 删除冗余 re-export | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）
