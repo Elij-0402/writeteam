@@ -53,29 +53,6 @@ async function hasSeriesAccess(
   return Boolean(data?.id)
 }
 
-export async function getSeries() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "未登录", data: [] }
-  }
-
-  const { data, error } = await supabase
-    .from("series")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false })
-
-  if (error) {
-    return { error: error.message, data: [] }
-  }
-
-  return { data: data || [] }
-}
-
 export async function createSeries(formData: FormData) {
   const supabase = await createClient()
   const {

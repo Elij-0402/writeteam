@@ -20,6 +20,12 @@
 | `src/lib/ai/openai-stream.ts#TelemetryOptions.consistencyTelemetry` | `rg -n "consistencyTelemetry" src` 仅定义处，无读取 | 删除字段与 type import | 已完成 |
 | `src/types/database.ts#Profile` | `rg -n "\\bProfile\\b" src` 仅定义处 | 删除类型导出 | 已完成 |
 | `src/types/database.ts#AIHistory` | `rg -n "\\bAIHistory\\b" src` 仅定义处 | 删除类型导出 | 已完成 |
+| `src/app/actions/projects.ts#getProjects` | `rg -n "\\bgetProjects\\b" src` 仅定义处 | 删除函数 | 已完成 |
+| `src/app/actions/series.ts#getSeries` | `rg -n "\\bgetSeries\\b" src` 仅定义处 | 删除函数 | 已完成 |
+| `src/app/actions/story-bible.ts#getStoryBibleConsistencyFlags` | `rg -n "\\bgetStoryBibleConsistencyFlags\\b" src` 仅定义处 | 删除函数 | 已完成 |
+| `src/app/actions/story-bible.ts#getStoryBible` | `rg -n "\\bgetStoryBible\\b" src` 仅定义处 | 删除函数 | 已完成 |
+| `src/app/actions/story-bible.ts#getCharacters` | `rg -n "\\bgetCharacters\\b" src` 仅定义处 | 删除函数 | 已完成 |
+| `src/app/actions/story-bible.ts#getConsistencyFeatureFlags import` | lint 提示未使用 | 删除 import | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）

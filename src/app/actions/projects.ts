@@ -109,25 +109,3 @@ export async function deleteProject(projectId: string) {
   return { success: true }
 }
 
-export async function getProjects() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "未登录", data: [] }
-  }
-
-  const { data, error } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false })
-
-  if (error) {
-    return { error: error.message, data: [] }
-  }
-
-  return { data: data || [] }
-}

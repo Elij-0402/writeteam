@@ -10,27 +10,10 @@ import {
   sanitizeStoryBibleUpdates,
   validateVisibilityUpdate,
 } from "@/app/actions/story-bible-guards"
-import { getConsistencyFeatureFlags } from "@/lib/story-bible/consistency-flags"
 
-export async function getStoryBibleConsistencyFlags() {
-  return getConsistencyFeatureFlags()
-}
 
-export async function getStoryBible(projectId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "未登录", data: null }
 
-  const { data, error } = await supabase
-    .from("story_bibles")
-    .select("*")
-    .eq("project_id", projectId)
-    .eq("user_id", user.id)
-    .single()
 
-  if (error) return { error: error.message, data: null }
-  return { data }
-}
 
 export async function updateStoryBible(
   projectId: string,
@@ -100,21 +83,7 @@ export async function updateStoryBible(
   return { success: true, updatedAt: data?.updated_at ?? nextUpdatedAt }
 }
 
-export async function getCharacters(projectId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "未登录", data: [] }
 
-  const { data, error } = await supabase
-    .from("characters")
-    .select("*")
-    .eq("project_id", projectId)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-
-  if (error) return { error: error.message, data: [] }
-  return { data: data || [] }
-}
 
 export async function createCharacter(projectId: string, formData: FormData) {
   const supabase = await createClient()
