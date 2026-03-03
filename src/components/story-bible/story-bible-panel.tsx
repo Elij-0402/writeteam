@@ -30,7 +30,6 @@ import {
   Save,
   Loader2,
   User,
-  Globe,
   FileText,
   Lightbulb,
   Eye,
@@ -42,6 +41,12 @@ import { ConflictWorkbench } from "@/components/story-bible/conflict-workbench"
 import { CharacterCard } from "./character-card"
 import { CollapsibleSection } from "./collapsible-section"
 import { CompletionIndicator } from "./completion-indicator"
+import {
+  parseWorldbuildingSections,
+  serializeWorldbuildingSections,
+  DEFAULT_SECTION_TITLES,
+  type WorldbuildingSection,
+} from "@/lib/story-bible/worldbuilding-sections"
 
 interface StoryBiblePanelProps {
   projectId: string
@@ -73,7 +78,15 @@ export function StoryBiblePanel({
   const [setting, setSetting] = useState(initialBible?.setting || "")
   const [pov, setPov] = useState(initialBible?.pov || "")
   const [tense, setTense] = useState(initialBible?.tense || "")
-  const [worldbuilding, setWorldbuilding] = useState(initialBible?.worldbuilding || "")
+  const [worldSections, setWorldSections] = useState<WorldbuildingSection[]>(
+    () => {
+      const parsed = parseWorldbuildingSections(initialBible?.worldbuilding || "")
+      if (parsed.length === 0) {
+        return DEFAULT_SECTION_TITLES.map(title => ({ title, content: "" }))
+      }
+      return parsed
+    }
+  )
   const [outlineText, setOutlineText] = useState(
     initialBible?.outline ? JSON.stringify(initialBible.outline, null, 2) : ""
   )
@@ -130,7 +143,7 @@ export function StoryBiblePanel({
       setting,
       pov,
       tense,
-      worldbuilding,
+      worldbuilding: serializeWorldbuildingSections(worldSections),
       outline: parseOutlineInput(outlineText),
       notes,
       tone,
@@ -475,36 +488,54 @@ export function StoryBiblePanel({
 
           {/* World Tab */}
           <TabsContent value="world" className="mt-0 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <Globe className="h-3 w-3" /> 场景设定
-              </Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">场景设定</Label>
               <Textarea
-                placeholder="故事发生在何时何地？"
                 value={setting}
-                onChange={(e) => {
-                  setSetting(e.target.value)
-                  markDirty()
-                }}
-                rows={4}
-                className="text-xs"
+                onChange={(e) => { setSetting(e.target.value); markDirty() }}
+                placeholder="故事发生的主要场景、时代和地点..."
+                rows={3}
+                className="text-sm"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium flex items-center gap-1.5">
-                <Globe className="h-3 w-3" /> 世界构建
-              </Label>
-              <Textarea
-                placeholder="规则、魔法系统、科技、社会、文化..."
-                value={worldbuilding}
-                onChange={(e) => {
-                  setWorldbuilding(e.target.value)
-                  markDirty()
-                }}
-                rows={8}
-                className="text-xs"
-              />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">世界设定</Label>
+              <div className="space-y-2">
+                {worldSections.map((section, index) => (
+                  <CollapsibleSection
+                    key={section.title}
+                    title={section.title}
+                    defaultOpen={section.content.trim() !== ""}
+                  >
+                    <Textarea
+                      value={section.content}
+                      onChange={(e) => {
+                        const next = [...worldSections]
+                        next[index] = { ...next[index], content: e.target.value }
+                        setWorldSections(next)
+                        markDirty()
+                      }}
+                      placeholder={getWorldSectionPlaceholder(section.title)}
+                      rows={3}
+                      className="text-sm"
+                    />
+                  </CollapsibleSection>
+                ))}
+              </div>
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => {
+                setWorldSections(prev => [...prev, { title: "自定义分区", content: "" }])
+                markDirty()
+              }}
+            >
+              + 添加自定义分区
+            </Button>
           </TabsContent>
 
           {/* Guidance Tab */}
@@ -790,4 +821,14 @@ function VisibilityToggle({
       />
     </div>
   )
+}
+
+function getWorldSectionPlaceholder(title: string): string {
+  switch (title) {
+    case "地理环境": return "故事发生在什么样的地方？气候、地形、重要地标..."
+    case "势力与阵营": return "故事中有哪些组织、阵营或势力？它们之间的关系..."
+    case "能力体系": return "故事中有什么特殊能力/魔法/科技体系？规则和限制..."
+    case "社会与文化": return "这个世界的社会结构、文化习俗、经济体系..."
+    default: return "在这里描述世界设定的这个方面..."
+  }
 }
