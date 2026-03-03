@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type ConflictSeverity = "high" | "medium" | "low"
 
-export interface ConflictWorkbenchItem {
+interface ConflictWorkbenchItem {
   id: string
   title: string
   severity: ConflictSeverity

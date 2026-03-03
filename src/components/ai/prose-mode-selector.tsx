@@ -17,7 +17,7 @@ const PROSE_MODES = [
   { value: "match-style", label: "匹配风格" },
 ] as const
 
-export type ProseMode = (typeof PROSE_MODES)[number]["value"]
+type ProseMode = (typeof PROSE_MODES)[number]["value"]
 
 interface ProseModeSelectProps {
   value: ProseMode

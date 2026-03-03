@@ -17,7 +17,7 @@ export interface MentionItem {
   type: "story-bible" | "character" | "style"
 }
 
-export interface ChatMentionsProps {
+interface ChatMentionsProps {
   input: string
   cursorPosition: number
   characters: Character[]
