@@ -55,6 +55,7 @@ export interface CharacterData {
   goals: string | null
   relationships: string | null
   notes: string | null
+  dialogue_style: string | null
 }
 
 export interface StoryContext {
@@ -110,6 +111,7 @@ function normalizeCharacter(input: unknown): CharacterData {
     goals: normalizeNullableString(row.goals),
     relationships: normalizeNullableString(row.relationships),
     notes: normalizeNullableString(row.notes),
+    dialogue_style: normalizeNullableString(row.dialogue_style),
   }
 }
 
