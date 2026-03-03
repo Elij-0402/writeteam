@@ -18,8 +18,8 @@ describe("buildStoryPromptContext", () => {
       }
     )
 
-    expect(result.fullContext).toContain("SCENE SALIENCY")
-    expect(result.fullContext).toContain("Active characters in scene: 林晚")
+    expect(result.fullContext).toContain("场景焦点")
+    expect(result.fullContext).toContain("场景中的活跃角色：林晚")
   })
 
   it("keeps prose override guidance when story data is empty", () => {
@@ -34,7 +34,7 @@ describe("buildStoryPromptContext", () => {
       }
     )
 
-    expect(result.fullContext).toContain("PROSE STYLE GUIDANCE")
+    expect(result.fullContext).toContain("散文风格指导")
     expect(result.fullContext).toContain("Use visual, momentum-driven prose")
   })
 
@@ -76,7 +76,7 @@ describe("buildStoryPromptContext", () => {
       { feature: "write" }
     )
 
-    expect(result.fullContext).not.toContain("CHARACTERS:")
+    expect(result.fullContext).not.toContain("角色信息：")
   })
 
   it("injects planning-only character fields for planning features", () => {
@@ -100,10 +100,10 @@ describe("buildStoryPromptContext", () => {
       { feature: "brainstorm" }
     )
 
-    expect(result.fullContext).toContain("Goals: 夺回控制权")
-    expect(result.fullContext).toContain("Relationships: 与林晚对立")
-    expect(result.fullContext).not.toContain("Backstory")
-    expect(result.fullContext).not.toContain("Appearance")
+    expect(result.fullContext).toContain("目标：夺回控制权")
+    expect(result.fullContext).toContain("关系：与林晚对立")
+    expect(result.fullContext).not.toContain("背景故事")
+    expect(result.fullContext).not.toContain("外貌")
   })
 
   it("adds character health notice for duplicate names", () => {
@@ -155,7 +155,7 @@ describe("buildStoryPromptContext", () => {
       { feature: "chat" }
     )
 
-    expect(result.fullContext).toContain("CHARACTER CONTEXT NOTICE")
+    expect(result.fullContext).toContain("角色上下文提示")
     expect(result.fullContext).toContain("同名角色")
     expect(result.fullContext).toContain("缺少“描述/性格”")
   })
@@ -198,7 +198,7 @@ describe("buildStoryPromptContext", () => {
       { feature: "chat" }
     )
 
-    expect(result.fullContext).not.toContain("CHARACTERS:")
+    expect(result.fullContext).not.toContain("角色信息：")
     expect(result.fullContext).toContain("角色上下文已关闭")
   })
 
@@ -230,10 +230,10 @@ describe("buildStoryPromptContext", () => {
     const checking = buildStoryPromptContext(baseContext, { feature: "continuity-check" })
     const chatting = buildStoryPromptContext(baseContext, { feature: "chat" })
 
-    expect(writing.fullContext).not.toContain("STORY SYNOPSIS")
-    expect(planning.fullContext).not.toContain("STORY SYNOPSIS")
-    expect(checking.fullContext).not.toContain("STORY SYNOPSIS")
-    expect(chatting.fullContext).not.toContain("STORY SYNOPSIS")
+    expect(writing.fullContext).not.toContain("故事梗概")
+    expect(planning.fullContext).not.toContain("故事梗概")
+    expect(checking.fullContext).not.toContain("故事梗概")
+    expect(chatting.fullContext).not.toContain("故事梗概")
   })
 
   it("injects minimal structured context for writing features", () => {
@@ -430,7 +430,7 @@ describe("buildStoryPromptContext", () => {
       },
       { feature: "write" }
     )
-    expect(result.fullContext).toContain("WORLD RULES")
+    expect(result.fullContext).toContain("世界规则")
     expect(result.fullContext).toContain("魔法需要等价交换")
     expect(result.fullContext).not.toContain("###")
   })

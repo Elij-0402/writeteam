@@ -56,11 +56,11 @@ function isChatMessageArray(value: unknown): value is ChatMessageInput[] {
 type MuseMode = "what-if" | "random-prompt" | "suggest"
 
 const MUSE_SYSTEM_PROMPTS: Record<MuseMode, string> = {
-  "what-if": `You are a wildly creative fiction muse. Your role is to generate fascinating "what if" scenarios that could take the story in unexpected, thrilling directions. Think beyond the obvious — surprise the author with bold, imaginative possibilities that still feel organic to the story world. Present 3-5 "what if" scenarios, each as a short, evocative paragraph. Number them clearly. Write in the language that matches the story context (default to 简体中文 if unclear).`,
+  "what-if": `你是一位天马行空的小说灵感缪斯。你的角色是生成引人入胜的「假如……」场景，将故事引向意想不到的精彩方向。跳出常规思维——用大胆、富有想象力又不失故事世界逻辑的可能性来惊艳作者。提供3-5个「假如……」场景，每个写成简短而富有画面感的段落，用编号清晰标注。`,
 
-  "random-prompt": `You are an inspirational creative writing muse. Generate 5 vivid, evocative writing prompts that could spark new scenes, characters, or plot developments. Each prompt should be a single compelling sentence that ignites the imagination — think sensory details, emotional hooks, and intriguing situations. Number them clearly. Make them diverse in tone and scope. Write in the language that matches the story context (default to 简体中文 if unclear).`,
+  "random-prompt": `你是一位充满灵感的创意写作缪斯。生成5个生动、富有感染力的写作提示，能够激发新的场景、角色或情节发展。每个提示应该是一句引人入胜的话——注重感官细节、情感钩子和引人注目的情境。用编号清晰标注，让它们在基调和格局上多样化。`,
 
-  "suggest": `You are a perceptive story analyst and creative advisor. Analyze the current text carefully and suggest 3-5 concrete next directions the story could take. For each suggestion, explain briefly why it would work narratively (tension, character development, thematic resonance, etc.). Be specific — reference actual elements from the text. Number them clearly. Write in the language that matches the story context (default to 简体中文 if unclear).`,
+  "suggest": `你是一位敏锐的故事分析师和创意顾问。仔细分析当前文本，提出3-5个具体的故事推进方向建议。对于每个建议，简要解释为什么它在叙事上是可行的（张力、角色发展、主题共鸣等）。要具体——引用文本中的实际元素。用编号清晰标注。`,
 }
 
 // ---------------------------------------------------------------------------
@@ -119,9 +119,9 @@ function buildChatMessages(
   const messages = body.messages as ChatMessageInput[]
   const contextValue = typeof body.context === "string" ? body.context : ""
 
-  const systemPrompt = `You are a knowledgeable, creative AI writing assistant. You have access to the author's story information and current document. Help them brainstorm, solve plot problems, develop characters, and answer questions about their story. Be concise but insightful. When suggesting changes, be specific.
+  const systemPrompt = `你是一名博学、富有创造力的 AI 写作助手。你可以访问作者的故事信息和当前文档。帮助他们头脑风暴、解决情节难题、发展角色、回答关于故事的问题。回答要简洁但有洞察力，建议修改时要具体。
 ${fullContext ? `\n${fullContext}\n` : ""}
-${contextValue ? `Current document context (last 3000 chars):\n${contextValue}\n` : ""}`
+${contextValue ? `当前文档上下文（最后3000字）：\n${contextValue}\n` : ""}`
 
   return [
     { role: "system" as const, content: systemPrompt },
@@ -139,14 +139,14 @@ function buildBrainstormMessages(
   const topicValue = typeof body.topic === "string" ? body.topic.trim() : ""
   const contextValue = typeof body.context === "string" ? body.context : ""
 
-  let systemPrompt = `You are a creative brainstorming partner for fiction writers. Generate unique, interesting, and diverse ideas. Be creative and unexpected. Format each idea as a numbered list item with a brief explanation.`
+  let systemPrompt = `你是小说作家的创意头脑风暴伙伴。生成独特、有趣且多样化的创意。要有创造力和意外感。将每个创意格式化为编号列表，附带简短解释。`
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `Brainstorm 8-10 creative ideas for: "${topicValue}"
+  const userPrompt = `请为以下主题进行头脑风暴，生成8-10个创意点子："${topicValue}"
 
-${contextValue ? `Story context for reference:\n${contextValue.slice(-1000)}\n\n` : ""}Generate diverse, interesting options. For each idea, provide the idea itself and a one-sentence explanation of why it's interesting or how it could be used.`
+${contextValue ? `故事上下文供参考：\n${contextValue.slice(-1000)}\n\n` : ""}请生成多样化的、有趣的选项。每个创意包含点子本身以及一句话解释为什么有趣或如何使用。`
 
   return [
     { role: "system", content: systemPrompt },
@@ -191,16 +191,16 @@ function buildMuseMessages(
   switch (museMode) {
     case "what-if":
       userPrompt = inputValue
-        ? `Based on this story context and the author's specific question, generate "what if" scenarios.\n\nAuthor's question: ${inputValue}\n\nRecent story text:\n${contextValue || "(no text provided)"}`
-        : `Based on the story context, generate surprising "what if" scenarios that could take the story in new directions.\n\nRecent story text:\n${contextValue || "(no text provided)"}`
+        ? `基于以下故事上下文和作者的具体问题，生成「假如……」场景。\n\n作者的问题：${inputValue}\n\n近期故事文本：\n${contextValue || "（未提供文本）"}`
+        : `基于故事上下文，生成出人意料的「假如……」场景，将故事引向新方向。\n\n近期故事文本：\n${contextValue || "（未提供文本）"}`
       break
     case "random-prompt":
       userPrompt = contextValue
-        ? `Generate creative writing prompts inspired by this story world and its characters.\n\nRecent story text:\n${contextValue}`
-        : `Generate vivid, evocative creative writing prompts for fiction writing.`
+        ? `请根据这个故事世界及其角色生成创意写作提示。\n\n近期故事文本：\n${contextValue}`
+        : `请生成生动、富有感染力的小说创意写作提示。`
       break
     case "suggest":
-      userPrompt = `Analyze this text and suggest concrete next directions for the story.\n\nCurrent text:\n${contextValue || "(no text provided)"}`
+      userPrompt = `请分析以下文本并提出具体的故事推进方向建议。\n\n当前文本：\n${contextValue || "（未提供文本）"}`
       break
   }
 

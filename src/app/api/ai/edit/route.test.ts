@@ -182,7 +182,7 @@ describe("edit route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[0].content).toContain("edit the selected text according to the author's natural language instruction")
+    expect(messages[0].content).toContain("按照作者的自然语言指令编辑选中的文本")
     expect(messages[1].content).toContain("原文")
     expect(messages[1].content).toContain("改得更紧张")
   })
@@ -221,8 +221,8 @@ describe("edit route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[0].content).toContain("skilled fiction editor")
-    expect(messages[1].content).toContain("Rephrase this passage")
+    expect(messages[0].content).toContain("专业的小说编辑")
+    expect(messages[1].content).toContain("改写这段文字")
     expect(messages[1].content).toContain("他走进房间")
   })
 
@@ -238,7 +238,7 @@ describe("edit route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[1].content).toContain("show, don't tell")
+    expect(messages[1].content).toContain("展示而非告知")
   })
 
   it("routes to rewrite intent with custom mode and instructions", async () => {
@@ -269,7 +269,7 @@ describe("edit route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[1].content).toContain("Rephrase this passage")
+    expect(messages[1].content).toContain("改写这段文字")
   })
 
   // -----------------------------------------------------------------------
@@ -287,7 +287,7 @@ describe("edit route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[0].content).toContain("Condense the given text to approximately 50%")
+    expect(messages[0].content).toContain("精简至原文约50%")
     expect(messages[1].content).toContain("这是一段很长的文本")
   })
 

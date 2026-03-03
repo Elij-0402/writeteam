@@ -360,29 +360,29 @@ export function buildStoryPromptContext(
 
 function buildAIRulesGuidance(aiRules: string | null): string {
   if (!aiRules) return ""
-  return `AUTHOR'S RULES (highest priority \u2014 override all other guidance):\n${aiRules}`
+  return `作者规则（最高优先级——覆盖所有其他指导）：\n${aiRules}`
 }
 
 function buildGenreStyleGuidance(bible: StoryBibleData): string {
   if (!bible.genre && !bible.style) return ""
 
-  const genrePart = bible.genre ? `${bible.genre} ` : ""
-  const stylePart = bible.style ? ` with ${bible.style} style` : ""
-  return `This is a ${genrePart}story${stylePart}.`
+  const genrePart = bible.genre ? `${bible.genre}` : ""
+  const stylePart = bible.style ? `，${bible.style}风格` : ""
+  return `这是一部${genrePart}故事${stylePart}。`
 }
 
 function buildWritingParamsGuidance(bible: StoryBibleData): string {
   if (!bible.pov && !bible.tense) return ""
 
-  const lines: string[] = ["STRICT WRITING PARAMETERS (never deviate):"]
+  const lines: string[] = ["严格写作参数（不可偏离）："]
   if (bible.pov) {
     lines.push(
-      `- Point of View: ${bible.pov}. Maintain this POV consistently \u2014 never slip into another perspective.`
+      `- 叙事视角：${bible.pov}。始终保持此视角——不要滑入其他视角。`
     )
   }
   if (bible.tense) {
     lines.push(
-      `- Tense: ${bible.tense}. Maintain this tense throughout \u2014 never shift tenses accidentally.`
+      `- 时态：${bible.tense}。全文保持此时态——不要意外切换时态。`
     )
   }
   return lines.join("\n")
@@ -390,31 +390,31 @@ function buildWritingParamsGuidance(bible: StoryBibleData): string {
 
 function buildToneGuidance(tone: string | null): string {
   if (!tone) return ""
-  return `EMOTIONAL TONE: ${tone}. Let this tone guide word choice, pacing, and atmospheric details.`
+  return `情感基调：${tone}。让此基调引导用词、节奏和氛围细节。`
 }
 
 function buildSynopsisGuidance(synopsis: string | null, contextLevel: ContextLevel): string {
   if (!synopsis) return ""
   if (contextLevel === "full") {
-    return `STORY SYNOPSIS (for narrative direction):\n${synopsis}\nUse this to maintain story coherence and foreshadow upcoming events.`
+    return `故事梗概（用于叙事方向）：\n${synopsis}\n请据此保持故事连贯性并为后续事件埋下伏笔。`
   }
-  return `STORY SYNOPSIS:\n${synopsis}`
+  return `故事梗概：\n${synopsis}`
 }
 
 function buildThemesGuidance(themes: string | null, contextLevel: ContextLevel): string {
   if (!themes) return ""
   if (contextLevel === "full") {
-    return `THEMES TO WEAVE: ${themes}\nSubtly reinforce these themes through imagery, dialogue subtext, and character choices \u2014 never state them explicitly.`
+    return `需要编织的主题：${themes}\n通过意象、对话潜台词和角色选择来微妙地强化这些主题——不要直接点明。`
   }
-  return `THEMES: ${themes}`
+  return `主题：${themes}`
 }
 
 function buildSettingGuidance(setting: string | null, contextLevel: ContextLevel): string {
   if (!setting) return ""
   if (contextLevel === "full") {
-    return `SETTING: ${setting}\nGround scenes in this environment \u2014 use setting-specific sensory details, weather, architecture, sounds, and smells.`
+    return `故事场景：${setting}\n将场景扎根于此环境——使用与场景相关的感官细节、天气、建筑、声音和气味。`
   }
-  return `SETTING: ${setting}`
+  return `故事场景：${setting}`
 }
 
 function buildWorldbuildingGuidance(worldbuilding: string | null): string {
@@ -427,15 +427,15 @@ function buildWorldbuildingGuidance(worldbuilding: string | null): string {
       .filter(s => s.content.trim())
       .map(s => `### ${s.title}\n${s.content}`)
       .join("\n\n")
-    return `WORLD RULES (hard constraints \u2014 never violate):\n${sectionText}`
+    return `世界规则（硬性约束——不可违反）：\n${sectionText}`
   } else if (sections.length === 1) {
     // Legacy flat text
-    return `WORLD RULES (hard constraints \u2014 never violate):\n${sections[0].content}\nAll narrative elements must be consistent with these established rules.`
+    return `世界规则（硬性约束——不可违反）：\n${sections[0].content}\n所有叙事元素必须与这些既定规则保持一致。`
   }
 
   // Fallback
   const truncated = worldbuilding.slice(0, 2000)
-  return `WORLD RULES (hard constraints \u2014 never violate):\n${truncated}\nAll narrative elements must be consistent with these established rules.`
+  return `世界规则（硬性约束——不可违反）：\n${truncated}\n所有叙事元素必须与这些既定规则保持一致。`
 }
 
 function buildOutlineGuidance(outline: unknown | null, contextLevel: ContextLevel): string {
@@ -450,23 +450,23 @@ function buildOutlineGuidance(outline: unknown | null, contextLevel: ContextLeve
   outlineStr = outlineStr.slice(0, 2000)
 
   if (contextLevel === "full") {
-    return `STORY OUTLINE (narrative roadmap):\n${outlineStr}\nUse this to maintain plot direction and pacing.`
+    return `故事大纲（叙事路线图）：\n${outlineStr}\n请据此保持情节方向和节奏。`
   }
-  return `STORY OUTLINE:\n${outlineStr}`
+  return `故事大纲：\n${outlineStr}`
 }
 
 function buildBraindumpGuidance(braindump: string | null, contextLevel: ContextLevel): string {
   if (!braindump) return ""
   const truncated = braindump.slice(0, 1500)
   if (contextLevel === "full") {
-    return `AUTHOR'S NOTES (creative seeds):\n${truncated}\nDraw from these ideas when they naturally fit the scene.`
+    return `作者灵感池（创意种子）：\n${truncated}\n当灵感自然契合当前场景时，请从中汲取。`
   }
-  return `AUTHOR'S NOTES:\n${truncated}`
+  return `作者灵感池：\n${truncated}`
 }
 
 function buildNotesGuidance(notes: string | null): string {
   if (!notes) return ""
-  return `AUTHOR'S ADDITIONAL NOTES:\n${notes}\nFollow these instructions where applicable.`
+  return `作者附加备注：\n${notes}\n请在适用的地方遵循这些指示。`
 }
 
 function buildCharacterGuidance(
@@ -477,32 +477,32 @@ function buildCharacterGuidance(
   if (contextLevel === "minimal") return ""
 
   const chars = characters.slice(0, 15)
-  const lines: string[] = ["CHARACTERS:"]
+  const lines: string[] = ["角色信息："]
 
   for (const c of chars) {
-    const nameWithRole = c.role ? `${c.name} (${c.role})` : c.name
+    const nameWithRole = c.role ? `${c.name}（${c.role}）` : c.name
 
     if (contextLevel === "full") {
       // Full context: all available fields
       const details: string[] = []
       if (c.description) details.push(c.description)
-      if (c.appearance) details.push(`Appearance: ${c.appearance}`)
-      if (c.personality) details.push(`Personality: ${c.personality}`)
-      if (c.dialogue_style) details.push(`Dialogue style: ${c.dialogue_style}`)
-      if (c.backstory) details.push(`Backstory: ${c.backstory}`)
-      if (c.goals) details.push(`Goals: ${c.goals}`)
-      if (c.relationships) details.push(`Relationships: ${c.relationships}`)
-      if (c.notes) details.push(`Notes: ${c.notes}`)
-      lines.push(`- ${nameWithRole}${details.length > 0 ? ": " + details.join(". ") + "." : ""}`)
+      if (c.appearance) details.push(`外貌：${c.appearance}`)
+      if (c.personality) details.push(`性格：${c.personality}`)
+      if (c.dialogue_style) details.push(`对话风格：${c.dialogue_style}`)
+      if (c.backstory) details.push(`背景故事：${c.backstory}`)
+      if (c.goals) details.push(`目标：${c.goals}`)
+      if (c.relationships) details.push(`关系：${c.relationships}`)
+      if (c.notes) details.push(`备注：${c.notes}`)
+      lines.push(`- ${nameWithRole}${details.length > 0 ? "：" + details.join("。") + "。" : ""}`)
     } else {
       // Summary context: core identity fields (no appearance, backstory, notes)
       const details: string[] = []
       if (c.description) details.push(c.description)
-      if (c.personality) details.push(`Personality: ${c.personality}`)
-      if (c.goals) details.push(`Goals: ${c.goals}`)
-      if (c.relationships) details.push(`Relationships: ${c.relationships}`)
-      if (c.dialogue_style) details.push(`Dialogue style: ${c.dialogue_style}`)
-      lines.push(`- ${nameWithRole}${details.length > 0 ? ": " + details.join(". ") + "." : ""}`)
+      if (c.personality) details.push(`性格：${c.personality}`)
+      if (c.goals) details.push(`目标：${c.goals}`)
+      if (c.relationships) details.push(`关系：${c.relationships}`)
+      if (c.dialogue_style) details.push(`对话风格：${c.dialogue_style}`)
+      lines.push(`- ${nameWithRole}${details.length > 0 ? "：" + details.join("。") + "。" : ""}`)
     }
   }
 
@@ -510,12 +510,12 @@ function buildCharacterGuidance(
 }
 
 function buildCharacterVisibilityNotice(): string {
-  return "CHARACTER CONTEXT NOTICE:\n角色上下文已关闭。若当前任务需要人物一致性，请在「AI 可见性控制」中开启「角色信息」后重试。"
+  return "角色上下文提示：\n角色上下文已关闭。若当前任务需要人物一致性，请在「AI 可见性控制」中开启「角色信息」后重试。"
 }
 
 function buildCharacterHealthGuidance(characters: CharacterData[]): string {
   if (characters.length === 0) {
-    return "CHARACTER CONTEXT NOTICE:\n当前没有角色资料。若输出出现人物行为不一致，建议先在故事圣经中新增核心角色（姓名、定位、性格）后重试。"
+    return "角色上下文提示：\n当前没有角色资料。若输出出现人物行为不一致，建议先在故事圣经中新增核心角色（姓名、定位、性格）后重试。"
   }
 
   const duplicateNames = new Set<string>()
@@ -550,7 +550,7 @@ function buildCharacterHealthGuidance(characters: CharacterData[]): string {
     return ""
   }
 
-  return `CHARACTER CONTEXT NOTICE:\n${notices.join("\n")}`
+  return `角色上下文提示：\n${notices.join("\n")}`
 }
 
 function buildProseModeSection(
@@ -560,20 +560,20 @@ function buildProseModeSection(
   const proseSource = bible ?? (proseMode ? { style: null, prose_mode: null, style_sample: null } : null)
   const result = buildProseModeGuidanceWithOverride(proseSource, proseMode)
   if (!result) return ""
-  return `PROSE STYLE GUIDANCE:\n${result}`
+  return `散文风格指导：\n${result}`
 }
 
 function buildSaliencyGuidance(saliency: SaliencyMap): string {
   const parts: string[] = []
   if (saliency.activeCharacters.length > 0) {
-    parts.push(`Active characters in scene: ${saliency.activeCharacters.join(", ")}`)
+    parts.push(`场景中的活跃角色：${saliency.activeCharacters.join("、")}`)
   }
   if (saliency.activeLocations.length > 0) {
-    parts.push(`Active locations: ${saliency.activeLocations.join(", ")}`)
+    parts.push(`活跃地点：${saliency.activeLocations.join("、")}`)
   }
   if (saliency.activePlotlines.length > 0) {
-    parts.push(`Active plotlines: ${saliency.activePlotlines.join(", ")}`)
+    parts.push(`活跃情节线：${saliency.activePlotlines.join("、")}`)
   }
   if (parts.length === 0) return ""
-  return `SCENE SALIENCY (focus on these elements):\n${parts.join("\n")}`
+  return `场景焦点（重点关注以下元素）：\n${parts.join("\n")}`
 }

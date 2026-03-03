@@ -181,7 +181,7 @@ describe("chat route (merged)", () => {
       // system + 3 user/assistant messages
       expect(messages).toHaveLength(4)
       expect(messages[0].role).toBe("system")
-      expect(messages[0].content).toContain("creative AI writing assistant")
+      expect(messages[0].content).toContain("AI 写作助手")
       expect(messages[1]).toEqual({ role: "user", content: "你好" })
       expect(messages[2]).toEqual({ role: "assistant", content: "你好！有什么可以帮你的？" })
       expect(messages[3]).toEqual({ role: "user", content: "帮我发展角色" })
@@ -212,7 +212,7 @@ describe("chat route (merged)", () => {
 
       const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
       const messages = call[0].messages as Array<{ role: string; content: string }>
-      expect(messages[0].content).toContain("creative AI writing assistant")
+      expect(messages[0].content).toContain("AI 写作助手")
       expect(messages[0].content).toContain("story-ctx")
     })
   })
@@ -249,7 +249,7 @@ describe("chat route (merged)", () => {
 
       const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
       const messages = call[0].messages as Array<{ role: string; content: string }>
-      expect(messages[0].content).toContain("creative brainstorming partner")
+      expect(messages[0].content).toContain("头脑风暴伙伴")
       expect(messages[1].content).toContain("角色动机")
       expect(messages[1].content).toContain("主角是一个侦探")
     })
@@ -338,7 +338,7 @@ describe("chat route (merged)", () => {
 
       const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
       const messages = call[0].messages as Array<{ role: string; content: string }>
-      expect(messages[0].content).toContain("what if")
+      expect(messages[0].content).toContain("假如")
       expect(messages[1].content).toContain("如果反派其实是主角的兄弟")
     })
 
@@ -356,7 +356,7 @@ describe("chat route (merged)", () => {
 
       const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
       const messages = call[0].messages as Array<{ role: string; content: string }>
-      expect(messages[0].content).toContain("writing prompts")
+      expect(messages[0].content).toContain("写作提示")
       expect(messages[1].content).toContain("奇幻世界的冒险故事")
     })
 
@@ -374,7 +374,7 @@ describe("chat route (merged)", () => {
 
       const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
       const messages = call[0].messages as Array<{ role: string; content: string }>
-      expect(messages[0].content).toContain("story analyst")
+      expect(messages[0].content).toContain("故事分析师")
       expect(messages[1].content).toContain("主角站在十字路口")
     })
   })
