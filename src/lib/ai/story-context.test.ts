@@ -292,6 +292,88 @@ describe("buildStoryPromptContext", () => {
     expect(result.fullContext).not.toContain("Timeline events")
   })
 
+  it("includes dialogue_style in character guidance for writing features", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: {
+          genre: null,
+          style: null,
+          prose_mode: null,
+          style_sample: null,
+          synopsis: null,
+          themes: null,
+          setting: null,
+          pov: null,
+          tense: null,
+          worldbuilding: null,
+          outline: null,
+          notes: null,
+          braindump: null,
+          tone: null,
+          ai_rules: null,
+          visibility: null,
+        },
+        characters: [
+          {
+            name: "林晚",
+            role: "主角",
+            description: "侦探",
+            personality: "冷静",
+            appearance: "黑发",
+            backstory: null,
+            goals: null,
+            relationships: null,
+            notes: null,
+            dialogue_style: "喜欢用反问句，口头禅是「你确定？」",
+          },
+        ],
+      },
+      { feature: "write" }
+    )
+    expect(result.fullContext).toContain("喜欢用反问句")
+  })
+
+  it("includes dialogue_style in character guidance for chat features", () => {
+    const result = buildStoryPromptContext(
+      {
+        bible: {
+          genre: null,
+          style: null,
+          prose_mode: null,
+          style_sample: null,
+          synopsis: null,
+          themes: null,
+          setting: null,
+          pov: null,
+          tense: null,
+          worldbuilding: null,
+          outline: null,
+          notes: null,
+          braindump: null,
+          tone: null,
+          ai_rules: null,
+          visibility: null,
+        },
+        characters: [
+          {
+            name: "林晚",
+            role: "主角",
+            description: "侦探",
+            personality: "冷静",
+            appearance: "黑发",
+            backstory: null,
+            goals: null,
+            relationships: null,
+            notes: null,
+            dialogue_style: "简洁有力，不说废话",
+          },
+        ],
+      },
+      { feature: "chat" }
+    )
+    expect(result.fullContext).toContain("简洁有力")
+  })
+
   it("hides structured character arc states when characters visibility is false", () => {
     const result = buildStoryPromptContext(
       {

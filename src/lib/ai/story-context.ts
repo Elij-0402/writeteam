@@ -554,13 +554,14 @@ function buildCharacterGuidance(
     const parts: string[] = []
 
     if (isWritingFeature(feature)) {
-      // Writing features: name, role, description, appearance, personality
+      // Writing features: name, role, description, appearance, personality, dialogue_style
       parts.push(c.name)
       if (c.role) parts[0] = `${c.name} (${c.role})`
       const details: string[] = []
       if (c.description) details.push(c.description)
       if (c.appearance) details.push(`Appearance: ${c.appearance}`)
       if (c.personality) details.push(`Personality: ${c.personality}`)
+      if (c.dialogue_style) details.push(`Dialogue style: ${c.dialogue_style}`)
       lines.push(`- ${parts[0]}: ${details.join(". ")}.`)
     } else if (isPlanningFeature(feature)) {
       // Planning features: name, role, goals, relationships, personality
@@ -585,13 +586,14 @@ function buildCharacterGuidance(
       if (c.notes) details.push(`Notes: ${c.notes}`)
       lines.push(`- ${parts[0]}: ${details.join(". ")}.`)
     } else {
-      // Chat: name, role, description, personality, goals
+      // Chat: name, role, description, personality, goals, dialogue_style
       parts.push(c.name)
       if (c.role) parts[0] = `${c.name} (${c.role})`
       const details: string[] = []
       if (c.description) details.push(c.description)
       if (c.personality) details.push(`Personality: ${c.personality}`)
       if (c.goals) details.push(`Goals: ${c.goals}`)
+      if (c.dialogue_style) details.push(`Dialogue style: ${c.dialogue_style}`)
       lines.push(`- ${parts[0]}: ${details.join(". ")}.`)
     }
   }
