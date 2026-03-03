@@ -35,9 +35,9 @@ const ALLOWED_VISIBILITY_FIELDS = [
 
 type StoryBibleUpdateField = (typeof ALLOWED_STORY_BIBLE_UPDATE_FIELDS)[number]
 type StoryBibleTableUpdate = Database["public"]["Tables"]["story_bibles"]["Update"]
-export type StoryBibleUpdateInput = Pick<StoryBibleTableUpdate, StoryBibleUpdateField>
+type StoryBibleUpdateInput = Pick<StoryBibleTableUpdate, StoryBibleUpdateField>
 type VisibilityField = (typeof ALLOWED_VISIBILITY_FIELDS)[number]
-export type StoryBibleVisibility = Record<VisibilityField, boolean>
+type StoryBibleVisibility = Record<VisibilityField, boolean>
 
 const ALLOWED_CHARACTER_MUTATION_FIELDS = [
   "name",
@@ -57,8 +57,8 @@ type CharacterMutationField = (typeof ALLOWED_CHARACTER_MUTATION_FIELDS)[number]
 type CharacterTableInsert = Database["public"]["Tables"]["characters"]["Insert"]
 type CharacterTableUpdate = Database["public"]["Tables"]["characters"]["Update"]
 
-export type CharacterCreateInput = Pick<CharacterTableInsert, CharacterMutationField>
-export type CharacterUpdateInput = Pick<CharacterTableUpdate, CharacterMutationField>
+type CharacterCreateInput = Pick<CharacterTableInsert, CharacterMutationField>
+type CharacterUpdateInput = Pick<CharacterTableUpdate, CharacterMutationField>
 
 function isStoryBibleUpdateField(key: string): key is StoryBibleUpdateField {
   return (ALLOWED_STORY_BIBLE_UPDATE_FIELDS as readonly string[]).includes(key)

@@ -236,4 +236,3 @@ export function extractConsistencyState(input: LegacyConsistencySource): Consist
   return result
 }
 
-export { PENDING_CONFIRMATION_MARKER }

@@ -1,11 +1,11 @@
-export interface ConsistencyFlagEnv {
+interface ConsistencyFlagEnv {
   [key: string]: string | undefined
   NEXT_PUBLIC_CONSISTENCY_PREFLIGHT?: string
   NEXT_PUBLIC_STRUCTURED_CONTEXT?: string
   NEXT_PUBLIC_POST_CHECK_ENHANCED?: string
 }
 
-export interface ConsistencyFeatureFlags {
+interface ConsistencyFeatureFlags {
   consistencyPreflight: boolean
   structuredContext: boolean
   postCheckEnhanced: boolean
