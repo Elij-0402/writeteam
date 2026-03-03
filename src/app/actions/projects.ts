@@ -42,7 +42,7 @@ export async function createProject(formData: FormData) {
   await supabase.from("documents").insert({
     project_id: project.id,
     user_id: user.id,
-    title: "第 1 章",
+    title: "未命名章节",
     document_type: "chapter",
     sort_order: 0,
   })
