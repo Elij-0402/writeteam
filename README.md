@@ -1,74 +1,50 @@
 # WriteTeam
 
-WriteTeam 是一款 AI 创意写作应用，受 Sudowrite 启发。提供项目/文档管理、富文本编辑器、故事圣经、流式 AI 写作工具等功能。
+WriteTeam 是一款中文 AI 创意写作应用，受 Sudowrite 启发。它围绕「项目管理 + 长文写作 + 故事设定 + AI 协作」构建，覆盖从灵感整理到正文迭代的完整写作流程。
+
+## 核心能力
+
+- 项目、系列（Series）与文档分层管理
+- TipTap 富文本编辑器（自动保存、聚焦模式、字数统计）
+- 故事圣经（角色、冲突、文风/语气等设定）
+- 画布大纲（XYFlow 节点编辑与 AI 辅助生成）
+- AI 写作工具集（续写、重写、扩展、场景规划、连贯性检查等）
+- BYOK（Bring Your Own Key）模型接入与流式输出
 
 ## 技术栈
 
-- Next.js 16 (App Router), React 19, TypeScript
-- shadcn/ui + Tailwind CSS v4
-- Supabase (Auth + Postgres + RLS)
-- TipTap 编辑器
-- XYFlow 画布编辑器
-- BYOK OpenAI 兼容 API（服务端路由处理器）
-- Vitest 测试框架
+- Next.js 16（App Router）+ React 19 + TypeScript（strict）
+- Tailwind CSS v4 + shadcn/ui
+- Supabase（Auth + Postgres + RLS）
+- TipTap（编辑器）+ XYFlow（画布）
+- OpenAI 兼容接口（通过服务端 AI 路由处理）
+- Vitest + Node test（契约测试）
 
-## 功能
+## AI 路由概览
 
-### 认证与项目
-- Supabase 邮箱/密码认证
-- OAuth 第三方登录
-- 仪表盘项目 CRUD
-- 系列（Series）管理
+`src/app/api/ai/` 下包含 21 个 AI POST 路由（用于创作/分析/改写）以及模型相关辅助路由。
 
-### 编辑器
-- TipTap 富文本编辑器
-- 文档自动保存
-- 聚焦模式
-- 字数统计与进度追踪
-- 选中文本 AI 菜单
+常用创作工具包括：
 
-### AI 工具（21 个端点）
-- **Write** - 续写
-- **Rewrite** - 重写
-- **Describe** - 描述
-- **Brainstorm** - 头脑风暴
-- **Expand** - 扩展
-- **First Draft** - 初稿
-- **Muse** - 灵感对话
-- **Twist** - 转折
-- **Scene Plan** - 场景规划
-- **Continuity Check** - 连贯性检查
-- **Tone Shift** - 语气调整
-- **Saliency** - 重点标注
-- **Visualize** - 可视化
-- **Feedback** - 反馈
-- **Quick Edit** - 快速编辑
-- **Shrink** - 精简
-- **Plugin** - 插件
-
-### 故事圣经
-- 角色管理
-- 冲突工作台
-- 连贯性检查
-- 语气与文风配置
-
-### 画布
-- 节点式故事大纲
-- 节点详情面板
-- AI 生成节点
-
-### 其他
-- 命令面板（Cmd/Ctrl + K）
-- 主题切换
-- 导入/导出（DOCX, TXT）
-- 插件系统
+- `write`（续写）
+- `rewrite`（重写）
+- `describe`（描写）
+- `brainstorm`（头脑风暴）
+- `expand` / `shrink`（扩展 / 精简）
+- `first-draft`（初稿）
+- `scene-plan`（场景规划）
+- `continuity-check`（连贯性检查）
+- `quick-edit`（快速编辑）
+- `tone-shift`（语气调整）
+- `feedback`（反馈）
+- `visualize`（可视化）
 
 ## 环境要求
 
 - Node.js 20+
 - npm 10+
-- Supabase 项目
-- 兼容的模型提供商（BYOK）
+- 可用的 Supabase 项目
+- 可访问的 OpenAI 兼容模型服务（BYOK）
 
 ## 环境变量
 
@@ -89,96 +65,81 @@ cp .env.local.example .env.local
 copy .env.local.example .env.local
 ```
 
-## Supabase 配置
-
-1. 创建 Supabase 项目
-2. 获取：
-   - Project URL
-   - Anon public key
-3. 将值填入 `.env.local`
-4. 执行 SQL 迁移文件：
-   - `supabase/migrations/001_initial_schema.sql`
-   - 及其他迁移文件
-
-可在 Supabase SQL Editor 或使用 Supabase CLI 执行。
-
-## 安装与运行
+## 本地开发
 
 ```bash
 npm install
 npm run dev
 ```
 
-访问 `http://localhost:3000`
+默认地址：`http://localhost:3000`
 
-## 脚本命令
+## 常用命令
 
-- `npm run dev` - 启动开发服务器
-- `npm run build` - 生产构建
-- `npm run start` - 启动生产服务器
-- `npm run lint` - ESLint 检查
-- `npm run test` - 运行测试
-- `npx vitest run <file>` - 运行单个测试文件
+- `npm run dev`：启动开发服务器（`0.0.0.0:3000`）
+- `npm run build`：生产构建
+- `npm run start`：启动生产服务
+- `npm run lint`：ESLint 检查
+- `npm run test`：运行主测试入口（Vitest + `tests/` 契约测试）
+- `npm run test -- --reporter=default`：仅运行 Vitest（跳过 `tests/`）
+- `npx vitest run src/path/to/file.test.ts`：运行单个 Vitest 文件
 
-## 项目结构
+## Supabase 初始化
 
-```
+1. 在 Supabase 创建项目并拿到 URL / anon key
+2. 写入 `.env.local`
+3. 执行 `supabase/migrations/*.sql` 迁移文件
+
+可使用 Supabase SQL Editor 或 Supabase CLI 执行。
+
+## 目录结构
+
+```text
 src/
 ├── app/
-│   ├── (auth)/            # 登录、注册页面
-│   ├── (dashboard)/       # 仪表盘、设置、系列页面
-│   ├── (editor)/          # 编辑器、画布页面
-│   ├── actions/           # Server Actions
-│   ├── api/ai/            # 21 个 AI 路由
-│   └── api/auth/          # 认证回调
-├── components/
-│   ├── ai/                # AI 工具栏、聊天面板、Muse 面板
-│   ├── canvas/            # 画布编辑器
-│   ├── dashboard/         # 仪表盘组件
-│   ├── editor/            # 编辑器组件
-│   ├── layout/            # 布局组件（命令面板）
-│   ├── plugins/           # 插件管理
-│   ├── series/            # 系列组件
-│   ├── settings/          # 设置页面
-│   ├── story-bible/       # 故事圣经组件
-│   ├── providers/         # React Context Providers
-│   └── ui/                # shadcn/ui 组件
+│   ├── (auth)/              # 登录、注册
+│   ├── (dashboard)/         # 仪表盘、设置、系列
+│   ├── (editor)/            # 编辑器、画布
+│   ├── actions/             # Server Actions
+│   ├── api/ai/              # AI 路由
+│   └── api/auth/callback/   # Supabase OAuth 回调
+├── components/              # 业务组件与 UI
 ├── lib/
-│   ├── ai/                # AI 工具函数
-│   ├── editor/            # 编辑器工具函数
-│   ├── story-bible/       # 故事圣经工具函数
-│   └── supabase/          # Supabase 客户端
-└── types/
-    └── database.ts         # 数据库类型定义
+│   ├── ai/                  # AI 上下文、流式、错误分类、配置解析
+│   └── supabase/            # Supabase 客户端（server/client）
+├── proxy.ts                 # 会话刷新与鉴权跳转（Next.js 16）
+└── types/database.ts        # 数据库类型
 
-supabase/
-└── migrations/             # 数据库迁移（14 个文件）
-
-scripts/
-└── run-tests.mjs           # 测试入口脚本
+scripts/run-tests.mjs        # 测试入口
+supabase/migrations/         # 数据库迁移
 ```
 
-## AI 与安全说明
+## 安全说明
 
-- 使用 BYOK 架构：用户在客户端配置模型，请求通过 `X-AI-*` 头传递
-- 服务器不持久化提供商 API 密钥
-- AI 路由位于 `src/app/api/ai/*`
-- Supabase 认证/会话处理通过 `src/proxy.ts` 和 `src/lib/supabase/*` 实现
-- 包含 AI 历史记录与错误恢复机制
+- 默认按用户维度进行鉴权与数据所有权约束（RLS + 服务端校验）
+- AI 请求通过 `X-AI-*` 头传递 BYOK 配置
+- 服务端不持久化模型提供商 API Key
+- AI 相关调用包含历史记录与错误恢复元信息
 
-## 本地验证
+## 建议验证流程
 
-推送代码前建议执行：
+提交前建议至少执行：
 
 ```bash
 npm run lint
+npm run test
+```
+
+若改动涉及跨模块行为，再执行：
+
+```bash
 npm run build
 ```
 
 ## 相关文档
 
-- [AGENTS.md](./AGENTS.md) - 开发规范与约定
-- [docs/plans](./docs/plans/) - 功能设计与实现计划
+- [AGENTS.md](./AGENTS.md)：仓库开发规范
+- [docs/plans](./docs/plans/)：功能设计与实现计划
 
 ## 许可证
 

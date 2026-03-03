@@ -5,145 +5,146 @@ WriteTeam is a zh-CN AI creative-writing app (Next.js 16, React 19, TypeScript, 
 ## Scope And Priority
 - Applies repository-wide unless a deeper `AGENTS.md` overrides it.
 - User/system/developer instructions override this file.
+- Keep changes minimal and task-scoped; avoid unrelated refactors.
 
-## Core Principles
-- Make minimal, surgical changes aligned with existing architecture.
-- Keep user-facing copy in Simplified Chinese.
-- Fix root causes instead of patching symptoms.
-- Avoid unrelated refactors while solving focused tasks.
-- Preserve strict typing, auth checks, and user-data ownership constraints.
+## External Agent Rules (Cursor/Copilot)
+- Checked `.cursor/rules/`: not present in this repository.
+- Checked `.cursorrules`: not present in this repository.
+- Checked `.github/copilot-instructions.md`: not present in this repository.
+- If any of these files are later added, treat them as additional constraints.
 
-## Repository Map
-- `src/app/**`: routes, layouts, API handlers, route groups.
-- `src/app/actions/*.ts`: Server Actions (auth, documents, projects, series, canvas, images, plugins, story-bible).
-- `src/app/api/ai/**/route.ts`: 21 AI POST endpoint route handlers.
-- `src/app/api/auth/callback/`: Supabase OAuth callback.
-- `src/components/**`: UI and feature components.
-- `src/lib/ai/`: AI logic (streaming, config, prompts, error classification, prose modes).
-- `src/lib/supabase/`: Supabase client helpers (`server.ts` for server, `client.ts` for browser).
-- `src/types/database.ts`: TypeScript interfaces for all DB tables.
-- `src/proxy.ts`: Next.js 16 proxy (replaces middleware.ts) for Supabase session refresh and auth redirects.
-- `scripts/run-tests.mjs`: test entry used by `npm run test`.
+## Project Map
+- `src/app/**`: Next.js App Router pages, layouts, route groups, API handlers.
+- `src/app/actions/*.ts`: Server Actions (auth, docs, projects, series, canvas, images, plugins, story-bible).
+- `src/app/api/ai/**/route.ts`: AI endpoints (streaming and JSON routes).
+- `src/components/**`: feature and UI components.
+- `src/lib/ai/**`: AI config, prompts, context, streaming, error classification.
+- `src/lib/supabase/{server,client}.ts`: Supabase helpers.
+- `src/types/database.ts`: Supabase DB types.
+- `src/proxy.ts`: Next.js 16 auth/session proxy.
+- `scripts/run-tests.mjs`: curated test runner used by `npm run test`.
 
-## Build/Lint/Test Commands
-Run all commands from repository root.
+## Build / Lint / Test Commands
+Run from repository root (`D:\writeteam`).
 
 ### App Commands
-- `npm install` -- install dependencies
-- `npm run dev` -- Next dev server on `0.0.0.0:3000`
-- `npm run build` -- production build
-- `npm run start` -- start production server
-- `npm run lint` -- ESLint (core-web-vitals + typescript)
+- `npm install` - install dependencies.
+- `npm run dev` - start local dev server (`0.0.0.0:3000`).
+- `npm run build` - production build.
+- `npm run start` - run production server.
+- `npm run lint` - run ESLint (`eslint.config.mjs`, Next core-web-vitals + TS).
 
 ### Main Test Command
-- `npm run test` -- runs `node scripts/run-tests.mjs`
-- Executes a curated list of Vitest files, then Node contract tests.
-- With no extra args, script also runs contract tests in `tests/`.
+- `npm run test` runs `node scripts/run-tests.mjs`.
+- This executes a curated Vitest file list from `scripts/run-tests.mjs`.
+- When no extra args are provided, it then runs Node contract tests under `tests/`.
 
-### Vitest-Only Mode
-- `npm run test -- --reporter=default`
-- Passing any extra arg triggers Vitest-only behavior (skips contract tests).
+### Important Test Runner Behavior
+- `npm run test -- <args>` still runs the curated Vitest list first.
+- Any extra arg makes the script skip Node contract tests.
+- For true single-test runs, call `vitest` directly (see below).
 
-### Single-Test Commands (important)
+### Single Test Commands (Use These)
 - Single file: `npx vitest run src/path/to/file.test.ts`
-- Single test by name: `npx vitest run src/path/to/file.test.ts -t "test name"`
+- Single test by name: `npx vitest run src/path/to/file.test.ts -t "case name"`
 - Watch one file: `npx vitest src/path/to/file.test.ts`
-- Contract test: `npx vitest run src/app/api/ai/collab-routes.contract.test.ts`
+- Contract-style route test: `npx vitest run src/app/api/ai/collab-routes.contract.test.ts`
 - Node contract test: `node --test tests/story-4-2-quick-edit.test.mjs`
 
-## Code Style Guidelines
+### Useful Verification Sequence
+- For focused edits: run nearest affected test files first.
+- For feature-level edits: run `npm run test` then `npm run lint`.
+- For cross-cutting or release-critical edits: run `npm run build`.
+
+## Code Style And Conventions
 
 ### TypeScript And Types
-- `tsconfig.json` is strict (`strict: true`); keep code strictly typed.
+- `tsconfig.json` has `strict: true`; keep code fully type-safe.
 - Prefer explicit interfaces/types for non-trivial object shapes.
 - Use `import type` for type-only imports.
-- Narrow `unknown` using type guards before access.
-- Use unions/string literals for constrained states or modes.
-
-### Forbidden Type Patterns
-- `as any`, `@ts-ignore`, `@ts-expect-error` -- never use these.
+- Treat request payloads as `unknown` and narrow with guards.
+- Prefer unions/string literals for constrained states and modes.
+- Do not use `as any`, `@ts-ignore`, or `@ts-expect-error`.
 
 ### Imports
-- Use path alias `@/*` (maps to `./src/*`).
-- Group: 1) external packages, 2) internal modules (`@/...` or relative), 3) type-only imports.
-- Keep import style consistent with nearby files.
+- Prefer alias imports via `@/*` (maps to `src/*`) for app code.
+- Keep imports grouped and readable:
+  1) external packages
+  2) internal modules (`@/...` then relative)
+  3) type-only imports
+- Match the surrounding file's import ordering and spacing style.
 
 ### Formatting
-- Double quotes, no semicolons (match existing code).
-- Trailing commas in multiline objects/arrays where existing style does.
-- Do not reformat unrelated code. Favor readability over cleverness.
+- Follow existing file-local style; do not mass-reformat unrelated code.
+- Most code uses no semicolons and compact modern TS formatting.
+- Quote style is mostly double quotes, but some legacy files use single quotes; preserve local consistency.
+- Use trailing commas in multiline literals where existing style does.
 
 ### Naming
-- English identifiers for code symbols; Chinese for UI strings and error messages.
-- Verb-first function names: `getX`, `createX`, `updateX`, `deleteX`, `handleX`.
-- Use helper functions for repeated validation/sanitization logic.
+- Use English for identifiers; use Simplified Chinese for user-facing strings.
+- Prefer descriptive verb-first function names (`getX`, `createX`, `updateX`, `deleteX`, `handleX`).
+- Name booleans as predicates (`isX`, `hasX`, `shouldX`, `canX`).
+- Extract repeated validation/sanitization into small helpers.
 
-## Client/Server/API Conventions
+## Client / Server / API Rules
 
 ### Client Components
-- `"use client"` on first line when required.
-- Standard React hooks for state/effects.
-- Actionable Chinese error feedback (toast and/or inline state).
+- Add `"use client"` only when client behavior is required.
+- Use standard React hooks and keep state updates predictable.
+- Show actionable Chinese error messages in UI (toast + stable inline state where needed).
 
-### Server Actions (`src/app/actions/`)
-- `"use server"` at top of file.
-- Create Supabase client with `createClient()` from `@/lib/supabase/server`.
-- Authenticate early: `supabase.auth.getUser()`.
-- Enforce ownership: `.eq("user_id", user.id)`.
-- Return structured payloads: `{ error: "..." }`, `{ success: true }`, `{ data }`.
-- Call `revalidatePath(...)` after mutations that affect rendered pages.
+### Server Actions (`src/app/actions`)
+- Add `"use server"` at top.
+- Create Supabase server client via `createClient()` from `@/lib/supabase/server`.
+- Authenticate early using `supabase.auth.getUser()`.
+- Enforce ownership with user-scoped filters such as `.eq("user_id", user.id)`.
+- Return consistent payload shapes (`{ error }`, `{ success: true }`, `{ data }`).
+- Call `revalidatePath(...)` after mutations affecting rendered data.
 
-### API Route Handlers
+### Route Handlers (`src/app/api/**/route.ts`)
 - Use `NextRequest` and explicit method exports (`POST`, etc.).
-- Parse `request.json()` defensively with try/catch.
-- Early returns for missing/invalid fields with status-appropriate JSON (400, 401, 403, 500).
-- Return safe Chinese error messages; keep diagnostics private.
+- Parse JSON defensively with `try/catch`.
+- Validate required fields early and return proper status codes (400/401/403/409/500).
+- Keep error responses safe and actionable in Chinese; avoid leaking internals.
 
-## AI Route Requirements
-All 21 AI route handlers follow this pipeline:
-1. Authenticate user via `supabase.auth.getUser()`.
-2. Resolve BYOK config with `resolveAIConfig(request)` (reads `X-AI-Base-URL`, `X-AI-API-Key`, `X-AI-Model-ID` headers).
-3. Load story context with `fetchStoryContext(...)`.
-4. Build prompt context with `buildStoryPromptContext(...)`.
-5. Stream response with `createOpenAIStreamResponse(...)`.
-
-Key AI files:
-- `src/lib/ai/story-context.ts` -- context orchestration, prompt engineering (17 features).
-- `src/lib/ai/openai-stream.ts` -- OpenAI-compatible streaming + `ai_history` telemetry.
-- `src/lib/ai/resolve-config.ts` -- BYOK config extraction from request headers.
-- `src/lib/ai/error-classification.ts` -- structured error classification with recovery actions.
-- `src/lib/ai/prose-mode.ts` -- 5 prose styles (balanced, cinematic, lyrical, minimal, match-style).
-
-Additional AI rules:
-- Preserve telemetry (`ai_history` table, retry/recovery metadata).
-- Use `extractRetryMeta(...)` where recovery/retry applies.
-- Never log, persist, or expose provider API keys.
+## AI Route Expectations
+- Preserve the established pipeline: auth -> config resolve -> story context -> prompt context -> streaming response.
+- Keep BYOK handling through `resolveAIConfig(request)`.
+- Preserve telemetry writes (`ai_history`) and retry/recovery metadata.
+- Reuse `extractRetryMeta(...)` when streaming handlers support recovery.
+- Never log or expose provider API keys.
 
 ## Error Handling
-- Return actionable Chinese errors (retry/refresh/config hints when useful).
-- Avoid empty `catch {}` unless intentionally falling back safely.
-- Keep error payload shape consistent inside each feature.
-- In UI, pair transient toasts with stable inline error state when needed.
+- Prefer explicit guard clauses over deeply nested conditionals.
+- Map raw provider/network errors into user-actionable Chinese messages.
+- Avoid empty catches unless intentionally swallowing best-effort failures.
+- Keep error object shapes consistent within each feature.
 
 ## Testing Conventions
-- Vitest for unit/component/API tests under `src/**`.
-- Co-locate tests with source (`.test.ts` / `.test.tsx`).
-- Use `.contract.test.ts` for contract-style route tests.
-- Component tests use `@vitest-environment jsdom` pragma at top of file.
-- Reuse existing mocking patterns (`vi.mock`, `vi.stubGlobal`, Supabase mocks).
-- Run nearest affected tests first, then broader suite.
-- Add new shadcn/ui components via `npx shadcn@latest add <component>`.
+- Vitest is primary for unit/component/API tests under `src/**`.
+- Co-locate tests with source using `.test.ts` / `.test.tsx`.
+- Use `.contract.test.ts` for route contract tests.
+- Add `@vitest-environment jsdom` for DOM component tests when needed.
+- Reuse project mock patterns (`vi.mock`, `vi.stubGlobal`, Supabase mocks).
+
+## Practical Defaults For Agents
+- Read nearby files before changing architecture-level behavior.
+- Prefer additive changes over breaking renames/moves unless required.
+- Preserve existing response shapes in actions/routes to avoid client regressions.
+- Keep logs minimal and never include private request headers or keys.
+- When uncertain, follow conventions in the closest sibling file.
+- Avoid introducing new dependencies unless there is clear, local justification.
 
 ## Security And Data Safety
 - Never bypass auth checks in actions/routes.
-- Never remove ownership constraints on user data queries.
-- Never hardcode credentials or leak secrets in logs/errors.
+- Never remove user ownership constraints from queries.
+- Never commit secrets or credentials.
 - Required env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
-## Completion Checklist
-Before declaring work complete:
-1. Confirm changed files remain type-safe.
-2. Run focused tests for modified areas.
+## Completion Checklist For Agents
+Before claiming completion:
+1. Confirm modified code stays type-safe (no forbidden suppressions).
+2. Run focused tests for touched areas (prefer direct `vitest` single-file commands).
 3. Run `npm run lint` for non-trivial edits.
-4. Run `npm run build` for cross-cutting or release-critical edits.
-5. Confirm no secrets, no forbidden type suppression, and no unrelated changes.
+4. Run `npm run build` when changes are cross-cutting or release-critical.
+5. Ensure no unrelated files were modified and no secrets were introduced.
