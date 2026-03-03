@@ -58,6 +58,10 @@
 | `src/app/actions/story-bible-guards.ts` internal-only type exports (`StoryBibleUpdateInput`/`StoryBibleVisibility`/`CharacterCreateInput`/`CharacterUpdateInput`) | `rg -n` 全局仅本模块使用 | 移除 `export`（保留类型） | 已完成 |
 | `src/lib/story-bible/consistency-flags.ts` internal-only interfaces (`ConsistencyFlagEnv`/`ConsistencyFeatureFlags`) | `rg -n` 全局仅本模块使用 | 移除 `export`（保留接口） | 已完成 |
 | `src/lib/story-bible/consistency-extractor.ts#PENDING_CONFIRMATION_MARKER export` | `rg -n` 全局仅本模块使用 | 删除冗余导出 | 已完成 |
+| `src/components/editor/editor-content.tsx` internal-only interfaces (`EditorContentHandle`/`EditorContentProps`) | `rg -n` 全局仅本模块使用 | 移除 `export`（保留接口） | 已完成 |
+| `src/components/editor/editor-session-state.ts#EditorSessionState` | `rg -n` 全局仅本模块使用 | 移除 `export`（保留接口） | 已完成 |
+| `src/lib/editor/character-positions.ts#CharacterMention` | `rg -n` 全局仅本模块使用 | 移除 `export`（保留接口） | 已完成 |
+| `src/lib/editor/character-highlight-plugin.ts` internal-only exports (`characterHighlightKey`/`createCharacterHighlightPlugin`) | `rg -n` 全局仅本模块使用 | 移除 `export`（保留实现） | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）

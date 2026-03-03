@@ -1,4 +1,4 @@
-export interface EditorSessionState {
+interface EditorSessionState {
   focusMode: boolean
   sidebarCollapsed: boolean
   activeDocId: string | null

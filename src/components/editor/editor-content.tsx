@@ -51,7 +51,7 @@ function buildTiptapDocFromText(text: string): Json {
 }
 
 /** Imperative handle exposed by EditorContent via ref. */
-export interface EditorContentHandle {
+interface EditorContentHandle {
   /** Switch to a specific document by ID. */
   selectDocument: (docId: string) => void
   /** Create a new document. */
@@ -78,7 +78,7 @@ export interface EditorContentHandle {
   getActiveDocId: () => string | null
 }
 
-export interface EditorContentProps {
+interface EditorContentProps {
   project: Project
   documents: Document[]
   initialDocumentId?: string

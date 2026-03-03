@@ -1,4 +1,4 @@
-export interface CharacterMention {
+interface CharacterMention {
   name: string
   from: number
   to: number

@@ -4,7 +4,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model"
 import { Extension } from "@tiptap/react"
 import { findCharacterMentions } from "./character-positions"
 
-export const characterHighlightKey = new PluginKey("characterHighlight")
+const characterHighlightKey = new PluginKey("characterHighlight")
 
 interface HighlightState {
   characters: string[]
@@ -36,7 +36,7 @@ function buildDecorations(
   return DecorationSet.create(doc, decorations)
 }
 
-export function createCharacterHighlightPlugin(): Plugin {
+function createCharacterHighlightPlugin(): Plugin {
   return new Plugin({
     key: characterHighlightKey,
     state: {
