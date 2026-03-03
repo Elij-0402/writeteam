@@ -35,6 +35,8 @@
 | `src/components/story-bible/conflict-workbench.tsx#ConflictWorkbenchItem` | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
 | `src/lib/ai/continuity-result.ts` internal-only types (`EvidenceSource`/`ContinuityActionTarget`/`ContinuityAction`) | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
 | `src/lib/ai/feature-groups.ts` internal-only constants (`WRITING_FEATURES`/`PLANNING_FEATURES`/`CHECK_FEATURES`) | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
+| `src/lib/ai/story-context.ts` internal-only types (`StoryBibleData`/`CharacterData`/`StoryPromptOptions`/`StoryPromptContext`) | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
+| `src/lib/ai/structured-context.ts#StructuredContextVisibility` | `rg` 全局仅在模块内出现 | 移除 `export` | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）

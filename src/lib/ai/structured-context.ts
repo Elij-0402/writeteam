@@ -11,7 +11,7 @@ import type {
   TimelineEvent,
 } from "@/lib/story-bible/consistency-types"
 
-export interface StructuredContextVisibility {
+interface StructuredContextVisibility {
   characters?: boolean
 }
 

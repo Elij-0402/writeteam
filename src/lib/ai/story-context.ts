@@ -21,7 +21,7 @@ import type { ConsistencyState } from "@/lib/story-bible/consistency-types"
 
 export type { AIFeature } from "@/lib/ai/feature-groups"
 
-export interface StoryBibleData {
+interface StoryBibleData {
   genre: string | null
   style: string | null
   prose_mode: string | null
@@ -46,7 +46,7 @@ export interface SaliencyMap {
   activePlotlines: string[]
 }
 
-export interface CharacterData {
+interface CharacterData {
   name: string
   role: string | null
   description: string | null
@@ -65,13 +65,13 @@ export interface StoryContext {
   consistencyState?: ConsistencyState
 }
 
-export interface StoryPromptOptions {
+interface StoryPromptOptions {
   feature: AIFeature
   proseMode?: string | null // runtime override for prose mode
   saliencyMap?: SaliencyMap | null // saliency data for context-aware AI
 }
 
-export interface StoryPromptContext {
+interface StoryPromptContext {
   fullContext: string // The complete formatted context to inject into system prompt
 }
 
