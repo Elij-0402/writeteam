@@ -78,12 +78,15 @@ export default async function DashboardPage() {
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
 
   const state = deriveShellUXState(shellProjects)
+  const lastEditedDocumentProjectId = state.lastEditedDocument
+    ? documents.find((document) => document.id === state.lastEditedDocument?.id)?.project_id
+    : undefined
 
   async function handleResumeLastDoc() {
     "use server"
 
-    if (state.lastEditedDocument) {
-      redirect(`/editor/${state.lastEditedDocument.id}`)
+    if (state.lastEditedDocument && lastEditedDocumentProjectId) {
+      redirect(`/editor/${lastEditedDocumentProjectId}?doc=${state.lastEditedDocument.id}`)
     }
 
     redirect("/dashboard")
@@ -119,7 +122,10 @@ export default async function DashboardPage() {
       projectFormData.set("genre", "")
 
       const createdProject = await createProject(projectFormData)
-      targetProjectId = createdProject.data?.id
+
+      if (createdProject.data?.id) {
+        redirect(`/editor/${createdProject.data.id}`)
+      }
     }
 
     if (targetProjectId) {
