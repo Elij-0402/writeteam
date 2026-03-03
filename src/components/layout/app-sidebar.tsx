@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react"
 import Link from "next/link"
+import { toast } from "sonner"
 import {
   PenLine,
   Search,
@@ -75,6 +76,20 @@ export function AppSidebar({
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
 
+  function getActionError(result: unknown): string | null {
+    if (
+      result &&
+      typeof result === "object" &&
+      "error" in result &&
+      typeof result.error === "string" &&
+      result.error
+    ) {
+      return result.error
+    }
+
+    return null
+  }
+
   // Filter projects and documents based on search query
   const filteredProjects = useMemo(() => {
     if (!searchQuery.trim()) return projects
@@ -119,7 +134,13 @@ export function AppSidebar({
     formData.append("genre", resolvedGenre)
 
     startTransition(async () => {
-      await createProject(formData)
+      const result = await createProject(formData)
+      const error = getActionError(result)
+      if (error) {
+        toast.error(error)
+        return
+      }
+
       setNewProjectOpen(false)
       setNewProjectTitle("")
       setNewProjectGenre("")
@@ -129,7 +150,13 @@ export function AppSidebar({
 
   function handleDeleteProject(projectId: string) {
     startTransition(async () => {
-      await deleteProject(projectId)
+      const result = await deleteProject(projectId)
+      const error = getActionError(result)
+      if (error) {
+        toast.error(error)
+        return
+      }
+
       onDocumentsChange?.()
     })
   }
@@ -140,14 +167,26 @@ export function AppSidebar({
     formData.append("documentType", "chapter")
 
     startTransition(async () => {
-      await createDocument(projectId, formData)
+      const result = await createDocument(projectId, formData)
+      const error = getActionError(result)
+      if (error) {
+        toast.error(error)
+        return
+      }
+
       onDocumentsChange?.()
     })
   }
 
   function handleDeleteDocument(documentId: string, projectId: string) {
     startTransition(async () => {
-      await deleteDocument(documentId, projectId)
+      const result = await deleteDocument(documentId, projectId)
+      const error = getActionError(result)
+      if (error) {
+        toast.error(error)
+        return
+      }
+
       onDocumentsChange?.()
     })
   }
@@ -158,7 +197,13 @@ export function AppSidebar({
   }
 
   async function handleSaveProject(projectId: string, formData: FormData) {
-    await updateProject(projectId, formData)
+    const result = await updateProject(projectId, formData)
+    const error = getActionError(result)
+    if (error) {
+      toast.error(error)
+      return
+    }
+
     setEditDialogOpen(false)
     setEditProject(null)
     onDocumentsChange?.()
