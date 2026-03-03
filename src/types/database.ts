@@ -131,6 +131,8 @@ export interface Database {
           goals: string | null
           relationships: string | null
           notes: string | null
+          dialogue_style: string | null
+          tags: Json | null
           series_id: string | null
           created_at: string
           updated_at: string
@@ -148,6 +150,8 @@ export interface Database {
           goals?: string | null
           relationships?: string | null
           notes?: string | null
+          dialogue_style?: string | null
+          tags?: Json | null
           series_id?: string | null
           created_at?: string
           updated_at?: string
@@ -165,6 +169,8 @@ export interface Database {
           goals?: string | null
           relationships?: string | null
           notes?: string | null
+          dialogue_style?: string | null
+          tags?: Json | null
           series_id?: string | null
           updated_at?: string
         }

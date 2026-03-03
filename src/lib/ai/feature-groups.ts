@@ -17,6 +17,7 @@ export type AIFeature =
   | "saliency"
   | "canvas-generate"
   | "visualize"
+  | "bible-assist"
 
 export const WRITING_FEATURES: readonly AIFeature[] = [
   "write",

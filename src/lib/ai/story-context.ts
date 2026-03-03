@@ -7,6 +7,7 @@ import {
 import { buildProseModeGuidanceWithOverride } from "@/lib/ai/prose-mode"
 import { buildStructuredContext } from "@/lib/ai/structured-context"
 import { extractConsistencyState } from "@/lib/story-bible/consistency-extractor"
+import { parseWorldbuildingSections } from "@/lib/story-bible/worldbuilding-sections"
 import {
   getConsistencyFeatureFlags,
   isStructuredContextEnabled,
@@ -55,6 +56,7 @@ export interface CharacterData {
   goals: string | null
   relationships: string | null
   notes: string | null
+  dialogue_style: string | null
 }
 
 export interface StoryContext {
@@ -110,6 +112,7 @@ function normalizeCharacter(input: unknown): CharacterData {
     goals: normalizeNullableString(row.goals),
     relationships: normalizeNullableString(row.relationships),
     notes: normalizeNullableString(row.notes),
+    dialogue_style: normalizeNullableString(row.dialogue_style),
   }
 }
 
@@ -491,6 +494,21 @@ function buildSettingGuidance(
 
 function buildWorldbuildingGuidance(worldbuilding: string | null): string {
   if (!worldbuilding) return ""
+
+  const sections = parseWorldbuildingSections(worldbuilding)
+  if (sections.length > 1 || (sections.length === 1 && sections[0].title !== "\u901A\u7528")) {
+    // Structured format - render with sub-headers
+    const sectionText = sections
+      .filter(s => s.content.trim())
+      .map(s => `### ${s.title}\n${s.content}`)
+      .join("\n\n")
+    return `WORLD RULES (hard constraints \u2014 never violate):\n${sectionText}`
+  } else if (sections.length === 1) {
+    // Legacy flat text
+    return `WORLD RULES (hard constraints \u2014 never violate):\n${sections[0].content}\nAll narrative elements must be consistent with these established rules.`
+  }
+
+  // Fallback
   const truncated = worldbuilding.slice(0, 2000)
   return `WORLD RULES (hard constraints \u2014 never violate):\n${truncated}\nAll narrative elements must be consistent with these established rules.`
 }
@@ -552,13 +570,14 @@ function buildCharacterGuidance(
     const parts: string[] = []
 
     if (isWritingFeature(feature)) {
-      // Writing features: name, role, description, appearance, personality
+      // Writing features: name, role, description, appearance, personality, dialogue_style
       parts.push(c.name)
       if (c.role) parts[0] = `${c.name} (${c.role})`
       const details: string[] = []
       if (c.description) details.push(c.description)
       if (c.appearance) details.push(`Appearance: ${c.appearance}`)
       if (c.personality) details.push(`Personality: ${c.personality}`)
+      if (c.dialogue_style) details.push(`Dialogue style: ${c.dialogue_style}`)
       lines.push(`- ${parts[0]}: ${details.join(". ")}.`)
     } else if (isPlanningFeature(feature)) {
       // Planning features: name, role, goals, relationships, personality
@@ -583,13 +602,14 @@ function buildCharacterGuidance(
       if (c.notes) details.push(`Notes: ${c.notes}`)
       lines.push(`- ${parts[0]}: ${details.join(". ")}.`)
     } else {
-      // Chat: name, role, description, personality, goals
+      // Chat: name, role, description, personality, goals, dialogue_style
       parts.push(c.name)
       if (c.role) parts[0] = `${c.name} (${c.role})`
       const details: string[] = []
       if (c.description) details.push(c.description)
       if (c.personality) details.push(`Personality: ${c.personality}`)
       if (c.goals) details.push(`Goals: ${c.goals}`)
+      if (c.dialogue_style) details.push(`Dialogue style: ${c.dialogue_style}`)
       lines.push(`- ${parts[0]}: ${details.join(". ")}.`)
     }
   }

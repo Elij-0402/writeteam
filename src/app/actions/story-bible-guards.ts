@@ -49,6 +49,8 @@ const ALLOWED_CHARACTER_MUTATION_FIELDS = [
   "goals",
   "relationships",
   "notes",
+  "dialogue_style",
+  "tags",
 ] as const
 
 type CharacterMutationField = (typeof ALLOWED_CHARACTER_MUTATION_FIELDS)[number]
