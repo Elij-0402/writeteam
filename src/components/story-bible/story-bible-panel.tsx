@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
@@ -17,12 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
 import {
   Dialog,
   DialogContent,
@@ -40,13 +33,13 @@ import {
   Globe,
   FileText,
   Lightbulb,
-  Trash2,
   Eye,
   RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
 import { ConflictWorkbench } from "@/components/story-bible/conflict-workbench"
+import { CharacterCard } from "./character-card"
 import { CollapsibleSection } from "./collapsible-section"
 import { CompletionIndicator } from "./completion-indicator"
 
@@ -439,6 +432,10 @@ export function StoryBiblePanel({
                         <Textarea name="relationships" placeholder="与其他角色的关系..." rows={2} />
                       </div>
                       <div className="grid gap-2">
+                        <Label>对话风格</Label>
+                        <Textarea name="dialogue_style" placeholder="角色说话的特点、口头禅、语气..." rows={2} />
+                      </div>
+                      <div className="grid gap-2">
                         <Label>备注</Label>
                         <Textarea name="notes" placeholder="补充设定、禁忌和口头禅等..." rows={2} />
                       </div>
@@ -460,89 +457,19 @@ export function StoryBiblePanel({
                 <p className="text-xs text-muted-foreground">还没有角色</p>
               </div>
             ) : (
-              <Accordion type="single" collapsible className="space-y-1">
+              <div className="space-y-2">
                 {characters.map((char) => (
-                  <AccordionItem key={char.id} value={char.id} className="border rounded-md px-3">
-                    <AccordionTrigger className="py-2 text-sm hover:no-underline">
-                      <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{char.name}</span>
-                        {char.role && (
-                          <span className="text-xs text-muted-foreground">
-                            ({char.role})
-                          </span>
-                        )}
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pb-3">
-                      <CharacterField
-                        label="姓名"
-                        value={char.name}
-                        placeholder="角色姓名"
-                        onSave={(val) => handleUpdateCharacter(char.id, "name", val)}
-                      />
-                      <CharacterField
-                        label="定位"
-                        value={char.role || ""}
-                        placeholder="主角、反派、配角..."
-                        onSave={(val) => handleUpdateCharacter(char.id, "role", val)}
-                      />
-                      <CharacterField
-                        label="角色描述"
-                        value={char.description || ""}
-                        placeholder="简要角色描述..."
-                        onSave={(val) => handleUpdateCharacter(char.id, "description", val)}
-                      />
-                      <CharacterField
-                        label="性格"
-                        value={char.personality || ""}
-                        placeholder="角色特征、习惯..."
-                        onSave={(val) => handleUpdateCharacter(char.id, "personality", val)}
-                      />
-                      <CharacterField
-                        label="外貌"
-                        value={char.appearance || ""}
-                        placeholder="外形描写..."
-                        onSave={(val) => handleUpdateCharacter(char.id, "appearance", val)}
-                      />
-                      <CharacterField
-                        label="背景经历"
-                        value={char.backstory || ""}
-                        placeholder="角色过往经历..."
-                        onSave={(val) => handleUpdateCharacter(char.id, "backstory", val)}
-                      />
-                      <CharacterField
-                        label="目标"
-                        value={char.goals || ""}
-                        placeholder="这个角色想要什么？"
-                        onSave={(val) => handleUpdateCharacter(char.id, "goals", val)}
-                      />
-                      <CharacterField
-                        label="关系"
-                        value={char.relationships || ""}
-                        placeholder="与其他角色的关系..."
-                        onSave={(val) => handleUpdateCharacter(char.id, "relationships", val)}
-                      />
-                      <CharacterField
-                        label="备注"
-                        value={char.notes || ""}
-                        placeholder="补充设定、禁忌和口头禅等..."
-                        onSave={(val) => handleUpdateCharacter(char.id, "notes", val)}
-                      />
-                      <Separator />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteCharacter(char.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        删除角色
-                      </Button>
-                    </AccordionContent>
-                  </AccordionItem>
+                  <CharacterCard
+                    key={char.id}
+                    character={{
+                      ...char,
+                      dialogue_style: (char as Record<string, unknown>).dialogue_style as string | null ?? null,
+                    }}
+                    onUpdate={handleUpdateCharacter}
+                    onDelete={(id) => handleDeleteCharacter(id)}
+                  />
                 ))}
-              </Accordion>
+              </div>
             )}
           </TabsContent>
 
