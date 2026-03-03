@@ -48,6 +48,13 @@
 | `src/components/ui/sidebar.tsx` unused members (`SidebarRail`/`SidebarInput`/`SidebarGroupLabel`/`SidebarGroupAction`/`SidebarMenuBadge`/`SidebarMenuSkeleton`) | `rg -n` 全局仅定义处 | 删除实现与导出及无用 import | 已完成 |
 | `src/components/ui/dropdown-menu.tsx` unused members (`DropdownMenuPortal`/`DropdownMenuGroup`) | `rg -n` 全局仅定义处 | 删除实现与导出 | 已完成 |
 | `src/components/ui/popover.tsx` unused members (`PopoverAnchor`/`PopoverHeader`/`PopoverTitle`/`PopoverDescription`) | `rg -n` 全局仅定义处 | 删除实现与导出 | 已完成 |
+| `src/components/ui/alert-dialog.tsx` unused members (`AlertDialogTrigger`/`AlertDialogMedia`) | `rg -n` 全局仅定义处，且模块内无调用 | 删除实现与导出 | 已完成 |
+| `src/components/ui/dialog.tsx` unused member (`DialogClose`) | `rg -n` 全局仅定义处，且模块内无调用 | 删除实现与导出 | 已完成 |
+| `src/components/ui/select.tsx` unused members (`SelectGroup`/`SelectLabel`/`SelectSeparator`) | `rg -n` 全局仅定义处，且模块内无调用 | 删除实现与导出 | 已完成 |
+| `src/components/ui/avatar.tsx` unused member (`AvatarImage`) | `rg -n` 全局仅定义处，且模块内无调用 | 删除实现与导出 | 已完成 |
+| `src/components/ui/alert-dialog.tsx` internal-only exports (`AlertDialogOverlay`/`AlertDialogPortal`) | `rg -n` 仅模块内使用（被 `AlertDialogContent` 组合） | 保留实现，移除导出 | 已完成 |
+| `src/components/ui/dialog.tsx` internal-only exports (`DialogOverlay`/`DialogPortal`) | `rg -n` 仅模块内使用（被 `DialogContent` 组合） | 保留实现，移除导出 | 已完成 |
+| `src/components/ui/select.tsx` internal-only exports (`SelectScrollUpButton`/`SelectScrollDownButton`) | `rg -n` 仅模块内使用（被 `SelectContent` 组合） | 保留实现，移除导出 | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）
