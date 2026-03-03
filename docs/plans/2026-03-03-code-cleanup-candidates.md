@@ -44,6 +44,8 @@
 | `src/components/ui/avatar.tsx` unused members (`AvatarBadge`/`AvatarGroup`/`AvatarGroupCount`) | `rg` 全局仅定义处 | 删除实现与导出 | 已完成 |
 | `src/components/ui/breadcrumb.tsx#BreadcrumbEllipsis` | `rg` 全局仅定义处 | 删除实现与导出 | 已完成 |
 | `src/components/ui/sheet.tsx` unused members (`SheetTrigger`/`SheetClose`/`SheetFooter`) | `rg` 全局仅定义处 | 删除实现与导出 | 已完成 |
+| `src/components/ui/dropdown-menu.tsx` unused members (`DropdownMenuCheckboxItem`/`DropdownMenuRadioGroup`/`DropdownMenuRadioItem`/`DropdownMenuShortcut`/`DropdownMenuSub`/`DropdownMenuSubTrigger`/`DropdownMenuSubContent`) | `rg -n` 全局仅定义处 | 删除实现与导出 | 已完成 |
+| `src/components/ui/sidebar.tsx` unused members (`SidebarRail`/`SidebarInput`/`SidebarGroupLabel`/`SidebarGroupAction`/`SidebarMenuBadge`/`SidebarMenuSkeleton`) | `rg -n` 全局仅定义处 | 删除实现与导出及无用 import | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）
