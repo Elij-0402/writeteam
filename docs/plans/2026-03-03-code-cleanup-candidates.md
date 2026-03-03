@@ -41,6 +41,9 @@
 | `src/components/ui/card.tsx#CardAction` | `rg` 全局仅在模块内出现 | 移除导出并删除未使用实现 | 已完成 |
 | `src/components/ui/command.tsx#CommandShortcut` | `rg` 全局仅在模块内出现 | 移除导出并删除未使用实现 | 已完成 |
 | `src/components/ui/scroll-area.tsx#ScrollBar export` | `ScrollBar` 仅模块内使用 | 从 export 列表移除 | 已完成 |
+| `src/components/ui/avatar.tsx` unused members (`AvatarBadge`/`AvatarGroup`/`AvatarGroupCount`) | `rg` 全局仅定义处 | 删除实现与导出 | 已完成 |
+| `src/components/ui/breadcrumb.tsx#BreadcrumbEllipsis` | `rg` 全局仅定义处 | 删除实现与导出 | 已完成 |
+| `src/components/ui/sheet.tsx` unused members (`SheetTrigger`/`SheetClose`/`SheetFooter`) | `rg` 全局仅定义处 | 删除实现与导出 | 已完成 |
 
 ## 验证
 - `npm run lint`: 通过（0 error，2 warning）
