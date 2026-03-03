@@ -1,7 +1,8 @@
 # Dashboard 壳层 UX 对齐设计（降低迷失感）
 
 **日期**: 2026-03-03  
-**状态**: 已批准（首轮落地完成）  
+**状态**: 已批准  
+**实施进度**: 首轮落地完成，进入观察与小步迭代  
 **范围**: 全站壳层（`/dashboard`、`AppSidebar`、`SiteHeader`、空状态引导）
 
 ## 1. 目标与约束
@@ -124,10 +125,14 @@
 - 不修改后端数据库 schema。
 - 不重做 AI 面板能力，仅调整入口优先级与引导关系。
 
-## 10. Rollout / 进度记录（2026-03-03）
+## 10. Rollout 实施进度（2026-03-03）
 
 - 已完成 Dashboard 任务控制台首轮上线：`继续写作`、`最近文档`、`下一步建议` 三块均已落地。
 - 已完成壳层派生状态与推荐动作规则接入：覆盖无项目、有项目无文档、有文档未选中、已在编辑四类上下文。
 - 已完成侧栏动作语义对齐：全局/项目/文档三级动作边界明确，创建与删除反馈统一。
 - 已完成 Header 状态胶囊接入并与路由/选中文档同步，减少进入后“下一步不明确”的空窗。
-- 已补齐并通过相关测试（dashboard 分支、继续写作路由、侧栏交互、header 状态），当前可进入后续观察与小步迭代阶段。
+- 测试可追溯性：可通过以下命令复核本轮改动覆盖点：
+  - `npx vitest run src/app/(app)/dashboard/page.test.tsx`
+  - `npx vitest run src/components/dashboard/dashboard-task-console.test.tsx`
+  - `npx vitest run src/components/layout/app-sidebar.test.tsx`
+  - `npx vitest run src/components/layout/site-header.test.tsx`
