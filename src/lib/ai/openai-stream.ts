@@ -111,7 +111,7 @@ export async function createOpenAIStreamResponse(
     result = streamText({
       model,
       messages: options.messages,
-      maxTokens: options.maxTokens,
+      maxOutputTokens: options.maxTokens,
       temperature: options.temperature,
     })
   } catch (initError) {

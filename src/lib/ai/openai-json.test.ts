@@ -46,7 +46,7 @@ describe("callOpenAIJson", () => {
       expect.objectContaining({
         model: "mock-model",
         messages,
-        maxTokens: 500,
+        maxOutputTokens: 500,
         temperature: 0.3,
       }),
     )

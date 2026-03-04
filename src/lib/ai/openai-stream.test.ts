@@ -151,7 +151,7 @@ describe("createOpenAIStreamResponse", () => {
     expect(streamText).toHaveBeenCalledWith({
       model: "mock-model",
       messages: defaultOptions.messages,
-      maxTokens: 1000,
+      maxOutputTokens: 1000,
       temperature: 0.7,
     })
   })

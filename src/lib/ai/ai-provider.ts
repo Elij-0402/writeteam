@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai"
-import type { LanguageModelV1 } from "ai"
+import type { LanguageModel } from "ai"
 import type { ResolvedAIConfig } from "@/lib/ai/resolve-config"
 
 /** BYOK 配置类型，复用 pipeline 中已有的 ResolvedAIConfig */
@@ -14,7 +14,7 @@ export type BYOKConfig = ResolvedAIConfig
  * 当 apiKey 为空字符串时传 undefined（Ollama 等本地模型不需要密钥）。
  * URL 验证由上游 resolveAIConfig() 负责。
  */
-export function createBYOKProvider(config: BYOKConfig): LanguageModelV1 {
+export function createBYOKProvider(config: BYOKConfig): LanguageModel {
   const provider = createOpenAI({
     baseURL: config.baseUrl,
     apiKey: config.apiKey || undefined,

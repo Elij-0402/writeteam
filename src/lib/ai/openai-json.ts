@@ -26,7 +26,7 @@ export async function callOpenAIJson(options: {
     const result = await generateText({
       model,
       messages: options.messages,
-      maxTokens: options.maxTokens,
+      maxOutputTokens: options.maxTokens,
       temperature: options.temperature,
     })
 
