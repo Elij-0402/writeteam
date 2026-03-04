@@ -32,7 +32,11 @@ type CanvasBeat = {
 const ALLOWED_CANVAS_NODE_TYPES = new Set(["beat", "scene", "character", "location", "note"])
 
 function cleanAIJson(content: string): string {
-  return content.replace(/```json\n?/gi, "").replace(/```\n?/g, "").trim()
+  // Strip code fences: ```json, ```JSON, ```js, ``` json, etc.
+  let cleaned = content.replace(/```(?:json|js|javascript)?\s*\n?/gi, "").trim()
+  // Remove trailing commas before ] or }
+  cleaned = cleaned.replace(/,\s*([}\]])/g, "$1")
+  return cleaned
 }
 
 function normalizeBeat(rawBeat: unknown): CanvasBeat | null {
@@ -57,25 +61,82 @@ function normalizeBeat(rawBeat: unknown): CanvasBeat | null {
   }
 }
 
-function parseBeats(content: string): { beats?: CanvasBeat[]; error?: string } {
+/**
+ * Extract a JSON array from a parsed value that might be an object wrapper.
+ * Handles cases like { "beats": [...] } or { "data": [...] }.
+ */
+function extractArrayFromParsed(parsed: unknown): unknown[] | null {
+  if (Array.isArray(parsed)) {
+    return parsed
+  }
+  if (parsed && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>
+    for (const value of Object.values(obj)) {
+      if (Array.isArray(value)) {
+        return value
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Try to JSON.parse the given string. If it fails, try to extract
+ * the outermost JSON array `[...]` or object `{...}` and parse that.
+ */
+function robustJsonParse(content: string): unknown | null {
+  const cleaned = cleanAIJson(content)
+
+  // Strategy 1: direct parse
   try {
-    const parsed = JSON.parse(cleanAIJson(content)) as unknown
-    if (!Array.isArray(parsed)) {
-      return { error: "AI 返回格式错误：结果不是数组" }
-    }
-
-    const beats = parsed
-      .map(normalizeBeat)
-      .filter((beat): beat is CanvasBeat => beat !== null)
-
-    if (beats.length === 0) {
-      return { error: "AI 未生成可用节拍，请重试或调整大纲后再试" }
-    }
-
-    return { beats: beats.slice(0, 12) }
+    return JSON.parse(cleaned)
   } catch {
+    // continue
+  }
+
+  // Strategy 2: extract outermost [...] substring
+  const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
+  if (arrayMatch) {
+    try {
+      return JSON.parse(arrayMatch[0].replace(/,\s*([}\]])/g, "$1"))
+    } catch {
+      // continue
+    }
+  }
+
+  // Strategy 3: extract outermost {...} substring
+  const objectMatch = cleaned.match(/\{[\s\S]*\}/)
+  if (objectMatch) {
+    try {
+      return JSON.parse(objectMatch[0].replace(/,\s*([}\]])/g, "$1"))
+    } catch {
+      // continue
+    }
+  }
+
+  return null
+}
+
+function parseBeats(content: string): { beats?: CanvasBeat[]; error?: string } {
+  const parsed = robustJsonParse(content)
+  if (parsed === null) {
     return { error: "AI 返回格式错误，请重试" }
   }
+
+  const arr = extractArrayFromParsed(parsed)
+  if (!arr) {
+    return { error: "AI 返回格式错误：结果不是数组" }
+  }
+
+  const beats = arr
+    .map(normalizeBeat)
+    .filter((beat): beat is CanvasBeat => beat !== null)
+
+  if (beats.length === 0) {
+    return { error: "AI 未生成可用节拍，请重试或调整大纲后再试" }
+  }
+
+  return { beats: beats.slice(0, 12) }
 }
 
 // ---------------------------------------------------------------------------
@@ -102,12 +163,12 @@ function buildScenePlanMessages(
   const context = typeof body.context === "string" ? body.context : ""
 
   let systemPrompt =
-    "You are an expert fiction story architect. Break chapter goals into scene-by-scene plans. Ensure rising tension, cause-effect continuity, and clear scene purpose. Return only the plan."
+    "你是一位专业的小说故事架构师。请将章节目标拆解为逐场景的详细规划，确保张力递进、因果连贯、每个场景有明确的叙事功能。仅输出场景规划内容。"
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `${context ? `Recent manuscript context:\n${context.slice(-2500)}\n\n` : ""}Create a scene plan for this chapter goal:\n${goal}\n\nOutput format:\n1) Scene Title\n- Purpose\n- POV\n- Conflict\n- Beat List (3-6 beats)\n- Exit Hook`
+  const userPrompt = `${context ? `近期手稿上下文：\n${context.slice(-2500)}\n\n` : ""}请为以下章节目标创建场景规划：\n${goal}\n\n输出格式：\n1) 场景标题\n- 目的\n- 视角\n- 冲突\n- 节拍列表（3-6个节拍）\n- 场景出口钩子`
 
   return [
     { role: "system", content: systemPrompt },
@@ -147,22 +208,22 @@ async function handleCanvasGenerate(
     const storyCtx = await fetchStoryContext(supabase, projectId, userId)
     const { fullContext } = buildStoryPromptContext(storyCtx, { feature: "canvas-generate" })
 
-    let systemPrompt = `You are a story structure expert. Your task is to analyze an outline or synopsis and break it down into story beats — the essential narrative moments that drive the plot forward.
+    let systemPrompt = `你是一名故事结构专家。你的任务是分析大纲或梗概，将其拆解为故事节拍（beat）——推动情节发展的关键叙事节点。
 
-Return ONLY a valid JSON array of beat objects. Each beat should have:
-- "label": A short, descriptive title for the beat (5-10 words)
-- "content": A 1-2 sentence description of what happens in this beat
-- "type": Always "beat"
+请仅返回一个合法的 JSON 数组，每个元素包含：
+- "label": 节拍的简短标题（5-10个字）
+- "content": 1-2句话描述该节拍发生了什么
+- "type": 固定为 "beat"
 
-Generate 6-12 beats depending on the complexity of the outline. Order them chronologically.
+根据大纲复杂度生成 6-12 个节拍，按时间顺序排列。
 
-IMPORTANT: Return ONLY the JSON array. No markdown, no code fences, no explanations.`
+重要：仅返回 JSON 数组，不要添加 markdown、代码围栏或任何解释文字。`
 
     if (fullContext) {
       systemPrompt += `\n\n${fullContext}`
     }
 
-    const userPrompt = `Analyze this outline and generate story beat nodes:\n\n${outline.slice(0, 5000)}`
+    const userPrompt = `请分析以下大纲并生成故事节拍节点：\n\n${outline.slice(0, 5000)}`
 
     const result = await callOpenAIJson({
       ...aiConfig,

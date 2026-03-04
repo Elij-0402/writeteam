@@ -68,13 +68,13 @@ function buildQuickEditMessages(
   const instruction = typeof body.instruction === "string" ? body.instruction : ""
   const context = typeof body.context === "string" ? body.context : ""
 
-  let systemPrompt = `You are a creative fiction writing AI assistant. Your task is to edit the selected text according to the author's natural language instruction. Return ONLY the edited text — no explanations, no quotes, no markdown.`
+  let systemPrompt = `你是一名富有创造力的小说写作 AI 助手。你的任务是按照作者的自然语言指令编辑选中的文本。仅返回编辑后的文本——不要解释、不要引号、不要 markdown。`
 
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `Selected text to edit:\n"""${text}"""\n\nAuthor's instruction: "${instruction}"\n\nSurrounding context (for reference only — do NOT include it in your output):\n${context.slice(-2000)}\n\nReturn the edited version of the selected text only:`
+  const userPrompt = `需要编辑的选中文本：\n"""${text}"""\n\n作者的编辑指令："${instruction}"\n\n周围上下文（仅供参考——不要将其包含在输出中）：\n${context.slice(-2000)}\n\n请仅返回编辑后的选中文本：`
 
   return [
     { role: "system", content: systemPrompt },
@@ -90,7 +90,7 @@ function buildRewriteMessages(
   const mode: RewriteMode = isRewriteMode(body.mode) ? body.mode : "rephrase"
   const customInstructions = typeof body.customInstructions === "string" ? body.customInstructions : ""
 
-  let systemPrompt = `You are a skilled fiction editor. Rewrite the given text according to the instructions. Return ONLY the rewritten text — no explanations, no meta-commentary.`
+  let systemPrompt = `你是一名专业的小说编辑。按照指令改写给定文本。仅返回改写后的文本——不要解释、不要元评论。`
 
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
@@ -99,31 +99,31 @@ function buildRewriteMessages(
   let instruction = ""
   switch (mode) {
     case "rephrase":
-      instruction = "Rephrase this passage while keeping the same meaning and narrative intent. Vary the sentence structure and word choice."
+      instruction = "请改写这段文字，保持相同的含义和叙事意图，变换句式结构和用词。"
       break
     case "shorter":
-      instruction = "Make this passage more concise. Remove unnecessary words and tighten the prose while preserving the essential meaning."
+      instruction = "请精简这段文字，删除多余的词语，收紧行文，同时保留核心含义。"
       break
     case "longer":
-      instruction = "Expand this passage with more detail, description, and nuance. Add sensory details and deepen the emotional resonance."
+      instruction = "请扩展这段文字，添加更多细节、描写和层次，加入感官细节并加深情感共鸣。"
       break
     case "show-not-tell":
-      instruction = "Rewrite this passage using 'show, don't tell' techniques. Replace abstract statements with concrete actions, sensory details, and dialogue."
+      instruction = "请用「展示而非告知」的技巧改写这段文字。将抽象的陈述替换为具体的动作、感官细节和对话。"
       break
     case "more-intense":
-      instruction = "Rewrite this passage to be more emotionally intense and dramatic. Heighten the tension, urgency, or emotional impact."
+      instruction = "请将这段文字改写得更具情感冲击力和戏剧张力。增强紧张感、紧迫感或情感力度。"
       break
     case "more-lyrical":
-      instruction = "Rewrite this passage in a more lyrical, poetic style. Use rhythm, metaphor, and evocative language."
+      instruction = "请将这段文字改写为更优美、更有诗意的风格。运用节奏感、比喻和富有表现力的语言。"
       break
     case "custom":
-      instruction = customInstructions || "Improve this passage."
+      instruction = customInstructions || "请改进这段文字。"
       break
     default:
-      instruction = "Rephrase this passage while keeping the same meaning."
+      instruction = "请改写这段文字，保持相同的含义。"
   }
 
-  const userPrompt = `${instruction}\n\nOriginal text:\n"${text}"\n\nRewritten text:`
+  const userPrompt = `${instruction}\n\n原文：\n"${text}"\n\n改写后：`
 
   return [
     { role: "system", content: systemPrompt },
@@ -137,13 +137,13 @@ function buildShrinkMessages(
 ): Array<{ role: "system" | "user"; content: string }> {
   const text = typeof body.text === "string" ? body.text : ""
 
-  let systemPrompt = `You are a skilled text editor. Condense the given text to approximately 50% of its original length. Preserve the core meaning, key information, and original style. Do not add new content. Return ONLY the condensed text.`
+  let systemPrompt = `你是一名专业的文本编辑。将给定文本精简至原文约50%的长度。保留核心含义、关键信息和原有风格，不要添加新内容。仅返回精简后的文本。`
 
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `Condense the following text to roughly 50% of its length while preserving meaning and style:\n\n${text}`
+  const userPrompt = `请将以下文本精简至大约50%的长度，保留含义和风格：\n\n${text}`
 
   return [
     { role: "system", content: systemPrompt },

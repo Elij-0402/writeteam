@@ -177,7 +177,7 @@ describe("write route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[0].content).toContain("continue the story")
+    expect(messages[0].content).toContain("续写故事")
   })
 
   it("routes to first-draft intent", async () => {
@@ -196,7 +196,7 @@ describe("write route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[0].content).toContain("professional fiction writer")
+    expect(messages[0].content).toContain("专业的小说作家")
     expect(messages[1].content).toContain("角色走进房间，发现了一封信")
   })
 
@@ -218,7 +218,7 @@ describe("write route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[0].content).toContain("expand the given passage")
+    expect(messages[0].content).toContain("扩写给定段落")
     // Context should be truncated to last 2000 characters
     expect(messages[1].content).toContain("x".repeat(2000))
     expect(messages[1].content).not.toContain("x".repeat(2001))
@@ -240,8 +240,8 @@ describe("write route", () => {
 
     const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
     const messages = call[0].messages as Array<{ role: string; content: string }>
-    expect(messages[0].content).toContain("sensory description")
+    expect(messages[0].content).toContain("感官描写")
     expect(messages[1].content).toContain("雨中的城市")
-    expect(messages[1].content).toContain("**Sight**")
+    expect(messages[1].content).toContain("**视觉**")
   })
 })

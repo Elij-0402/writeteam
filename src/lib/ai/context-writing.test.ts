@@ -45,7 +45,7 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
       saliencyMap: saliency,
     })
 
-    expect(result.fullContext).toContain("SCENE SALIENCY")
+    expect(result.fullContext).toContain("场景焦点")
     expect(result.fullContext).toContain("林晚")
     expect(result.fullContext).toContain("沈舟")
     expect(result.fullContext).toContain("码头")
@@ -59,8 +59,8 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
       saliencyMap: saliency,
     })
 
-    expect(result.fullContext).toContain("SCENE SALIENCY")
-    expect(result.fullContext).toContain("Active characters in scene")
+    expect(result.fullContext).toContain("场景焦点")
+    expect(result.fullContext).toContain("场景中的活跃角色")
   })
 
   it("includes saliency guidance for expand feature", () => {
@@ -70,7 +70,7 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
       saliencyMap: saliency,
     })
 
-    expect(result.fullContext).toContain("SCENE SALIENCY")
+    expect(result.fullContext).toContain("场景焦点")
   })
 
   it("includes saliency guidance for shrink feature", () => {
@@ -80,7 +80,7 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
       saliencyMap: saliency,
     })
 
-    expect(result.fullContext).toContain("SCENE SALIENCY")
+    expect(result.fullContext).toContain("场景焦点")
   })
 
   it("omits saliency section when saliencyMap is null", () => {
@@ -93,7 +93,7 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
       saliencyMap: null,
     })
 
-    expect(result.fullContext).not.toContain("SCENE SALIENCY")
+    expect(result.fullContext).not.toContain("场景焦点")
   })
 
   it("omits saliency section when saliencyMap is undefined", () => {
@@ -103,7 +103,7 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
     }
     const result = buildStoryPromptContext(ctx, { feature: "write" })
 
-    expect(result.fullContext).not.toContain("SCENE SALIENCY")
+    expect(result.fullContext).not.toContain("场景焦点")
   })
 
   it("handles partial saliency (only characters)", () => {
@@ -118,9 +118,9 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
       saliencyMap: partial,
     })
 
-    expect(result.fullContext).toContain("Active characters in scene: 阿青")
-    expect(result.fullContext).not.toContain("Active locations")
-    expect(result.fullContext).not.toContain("Active plotlines")
+    expect(result.fullContext).toContain("场景中的活跃角色：阿青")
+    expect(result.fullContext).not.toContain("活跃地点")
+    expect(result.fullContext).not.toContain("活跃情节线")
   })
 
   it("handles empty saliency (all arrays empty)", () => {
@@ -135,7 +135,7 @@ describe("saliencyMap integration in buildStoryPromptContext", () => {
       saliencyMap: empty,
     })
 
-    expect(result.fullContext).not.toContain("SCENE SALIENCY")
+    expect(result.fullContext).not.toContain("场景焦点")
   })
 })
 
@@ -218,30 +218,30 @@ describe("feature-aware context in buildStoryPromptContext", () => {
     const ctx: StoryContext = { bible: fullBible, characters: [] }
     const result = buildStoryPromptContext(ctx, { feature: "write" })
 
-    expect(result.fullContext).toContain("SETTING: 边陲王国")
-    expect(result.fullContext).toContain("sensory details")
+    expect(result.fullContext).toContain("故事场景：边陲王国")
+    expect(result.fullContext).toContain("感官细节")
   })
 
   it("expand feature includes setting with sensory detail instruction", () => {
     const ctx: StoryContext = { bible: fullBible, characters: [] }
     const result = buildStoryPromptContext(ctx, { feature: "expand" })
 
-    expect(result.fullContext).toContain("sensory details")
+    expect(result.fullContext).toContain("感官细节")
   })
 
   it("write feature includes themes with subtlety instruction", () => {
     const ctx: StoryContext = { bible: fullBible, characters: [] }
     const result = buildStoryPromptContext(ctx, { feature: "write" })
 
-    expect(result.fullContext).toContain("THEMES TO WEAVE")
-    expect(result.fullContext).toContain("never state them explicitly")
+    expect(result.fullContext).toContain("需要编织的主题")
+    expect(result.fullContext).toContain("不要直接点明")
   })
 
   it("write feature includes strict writing params for POV and tense", () => {
     const ctx: StoryContext = { bible: fullBible, characters: [] }
     const result = buildStoryPromptContext(ctx, { feature: "rewrite" })
 
-    expect(result.fullContext).toContain("STRICT WRITING PARAMETERS")
+    expect(result.fullContext).toContain("严格写作参数")
     expect(result.fullContext).toContain("第三人称")
     expect(result.fullContext).toContain("过去式")
   })
@@ -250,7 +250,7 @@ describe("feature-aware context in buildStoryPromptContext", () => {
     const ctx: StoryContext = { bible: fullBible, characters: [] }
     const result = buildStoryPromptContext(ctx, { feature: "shrink" })
 
-    expect(result.fullContext).toContain("WORLD RULES")
+    expect(result.fullContext).toContain("世界规则")
     expect(result.fullContext).toContain("魔法需要付出代价")
   })
 
@@ -261,10 +261,10 @@ describe("feature-aware context in buildStoryPromptContext", () => {
     }
     const result = buildStoryPromptContext(ctx, { feature: "write" })
 
-    expect(result.fullContext).toContain("AUTHOR'S RULES")
+    expect(result.fullContext).toContain("作者规则")
     expect(result.fullContext).toContain("角色称呼必须使用全名")
     // AI rules should appear before other sections
-    const rulesPos = result.fullContext.indexOf("AUTHOR'S RULES")
+    const rulesPos = result.fullContext.indexOf("作者规则")
     const genrePos = result.fullContext.indexOf("奇幻")
     expect(rulesPos).toBeLessThan(genrePos)
   })

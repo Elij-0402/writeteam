@@ -148,7 +148,7 @@ describe("plan route", () => {
 
       const call = vi.mocked(createOpenAIStreamResponse).mock.calls[0]
       const messages = call[0].messages as Array<{ role: string; content: string }>
-      expect(messages[0].content).toContain("scene-by-scene plans")
+      expect(messages[0].content).toContain("逐场景的详细规划")
     })
 
     it("includes context in scene-plan user prompt", async () => {
@@ -250,13 +250,13 @@ describe("plan route", () => {
       expect(callOpenAIJson).toHaveBeenCalled()
     })
 
-    it("returns 500 when AI returns invalid format", async () => {
+    it("returns 500 when AI returns completely unparseable content", async () => {
       const { client } = makeSupabase()
       vi.mocked(createClient).mockResolvedValue(client as never)
       vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
       vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
       vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
-      vi.mocked(callOpenAIJson).mockResolvedValue({ content: "not valid json" })
+      vi.mocked(callOpenAIJson).mockResolvedValue({ content: "not valid json at all" })
 
       const res = await POST(makeRequest({
         intent: "canvas-generate",
@@ -267,6 +267,141 @@ describe("plan route", () => {
 
       expect(res.status).toBe(500)
       expect(data.error).toContain("AI 返回格式错误")
+    })
+
+    it("parses JSON wrapped in markdown code fences", async () => {
+      const { client } = makeSupabase()
+      vi.mocked(createClient).mockResolvedValue(client as never)
+      vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+      vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+      vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+      vi.mocked(callOpenAIJson).mockResolvedValue({
+        content: '```json\n[{"label":"开场","content":"角色出现","type":"beat"}]\n```',
+      })
+
+      const res = await POST(makeRequest({
+        intent: "canvas-generate",
+        outline: "角色走进城市，发现一封信，开始了冒险旅程",
+        projectId: "p-1",
+      }))
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.beats).toHaveLength(1)
+      expect(data.beats[0].label).toBe("开场")
+    })
+
+    it("parses JSON wrapped in uppercase ```JSON fences", async () => {
+      const { client } = makeSupabase()
+      vi.mocked(createClient).mockResolvedValue(client as never)
+      vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+      vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+      vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+      vi.mocked(callOpenAIJson).mockResolvedValue({
+        content: '```JSON\n[{"label":"开场","content":"角色出现","type":"beat"}]\n```',
+      })
+
+      const res = await POST(makeRequest({
+        intent: "canvas-generate",
+        outline: "角色走进城市，发现一封信，开始了冒险旅程",
+        projectId: "p-1",
+      }))
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.beats).toHaveLength(1)
+    })
+
+    it("parses JSON wrapped in object like {beats: [...]}", async () => {
+      const { client } = makeSupabase()
+      vi.mocked(createClient).mockResolvedValue(client as never)
+      vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+      vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+      vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+      vi.mocked(callOpenAIJson).mockResolvedValue({
+        content: JSON.stringify({
+          beats: [
+            { label: "开场", content: "角色出现", type: "beat" },
+            { label: "冲突", content: "发现秘密", type: "beat" },
+          ],
+        }),
+      })
+
+      const res = await POST(makeRequest({
+        intent: "canvas-generate",
+        outline: "角色走进城市，发现一封信，开始了冒险旅程",
+        projectId: "p-1",
+      }))
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.beats).toHaveLength(2)
+      expect(data.beats[0].label).toBe("开场")
+    })
+
+    it("parses JSON with leading/trailing explanatory text", async () => {
+      const { client } = makeSupabase()
+      vi.mocked(createClient).mockResolvedValue(client as never)
+      vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+      vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+      vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+      vi.mocked(callOpenAIJson).mockResolvedValue({
+        content: '以下是生成的故事节拍：\n[{"label":"开场","content":"角色出现","type":"beat"}]\n希望对你有帮助！',
+      })
+
+      const res = await POST(makeRequest({
+        intent: "canvas-generate",
+        outline: "角色走进城市，发现一封信，开始了冒险旅程",
+        projectId: "p-1",
+      }))
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.beats).toHaveLength(1)
+      expect(data.beats[0].label).toBe("开场")
+    })
+
+    it("parses JSON with trailing commas", async () => {
+      const { client } = makeSupabase()
+      vi.mocked(createClient).mockResolvedValue(client as never)
+      vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+      vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+      vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+      vi.mocked(callOpenAIJson).mockResolvedValue({
+        content: '[{"label":"开场","content":"角色出现","type":"beat",},]',
+      })
+
+      const res = await POST(makeRequest({
+        intent: "canvas-generate",
+        outline: "角色走进城市，发现一封信，开始了冒险旅程",
+        projectId: "p-1",
+      }))
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.beats).toHaveLength(1)
+    })
+
+    it("parses object wrapped in code fences with explanatory text", async () => {
+      const { client } = makeSupabase()
+      vi.mocked(createClient).mockResolvedValue(client as never)
+      vi.mocked(resolveAIConfig).mockReturnValue({ baseUrl: "https://x", modelId: "m", apiKey: "k" })
+      vi.mocked(fetchStoryContext).mockResolvedValue({ bible: null, characters: [] })
+      vi.mocked(buildStoryPromptContext).mockReturnValue({ fullContext: "" })
+      vi.mocked(callOpenAIJson).mockResolvedValue({
+        content: '好的，以下是分析结果：\n```json\n{"story_beats":[{"label":"序幕","content":"故事开始","type":"beat"}]}\n```\n以上就是故事节拍。',
+      })
+
+      const res = await POST(makeRequest({
+        intent: "canvas-generate",
+        outline: "角色走进城市，发现一封信，开始了冒险旅程",
+        projectId: "p-1",
+      }))
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.beats).toHaveLength(1)
+      expect(data.beats[0].label).toBe("序幕")
     })
 
     it("logs to ai_history on success", async () => {

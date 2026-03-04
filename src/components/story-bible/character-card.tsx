@@ -107,7 +107,7 @@ export function CharacterCard({ character, onUpdate, onDelete, defaultOpen = fal
               fieldKey={cfg.key}
               label={cfg.label}
               placeholder={cfg.placeholder}
-              value={(character as Record<string, unknown>)[cfg.key] as string | null}
+              value={(character as unknown as Record<string, unknown>)[cfg.key] as string | null}
               type={cfg.type}
               onSave={(value) => onUpdate(character.id, cfg.key, value)}
             />

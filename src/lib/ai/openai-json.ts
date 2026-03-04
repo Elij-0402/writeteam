@@ -1,6 +1,12 @@
+import { generateText } from "ai"
+import { createBYOKProvider } from "@/lib/ai/ai-provider"
+
 /**
  * Non-streaming OpenAI-compatible JSON call.
- * Used by canvas-generate, saliency, and visualize routes.
+ * Used by saliency, canvas-generate, and visualize routes.
+ *
+ * Migrated from raw fetch to AI SDK generateText().
+ * External interface unchanged — callers need no modifications.
  */
 export async function callOpenAIJson(options: {
   baseUrl: string
@@ -10,34 +16,23 @@ export async function callOpenAIJson(options: {
   maxTokens: number
   temperature: number
 }): Promise<{ content: string; error?: string }> {
-  const { baseUrl, apiKey, modelId, messages, maxTokens, temperature } = options
+  try {
+    const model = createBYOKProvider({
+      baseUrl: options.baseUrl,
+      apiKey: options.apiKey,
+      modelId: options.modelId,
+    })
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    const result = await generateText({
+      model,
+      messages: options.messages,
+      maxOutputTokens: options.maxTokens,
+      temperature: options.temperature,
+    })
+
+    return { content: result.text }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return { content: "", error: `AI API 错误: ${message}` }
   }
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`
-  }
-
-  const url = `${baseUrl.replace(/\/+$/, "")}/chat/completions`
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: modelId,
-      messages,
-      max_tokens: maxTokens,
-      temperature,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    return { content: "", error: `AI API 错误: ${error}` }
-  }
-
-  const data = await response.json()
-  const content = data.choices?.[0]?.message?.content || ""
-  return { content }
 }

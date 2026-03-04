@@ -43,7 +43,7 @@ function buildWriteMessages(
   const guidance = typeof body.guidance === "string" ? body.guidance : ""
   const mode: WriteMode = isWriteMode(body.mode) ? body.mode : "auto"
 
-  let systemPrompt = `You are a creative fiction writing AI assistant. Your task is to continue the story seamlessly from where the author left off. Write in a natural, engaging style that matches the existing prose.`
+  let systemPrompt = `你是一名富有创造力的小说写作 AI 助手。你的任务是从作者停笔的地方无缝续写故事。以自然、引人入胜的风格写作，匹配已有文本的行文风格。`
 
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
@@ -53,22 +53,22 @@ function buildWriteMessages(
 
   switch (mode) {
     case "guided":
-      userPrompt = `Continue the story based on this direction: "${guidance}"\n\nHere is the recent context:\n\n${context}\n\nContinue writing (about 200-400 words):`
+      userPrompt = `按照以下方向续写故事："${guidance}"\n\n近期上下文：\n\n${context}\n\n请续写（约200-400字）：`
       break
     case "tone-ominous":
-      userPrompt = `Continue the story in an ominous, foreboding tone:\n\n${context}\n\nContinue writing with a dark, suspenseful atmosphere (about 200-400 words):`
+      userPrompt = `以阴沉、不祥的基调续写故事：\n\n${context}\n\n请以黑暗、悬疑的氛围续写（约200-400字）：`
       break
     case "tone-romantic":
-      userPrompt = `Continue the story in a romantic, tender tone:\n\n${context}\n\nContinue writing with warmth and emotional depth (about 200-400 words):`
+      userPrompt = `以浪漫、温柔的基调续写故事：\n\n${context}\n\n请以温暖、情感丰沛的笔触续写（约200-400字）：`
       break
     case "tone-fast":
-      userPrompt = `Continue the story with fast-paced, high-energy prose:\n\n${context}\n\nContinue writing with urgency and momentum (about 200-400 words):`
+      userPrompt = `以快节奏、高能量的笔调续写故事：\n\n${context}\n\n请以紧迫感和推进力续写（约200-400字）：`
       break
     case "tone-humorous":
-      userPrompt = `Continue the story with wit and humor:\n\n${context}\n\nContinue writing with a light, humorous tone (about 200-400 words):`
+      userPrompt = `以机智幽默的笔调续写故事：\n\n${context}\n\n请以轻松、幽默的基调续写（约200-400字）：`
       break
     default: // auto
-      userPrompt = `Continue the story naturally:\n\n${context}\n\nContinue writing (about 200-400 words):`
+      userPrompt = `自然地续写故事：\n\n${context}\n\n请续写（约200-400字）：`
       break
   }
 
@@ -85,12 +85,12 @@ function buildFirstDraftMessages(
   const outline = typeof body.outline === "string" ? body.outline : ""
   const context = typeof body.context === "string" ? body.context : ""
 
-  let systemPrompt = `You are a professional fiction writer. Given an outline or scene beats, write a complete, polished first draft scene. Write vivid, engaging prose with dialogue, action, and description. Match the specified POV and tense. Do NOT include meta-commentary — just write the scene.`
+  let systemPrompt = `你是一名专业的小说作家。根据给定的大纲或场景节拍，撰写一个完整、精炼的初稿场景。写出生动、引人入胜的散文，包含对话、动作和描写。匹配指定的视角和时态。不要包含任何元评论——直接写场景。`
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `${context ? `Previous context:\n${context.slice(-2000)}\n\n` : ""}Write a complete first draft scene based on these beats/outline:\n\n${outline}\n\nWrite the full scene (800-1200 words) with rich prose, dialogue, and description:`
+  const userPrompt = `${context ? `前文上下文：\n${context.slice(-2000)}\n\n` : ""}请根据以下节拍/大纲撰写完整的初稿场景：\n\n${outline}\n\n请写出完整的场景（800-1200字），包含丰富的散文描写、对话和细节：`
 
   return [
     { role: "system", content: systemPrompt },
@@ -105,13 +105,13 @@ function buildExpandMessages(
   const text = typeof body.text === "string" ? body.text : ""
   const context = typeof body.context === "string" ? body.context : ""
 
-  let systemPrompt = `You are a creative fiction writing assistant. Your task is to expand the given passage by adding more detail, description, sensory imagery, internal thoughts, and moment-to-moment action. Slow down the pacing and flesh out the scene without changing the plot direction. Return ONLY the expanded prose.`
+  let systemPrompt = `你是一名富有创造力的小说写作助手。你的任务是扩写给定段落，添加更多细节、描写、感官意象、内心活动和逐帧动作。放慢节奏，充实场景，但不改变情节方向。仅返回扩写后的散文。`
 
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `Expand this passage with more detail, description, and depth:\n\n"${text}"\n\n${context ? `Story context:\n${context.slice(-2000)}\n\n` : ""}Write an expanded version (roughly 2-3x the original length). Focus on sensory details, character interiority, and scene-setting:`
+  const userPrompt = `请扩写以下段落，添加更多细节、描写和深度：\n\n"${text}"\n\n${context ? `故事上下文：\n${context.slice(-2000)}\n\n` : ""}请写出扩展版本（大约为原文的2-3倍长度），重点关注感官细节、人物内心和场景渲染：`
 
   return [
     { role: "system", content: systemPrompt },
@@ -125,23 +125,23 @@ function buildDescribeMessages(
 ): Array<{ role: "system" | "user"; content: string }> {
   const text = typeof body.text === "string" ? body.text : ""
 
-  let systemPrompt = `You are a creative writing assistant specializing in sensory description. Given a word, phrase, or passage, generate vivid descriptions organized by the five senses plus metaphors. Format your response clearly with headers for each sense.`
+  let systemPrompt = `你是一名擅长感官描写的创意写作助手。给定一个词、短语或段落，按五感加比喻的方式生成生动的描写素材。用清晰的标题组织你的回答。`
   if (fullContext) {
     systemPrompt += `\n\n${fullContext}`
   }
 
-  const userPrompt = `Generate rich, sensory descriptions for: "${text}"
+  const userPrompt = `请为以下内容生成丰富的感官描写素材："${text}"
 
-Format your response like this:
+请按以下格式组织回答：
 
-**Sight**: [visual descriptions]
-**Sound**: [auditory descriptions]
-**Smell**: [olfactory descriptions]
-**Touch**: [tactile descriptions]
-**Taste**: [gustatory descriptions]
-**Metaphor**: [creative metaphors and similes]
+**视觉**：[视觉描写]
+**听觉**：[听觉描写]
+**嗅觉**：[嗅觉描写]
+**触觉**：[触觉描写]
+**味觉**：[味觉描写]
+**比喻**：[创意比喻和象征]
 
-Make each description vivid and suitable for use in fiction. Provide 2-3 options per sense.`
+每种感官提供2-3个选项，使描写生动且适合在小说中使用。`
 
   return [
     { role: "system", content: systemPrompt },
