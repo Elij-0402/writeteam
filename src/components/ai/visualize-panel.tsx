@@ -1,17 +1,7 @@
-"use client"
+﻿"use client"
 
+import Image from "next/image"
 import { useState, useEffect, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   X,
   Image as ImageIcon,
@@ -22,6 +12,17 @@ import {
 import { toast } from "sonner"
 import { getImages, deleteImage } from "@/app/actions/images"
 import { useAIConfigContext } from "@/components/providers/ai-config-provider"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { getEndpointForFeature } from "@/lib/ai/category-mapping"
 import type { Image as ImageType } from "@/types/database"
 
@@ -48,14 +49,12 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
   const [images, setImages] = useState<ImageType[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
 
-  // Update text when selectedText prop changes
   useEffect(() => {
     if (selectedText) {
       setText(selectedText)
     }
   }, [selectedText])
 
-  // Load image history
   const loadImages = useCallback(async () => {
     setLoadingHistory(true)
     const result = await getImages(projectId)
@@ -92,8 +91,6 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
 
       const { imageUrl, prompt } = await response.json()
       setCurrentImage({ url: imageUrl, prompt })
-
-      // Refresh history
       await loadImages()
       toast.success("图片生成成功")
     } catch (error) {
@@ -109,6 +106,7 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
       toast.error(result.error)
       return
     }
+
     setImages((prev) => prev.filter((img) => img.id !== imageId))
     toast.success("图片已删除")
   }
@@ -130,12 +128,11 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="px-4 py-4 space-y-4">
-          {/* Input Section */}
+        <div className="space-y-4 px-4 py-4">
           <div className="space-y-2">
             <Label className="text-xs font-medium">描述文本</Label>
             <Textarea
-              placeholder="输入场景描述或粘贴文本段落，AI 将为你生成对应的图片..."
+              placeholder="输入场景描述或粘贴文本段落，AI 将为你生成对应图片..."
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={5}
@@ -172,28 +169,25 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
             {generating ? "生成中..." : "生成图片"}
           </Button>
 
-          {/* Current Generated Image */}
           {currentImage && (
             <div className="space-y-2">
               <Label className="text-xs font-medium">生成结果</Label>
               <div className="overflow-hidden rounded-lg border">
-                <img
+                <Image
                   src={currentImage.url}
                   alt="AI 生成的场景图片"
-                  className="w-full h-auto"
+                  width={768}
+                  height={512}
+                  className="h-auto w-full"
+                  unoptimized
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                {currentImage.prompt}
-              </p>
+              <p className="text-[10px] leading-relaxed text-muted-foreground">{currentImage.prompt}</p>
             </div>
           )}
 
-          {/* History Gallery */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium">
-              历史记录 {!loadingHistory && `(${images.length})`}
-            </Label>
+            <Label className="text-xs font-medium">历史记录 {!loadingHistory && `(${images.length})`}</Label>
 
             {loadingHistory ? (
               <div className="flex items-center justify-center py-8">
@@ -209,22 +203,25 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
                 {images.map((img) => (
                   <div key={img.id} className="group relative">
                     <div className="overflow-hidden rounded-lg border">
-                      <img
+                      <Image
                         src={img.image_url}
                         alt={img.prompt}
-                        className="w-full h-auto"
+                        width={768}
+                        height={512}
+                        className="h-auto w-full"
                         loading="lazy"
+                        unoptimized
                       />
                     </div>
                     <div className="mt-1 flex items-start justify-between gap-2">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2 flex-1">
+                      <p className="line-clamp-2 flex-1 text-[10px] leading-relaxed text-muted-foreground">
                         {img.prompt}
                       </p>
-                      <div className="flex gap-0.5 shrink-0">
+                      <div className="flex shrink-0 gap-0.5">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-6 w-6 p-0 opacity-0 transition-opacity group-hover:opacity-100"
                           onClick={() => handleDownload(img.image_url)}
                         >
                           <Download className="h-3 w-3" />
@@ -232,7 +229,7 @@ export function VisualizePanel({ projectId, selectedText, onClose }: VisualizePa
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-6 w-6 p-0 text-destructive opacity-0 transition-opacity group-hover:opacity-100"
                           onClick={() => handleDeleteImage(img.id)}
                         >
                           <Trash2 className="h-3 w-3" />

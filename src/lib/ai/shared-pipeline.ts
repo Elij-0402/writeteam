@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js"
+﻿import type { SupabaseClient } from "@supabase/supabase-js"
 import { resolveAIConfig } from "@/lib/ai/resolve-config"
 import type { ResolvedAIConfig } from "@/lib/ai/resolve-config"
 import { createOpenAIStreamResponse, extractRetryMeta } from "@/lib/ai/openai-stream"
@@ -6,10 +6,8 @@ import { fetchStoryContext, buildStoryPromptContext } from "@/lib/ai/story-conte
 import { runConsistencyPreflight } from "@/lib/ai/consistency-preflight"
 import { getIntentConfig } from "@/lib/ai/intent-config"
 import type { AIIntent } from "@/lib/ai/intent-config"
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { logger } from "@/lib/observability/logger"
+import { createRequestId } from "@/lib/observability/request-id"
 
 export interface PipelineInput {
   supabase: SupabaseClient
@@ -28,69 +26,64 @@ interface ValidateResult {
   aiConfig: ResolvedAIConfig
 }
 
-// ---------------------------------------------------------------------------
-// validateAndResolve — auth + body parsing + AI config resolution
-// ---------------------------------------------------------------------------
+function errorResponse(
+  error: string,
+  code: string,
+  requestId: string,
+  status: number,
+): Response {
+  return Response.json({ error, code, requestId }, { status })
+}
 
 export async function validateAndResolve(
   supabase: SupabaseClient,
   request: Request,
+  requestId: string = createRequestId(null),
 ): Promise<ValidateResult> {
-  // 1. Authenticate
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
   if (!user) {
     return {
-      error: Response.json({ error: "未登录" }, { status: 401 }),
+      error: errorResponse("未登录", "UNAUTHORIZED", requestId, 401),
       userId: "",
       body: {},
       aiConfig: { baseUrl: "", apiKey: "", modelId: "" },
     }
   }
 
-  // 2. Parse request body
   let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {
     return {
-      error: Response.json(
-        { error: "请求参数格式错误，请刷新后重试" },
-        { status: 400 },
-      ),
+      error: errorResponse("请求参数格式错误，请刷新后重试", "INVALID_JSON", requestId, 400),
       userId: user.id,
       body: {},
       aiConfig: { baseUrl: "", apiKey: "", modelId: "" },
     }
   }
 
-  // 3. Validate projectId
   const rawProjectId = body.projectId
   const projectId =
     typeof rawProjectId === "string" && rawProjectId.trim().length > 0
       ? rawProjectId.trim()
       : null
+
   if (!projectId) {
     return {
-      error: Response.json(
-        { error: "缺少项目ID，请返回项目后重试" },
-        { status: 400 },
-      ),
+      error: errorResponse("缺少项目ID，请返回项目后重试", "MISSING_PROJECT_ID", requestId, 400),
       userId: user.id,
       body,
       aiConfig: { baseUrl: "", apiKey: "", modelId: "" },
     }
   }
 
-  // 4. Resolve AI config from headers
   const aiConfig = resolveAIConfig(request as Parameters<typeof resolveAIConfig>[0])
   if (!aiConfig) {
     return {
-      error: Response.json(
-        { error: "AI 服务未配置，请先在设置中配置模型后重试" },
-        { status: 400 },
-      ),
+      error: errorResponse("AI 服务未配置，请先在设置中配置模型后重试", "AI_CONFIG_MISSING", requestId, 400),
       userId: user.id,
       body,
       aiConfig: { baseUrl: "", apiKey: "", modelId: "" },
@@ -100,29 +93,19 @@ export async function validateAndResolve(
   return { userId: user.id, body, aiConfig }
 }
 
-// ---------------------------------------------------------------------------
-// runStreamingPipeline — full 5-step pipeline
-// ---------------------------------------------------------------------------
-
 export async function runStreamingPipeline(
   input: PipelineInput,
 ): Promise<Response> {
   const { supabase, request, intent, buildMessages } = input
+  const requestId = createRequestId(request.headers.get("x-request-id"))
 
-  // Lookup intent configuration
   const intentConfig = getIntentConfig(intent)
   if (!intentConfig) {
-    return Response.json(
-      { error: `未知的 AI 意图: ${intent}` },
-      { status: 400 },
-    )
+    return errorResponse(`未知 AI 意图: ${intent}`, "UNKNOWN_INTENT", requestId, 400)
   }
 
-  // Clone request so body can be consumed by both validateAndResolve and later logic
   const clonedRequest = request.clone()
-
-  // Step 1-2: Auth + body parse + AI config
-  const resolved = await validateAndResolve(supabase, clonedRequest)
+  const resolved = await validateAndResolve(supabase, clonedRequest, requestId)
   if (resolved.error) {
     return resolved.error
   }
@@ -135,19 +118,20 @@ export async function runStreamingPipeline(
       : null
 
   try {
-    // Step 3: Fetch story context
     const storyCtx = await fetchStoryContext(supabase, projectId, userId)
 
-    // Step 3.5: Consistency preflight (if enabled for this intent)
     if (intentConfig.consistencyPreflight) {
       const preflight = runConsistencyPreflight({
         text: JSON.stringify(body).slice(0, 3000),
         consistencyState: storyCtx.consistencyState,
       })
+
       if (preflight.shouldBlock) {
         return Response.json(
           {
             error: "检测到高风险设定冲突，请先修正后再试",
+            code: "CONSISTENCY_HIGH_RISK",
+            requestId,
             errorType: "consistency_high_risk",
             severity: "high",
             violations: preflight.violations,
@@ -157,9 +141,7 @@ export async function runStreamingPipeline(
       }
     }
 
-    // Step 4: Build story prompt context
-    const proseMode =
-      typeof body.proseMode === "string" ? body.proseMode : null
+    const proseMode = typeof body.proseMode === "string" ? body.proseMode : null
     const saliency = body.saliency ?? null
     const { fullContext } = buildStoryPromptContext(storyCtx, {
       feature: intentConfig.feature,
@@ -167,19 +149,15 @@ export async function runStreamingPipeline(
       saliencyMap: saliency as Parameters<typeof buildStoryPromptContext>[1]["saliencyMap"],
     })
 
-    // Step 4.5: Let the caller build messages
     const messages = buildMessages({ body, fullContext })
 
-    // Step 5: Build prompt log (truncated to 200 chars)
     const promptSummary = messages
       .map((m) => `[${m.role}] ${m.content}`)
       .join(" | ")
     const promptLog = promptSummary.slice(0, 200)
 
-    // Extract retry metadata
     const retryMeta = extractRetryMeta(body)
 
-    // Step 6: Create streaming response
     return await createOpenAIStreamResponse(
       {
         messages,
@@ -198,6 +176,14 @@ export async function runStreamingPipeline(
       },
     )
   } catch {
-    return Response.json({ error: "服务器内部错误" }, { status: 500 })
+    logger.error("runStreamingPipeline failed", {
+      requestId,
+      route: "/api/ai/*",
+      feature: intentConfig.feature,
+      userId,
+      errorCode: "PIPELINE_INTERNAL_ERROR",
+    })
+
+    return errorResponse("服务器内部错误", "PIPELINE_INTERNAL_ERROR", requestId, 500)
   }
 }
