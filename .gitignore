@@ -43,3 +43,5 @@ next-env.d.ts
 # local git worktrees
 .worktrees/
 .claude/settings.local.json
+
+.vercel
