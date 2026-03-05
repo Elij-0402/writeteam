@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node scripts/run-tests.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "audit:high": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.33",
